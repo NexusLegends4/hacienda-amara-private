@@ -1,0 +1,157 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+	name: "light";
+	default: true;
+	--color-primary: #05683b;
+	--color-secondary: #febe10;
+}
+
+@plugin "daisyui/theme" {
+	name: "dark";
+	--color-primary: #05683b;
+	--color-secondary: #febe10;
+}
+
+html[data-theme="light"] body {
+	color: #000;
+}
+
+html[data-theme="dark"] body {
+	color: #fff;
+}
+
+html[data-theme="light"] .text-black,
+html[data-theme="light"] .text-black\/75,
+html[data-theme="light"] .text-black\/70,
+html[data-theme="light"] .text-black\/60,
+html[data-theme="light"] .text-black\/45,
+html[data-theme="light"] .text-black\/40,
+html[data-theme="light"] .text-black\/20,
+html[data-theme="light"] .text-black\/10,
+html[data-theme="light"] .text-black\/5 {
+	color: rgb(0 0 0 / 1) !important;
+}
+
+html[data-theme="dark"] .text-black,
+html[data-theme="dark"] .text-black\/75,
+html[data-theme="dark"] .text-black\/70,
+html[data-theme="dark"] .text-black\/60,
+html[data-theme="dark"] .text-black\/45,
+html[data-theme="dark"] .text-black\/40,
+html[data-theme="dark"] .text-black\/20,
+html[data-theme="dark"] .text-black\/10,
+html[data-theme="dark"] .text-black\/5 {
+	color: rgb(255 255 255 / 1) !important;
+}
+
+html[data-theme="light"] .btn-black {
+	border-color: rgb(0 0 0 / 1);
+	background-color: rgb(0 0 0 / 1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="light"] .btn-black:hover {
+	background-color: rgb(17 17 17 / 1);
+	border-color: rgb(17 17 17 / 1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .btn-black {
+	border-color: rgb(255 255 255 / 1);
+	background-color: rgb(255 255 255 / 1);
+	color: rgb(0 0 0 / 1);
+}
+
+html[data-theme="dark"] .btn-black:hover {
+	background-color: rgb(235 235 235 / 1);
+	border-color: rgb(235 235 235 / 1);
+	color: rgb(0 0 0 / 1);
+}
+
+html[data-theme="light"] .btn:not(.btn-black) {
+	color: rgb(0 0 0 / 1);
+}
+
+html[data-theme="dark"] .btn:not(.btn-black) {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="light"] .input,
+html[data-theme="light"] .textarea,
+html[data-theme="light"] .select {
+	color: rgb(0 0 0 / 1);
+}
+
+html[data-theme="dark"] .input,
+html[data-theme="dark"] .textarea,
+html[data-theme="dark"] .select {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+	color: rgb(255 255 255 / 0.6);
+}
+
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+	color: rgb(0 0 0 / 0.45);
+}
+
+html[data-theme="light"] .home-hero-copy {
+	color: rgb(0 0 0 / 1);
+	background-color: rgb(255 255 255 / 0.7);
+	border-color: rgb(0 0 0 / 0.05);
+}
+
+html[data-theme="dark"] .home-hero-copy {
+	color: rgb(255 255 255 / 1);
+	background-color: rgb(10 10 10 / 0.72);
+	border-color: rgb(255 255 255 / 0.12);
+}
+
+html[data-theme="light"] .home-hero-copy h1,
+html[data-theme="light"] .home-hero-copy p,
+html[data-theme="light"] .home-hero-copy .home-hero-badge,
+html[data-theme="light"] .home-hero-copy .home-hero-chip,
+html[data-theme="light"] .home-hero-copy .home-hero-note {
+	color: rgb(0 0 0 / 1);
+}
+
+html[data-theme="dark"] .home-hero-copy h1,
+html[data-theme="dark"] .home-hero-copy p,
+html[data-theme="dark"] .home-hero-copy .home-hero-badge,
+html[data-theme="dark"] .home-hero-copy .home-hero-chip,
+html[data-theme="dark"] .home-hero-copy .home-hero-note {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="light"] .home-hero-chip {
+	background-color: rgb(255 255 255 / 1);
+	border-color: rgb(0 0 0 / 0.1);
+}
+
+html[data-theme="dark"] .home-hero-chip {
+	background-color: rgb(24 24 27 / 1);
+	border-color: rgb(255 255 255 / 0.14);
+}
+
+html[data-theme="light"] .home-hero-note {
+	color: rgb(0 0 0 / 0.6);
+}
+
+html[data-theme="dark"] .home-hero-note {
+	color: rgb(255 255 255 / 0.75);
+}
+
+html[data-theme="light"] .home-hero-badge {
+	background-color: rgb(255 255 255 / 0.8);
+	border-color: rgb(0 0 0 / 0.1);
+}
+
+html[data-theme="dark"] .home-hero-badge {
+	background-color: rgb(24 24 27 / 0.85);
+	border-color: rgb(255 255 255 / 0.14);
+}
