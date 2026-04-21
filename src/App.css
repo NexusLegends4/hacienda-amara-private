@@ -155,3 +155,9 @@ html[data-theme="dark"] .home-hero-badge {
 	background-color: rgb(24 24 27 / 0.85);
 	border-color: rgb(255 255 255 / 0.14);
 }
+
+html,
+body {
+	overflow-x: hidden;
+	max-width: 100vw;
+}
