@@ -165,7 +165,10 @@ const NavBar = () => {
 								Manage Clients
 							</NavLink>
 							<NavLink to="/admin-reservations" className={navLinkClass}>
-								Reservations
+								Calendar
+							</NavLink>
+							<NavLink to="/manage-reservations" className={navLinkClass}>
+								Manage Reservations
 							</NavLink>
 							<NavLink to="/booking-qr" className={navLinkClass}>
 								Booking QR
