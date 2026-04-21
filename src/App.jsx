@@ -1,4 +1,5 @@
 import "./App.css";
+import BookingQr from "./pages/BookingQr.jsx";
 import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import SignUp from "./pages/SignUp";
@@ -217,6 +218,7 @@ function App() {
 				<Route path="/settings" element={<Settings />} />
 				<Route path="/events" element={<Events />} />
 				<Route path="/rooms" element={<Reservations />} />
+				<Route path="/booking-qr" element={<BookingQr />} />
 			</Routes>
 		</SessionContext.Provider>
 	);
