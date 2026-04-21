@@ -6,7 +6,7 @@ import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
 import { useNavigate } from "react-router-dom";
-import { FiBell, FiHome } from "react-icons/fi";
+import { FiBell, FiHome, FiChevronDown } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -158,17 +158,40 @@ const NavBar = () => {
 
 					{profile?.role === "admin" && (
 						<>
-							<NavLink to="/manage-events" className={navLinkClass}>
-								Manage Events
-							</NavLink>
-							<NavLink to="/manage-clients" className={navLinkClass}>
-								Manage Clients
-							</NavLink>
+							{/* Manage dropdown */}
+							<div className="dropdown dropdown-bottom relative z-[999]">
+								<div
+									tabIndex={0}
+									role="button"
+									className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer"
+								>
+									Manage
+									<FiChevronDown />
+								</div>
+								<ul
+									tabIndex={0}
+									className="menu menu-sm dropdown-content z-[1000] mt-2 w-52 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl"
+								>
+									<li>
+										<NavLink to="/manage-events" className="rounded-xl px-3 py-2 text-base-content hover:bg-base-200">
+											Manage Events
+										</NavLink>
+									</li>
+									<li>
+										<NavLink to="/manage-clients" className="rounded-xl px-3 py-2 text-base-content hover:bg-base-200">
+											Manage Clients
+										</NavLink>
+									</li>
+									<li>
+										<NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 text-base-content hover:bg-base-200">
+											Manage Reservations
+										</NavLink>
+									</li>
+								</ul>
+							</div>
+
 							<NavLink to="/admin-reservations" className={navLinkClass}>
 								Calendar
-							</NavLink>
-							<NavLink to="/manage-reservations" className={navLinkClass}>
-								Manage Reservations
 							</NavLink>
 							<NavLink to="/booking-qr" className={navLinkClass}>
 								Booking QR
