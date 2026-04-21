@@ -72,7 +72,7 @@ const Reviews = () => {
 									Guest Experience
 								</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">
-									Resort Reviews
+									Customer Reviews
 								</h1>
 								<p className="mt-3 max-w-xl text-sm leading-6 text-base-content/75 md:text-base">
 									See what our guests have to say about their stay at Hacienda Amara.
@@ -125,8 +125,8 @@ const Reviews = () => {
 										<div key={star} className="flex items-center gap-4">
 											<span className="w-3 text-xs font-bold text-slate-500">{star}</span>
 											<div className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
-												<div 
-													className="h-full bg-amber-500 transition-all duration-500" 
+												<div
+													className="h-full bg-amber-500 transition-all duration-500"
 													style={{ width: `${(ratingSummary.counts[i] / ratingSummary.total) * 100}%` }}
 												/>
 											</div>
@@ -155,22 +155,22 @@ const Reviews = () => {
 								<div key={rev.id} className="relative rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-xl backdrop-blur transition-all hover:shadow-2xl sm:p-8 md:p-10 flex flex-col justify-between overflow-hidden">
 									<div className="absolute top-4 right-8 text-8xl font-serif text-black/5 pointer-events-none">“</div>
 									<div>
-									<div className="flex items-center gap-1 text-amber-500 mb-4">
-										{[...Array(5)].map((_, i) => (
-											<FiStar key={i} className={i < rev.rating ? "fill-current" : ""} />
-										))}
-									</div>
-									<p className="text-slate-700 text-lg mb-6 leading-relaxed font-medium">"{rev.comment}"</p>
-									
-									{rev.media_url && (
-										<div className="mb-6 overflow-hidden rounded-2xl border border-black/5 shadow-inner">
-											{rev.media_type === "video" ? (
-												<video controls className="aspect-video w-full object-cover" src={rev.media_url} />
-											) : (
-												<img src={rev.media_url} className="aspect-video w-full object-cover" alt="Guest stay" />
-											)}
+										<div className="flex items-center gap-1 text-amber-500 mb-4">
+											{[...Array(5)].map((_, i) => (
+												<FiStar key={i} className={i < rev.rating ? "fill-current" : ""} />
+											))}
 										</div>
-									)}
+										<p className="text-slate-700 text-lg mb-6 leading-relaxed font-medium">"{rev.comment}"</p>
+
+										{rev.media_url && (
+											<div className="mb-6 overflow-hidden rounded-2xl border border-black/5 shadow-inner">
+												{rev.media_type === "video" ? (
+													<video controls className="aspect-video w-full object-cover" src={rev.media_url} />
+												) : (
+													<img src={rev.media_url} className="aspect-video w-full object-cover" alt="Guest stay" />
+												)}
+											</div>
+										)}
 									</div>
 
 									<div className="flex items-center justify-between border-t border-black/5 pt-6 mt-4">
