@@ -64,10 +64,6 @@ const HomePage = () => {
                 Get Started
               </NavLink>
 
-              <button className="border border-gray-300 text-gray-800 text-sm font-medium px-5 py-3 rounded-full hover:bg-gray-50 transition-colors">
-                Learn More
-              </button>
-
               <NavLink
                 to="/reviews"
                 className="border border-gray-300 text-gray-800 text-sm font-medium px-5 py-3 rounded-full hover:bg-gray-50 transition-colors"
