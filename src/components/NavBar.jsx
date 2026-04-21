@@ -70,14 +70,12 @@ const NavBar = () => {
 		].join(" ");
 
 	const handleLogout = async () => {
-		// Update status to offline before signing out
-		// This part is already in place from previous requests.
 		if (profile?.id) {
 			await supabase
 				.from("profiles")
-				.update({ 
+				.update({
 					status: "offline",
-					last_seen: new Date().toISOString() 
+					last_seen: new Date().toISOString()
 				})
 				.eq("id", profile.id);
 
@@ -95,21 +93,19 @@ const NavBar = () => {
 		const { error } = await supabase.auth.signOut();
 		if (error) alert("Error logging out: " + error.message);
 
-		// Clear local state immediately so logout feels instant.
 		setSession(null);
 		setProfile(null);
 		navigate("/");
 	};
 
-	// Update online status and activity timestamp when user is logged in
 	useEffect(() => {
 		if (session && profile?.id) {
 			const updateActivity = async () => {
 				await supabase
 					.from("profiles")
-					.update({ 
+					.update({
 						status: "online",
-						last_seen: new Date().toISOString() 
+						last_seen: new Date().toISOString()
 					})
 					.eq("id", profile.id);
 			};
@@ -118,11 +114,9 @@ const NavBar = () => {
 	}, [session, profile?.id]);
 
 	return (
-		// Sticky brand bar with role-aware navigation actions.
 		<div className="navbar relative z-50 overflow-visible border-b border-base-200 bg-base-100/90 shadow-sm backdrop-blur">
 			<div className="flex w-full max-w-7xl mx-auto flex-col gap-3 px-3 py-3 sm:px-4 lg:flex-row lg:items-center">
 				<div className="flex-1">
-					{/* Resort branding stays on the left for quick recognition. */}
 					<div className="flex items-center gap-3">
 						<div className="leading-tight">
 							<div className="text-sm font-bold tracking-tight text-base-content sm:text-base md:text-lg">
@@ -135,46 +129,27 @@ const NavBar = () => {
 					</div>
 				</div>
 				<div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
-					{/* Main navigation is shared across all user roles. */}
-					<NavLink
-						to="/"
-						className={navLinkClass}
-					>
+					<NavLink to="/" className={navLinkClass}>
 						<FiHome className="mr-1 text-sm" />
 						Home
 					</NavLink>
-					<NavLink
-						to="/about"
-						className={navLinkClass}
-					>
+					<NavLink to="/about" className={navLinkClass}>
 						About Us
 					</NavLink>
-					<NavLink
-						to="/rules"
-						className={navLinkClass}
-					>
+					<NavLink to="/rules" className={navLinkClass}>
 						Rules
 					</NavLink>
-					<NavLink
-						to="/chat"
-						className={navLinkClass}
-					>
+					<NavLink to="/chat" className={navLinkClass}>
 						Chat
 					</NavLink>
+
 					{!session && (
 						<>
-							<NavLink
-								to="/sign-up"
-								className={navLinkClass}
-							>
+							<NavLink to="/sign-up" className={navLinkClass}>
 								<SignUpIcon className="text-base" />
 								Sign Up
 							</NavLink>
-
-							<NavLink
-								to="/log-in"
-								className={navLinkClass}
-							>
+							<NavLink to="/log-in" className={navLinkClass}>
 								<LoginIcon className="text-lg" />
 								Login
 							</NavLink>
@@ -183,41 +158,38 @@ const NavBar = () => {
 
 					{profile?.role === "admin" && (
 						<>
-							<NavLink
-								to="/manage-events"
-								className={navLinkClass}
-							>
+							<NavLink to="/manage-events" className={navLinkClass}>
 								Manage Events
 							</NavLink>
-							<NavLink
-								to="/manage-clients"
-								className={navLinkClass}
-							>
+							<NavLink to="/manage-clients" className={navLinkClass}>
 								Manage Clients
 							</NavLink>
-							<NavLink
-								to="/admin-notifications"
-								className={navLinkClass}
-							>
+							<NavLink to="/admin-reservations" className={navLinkClass}>
+								Reservations
+							</NavLink>
+							<NavLink to="/booking-qr" className={navLinkClass}>
+								Booking QR
+							</NavLink>
+							<NavLink to="/admin-notifications" className={navLinkClass}>
 								Notifications
 							</NavLink>
 						</>
 					)}
 
 					{profile && profile.role !== "admin" && (
-						<NavLink
-							to="/events"
-							className={navLinkClass}
-						>
+						<NavLink to="/events" className={navLinkClass}>
 							Events
 						</NavLink>
 					)}
 
 					{profile && profile.role !== "admin" && (
-						<NavLink
-							to="/client-notifications"
-							className={navLinkClass}
-						>
+						<NavLink to="/rooms" className={navLinkClass}>
+							Book Now
+						</NavLink>
+					)}
+
+					{profile && profile.role !== "admin" && (
+						<NavLink to="/client-notifications" className={navLinkClass}>
 							<FiBell className="text-base" />
 							Notifications
 							{unreadNotificationsCount > 0 && (
@@ -226,12 +198,7 @@ const NavBar = () => {
 						</NavLink>
 					)}
 
-
-					{/* nullish value, undefined, "", 0, null */}
-					{/* (session) && - if session is not nullish value then execute whatever code after the && */}
-					{/* (!session) && - if session is nullish then execute whatever code right after the &&*/}
 					{session && (
-						// Profile menu sits above the layout so it behaves like an overlay.
 						<div className="dropdown dropdown-end dropdown-bottom relative z-[999]">
 							<div
 								tabIndex={0}
