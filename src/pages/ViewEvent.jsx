@@ -1,22 +1,26 @@
 import React, { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../utils/supabase";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
 import { QRCodeSVG } from "qrcode.react";
-
-const HOME_BACKGROUND_IMAGE =
-	"https://scontent.fmnl9-6.fna.fbcdn.net/v/t39.30808-6/494369075_122128145408749963_4990497671908646009_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=110&ccb=1-7&_nc_sid=7b2446&_nc_ohc=_bIjtQyapPkQ7kNvwGyjTEL&_nc_oc=Adqs_72QnpeiESmu27Z5jwKEdvlzqAcLaFBXBG4oCyJCT9SIGVUdoqhTiyTTjh4lpro&_nc_zt=23&se=-1&_nc_ht=scontent.fmnl9-6.fna&_nc_gid=AsNb17ujiPpWRbYFkqG07w&_nc_ss=7a3a8&oh=00_Af136LY8WbVVP2OmYbCjcpfh2N0e4mOXOcsRxVzAEKKHmg&oe=69D7F2D5";
+import { FiCheckCircle, FiUserCheck, FiUsers } from "react-icons/fi";
 
 const ViewEvent = () => {
 	const { eventId } = useParams();
+	const [searchParams] = useSearchParams();
 	const [event, setEvent] = useState(null);
 	const [loading, setLoading] = useState(true);
-	const { profile } = useContext(SessionContext);
+	const [registered, setRegistered] = useState(false);
+	const [registering, setRegistering] = useState(false);
+	const [registrationCount, setRegistrationCount] = useState(0);
+	const { session, profile } = useContext(SessionContext);
+
+	// Check if came from QR scan
+	const fromScan = searchParams.get("scan") === "1";
 
 	useEffect(() => {
-		// Fetch the selected event whenever the route parameter changes.
 		const fetchEvent = async () => {
 			setLoading(true);
 			const { data, error } = await supabase
@@ -31,12 +35,63 @@ const ViewEvent = () => {
 			} else {
 				setEvent(data);
 			}
-
 			setLoading(false);
 		};
 
 		if (eventId) fetchEvent();
 	}, [eventId]);
+
+	// Check if already registered + get count
+	useEffect(() => {
+		if (!eventId) return;
+
+		const checkRegistration = async () => {
+			// Get total count
+			const { count } = await supabase
+				.from("registrations")
+				.select("*", { count: "exact", head: true })
+				.eq("event_id", eventId);
+			setRegistrationCount(count || 0);
+
+			// Check if current client is registered
+			if (session?.user?.id) {
+				const { data } = await supabase
+					.from("registrations")
+					.select("id")
+					.eq("event_id", eventId)
+					.eq("profile_id", session.user.id)
+					.maybeSingle();
+				setRegistered(!!data);
+			}
+		};
+
+		checkRegistration();
+	}, [eventId, session?.user?.id]);
+
+	// Auto-register if came from QR scan
+	useEffect(() => {
+		if (fromScan && session?.user?.id && profile?.role === "client" && event && !registered) {
+			handleRegister();
+		}
+	}, [fromScan, session?.user?.id, profile?.role, event, registered]);
+
+	const handleRegister = async () => {
+		if (!session?.user?.id) return;
+		if (registered) return;
+		setRegistering(true);
+
+		const { error } = await supabase
+			.from("registrations")
+			.insert({ profile_id: session.user.id, event_id: eventId });
+
+		if (error && !error.message.includes("duplicate")) {
+			alert(error.message);
+		} else {
+			setRegistered(true);
+			setRegistrationCount((prev) => prev + 1);
+		}
+		setRegistering(false);
+	};
 
 	return (
 		<MainLayout>
@@ -56,75 +111,102 @@ const ViewEvent = () => {
 								</p>
 							</div>
 							{profile?.role === "admin" && event && (
-								<Link
-									to={`/edit-event/${event.id}`}
-									className="btn btn-black rounded-full"
-								>
+								<Link to={`/edit-event/${event.id}`} className="btn btn-black rounded-full">
 									Edit Event
 								</Link>
 							)}
 						</div>
 
+						{/* Auto-registered banner */}
+						{fromScan && registered && (
+							<div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-4">
+								<FiCheckCircle className="text-emerald-600 text-xl shrink-0" />
+								<div>
+									<p className="font-bold text-emerald-800">You've been registered!</p>
+									<p className="text-sm text-emerald-600">Your attendance for this event has been recorded.</p>
+								</div>
+							</div>
+						)}
+
 						<div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.9fr]">
+							{/* Event Info */}
 							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
 								{loading && <p>Loading event...</p>}
-
 								{!loading && !event && <p>Event not found.</p>}
-
 								{event && (
 									<div className="space-y-4 text-sm leading-6 text-base-content/80">
 										<div className="grid gap-3">
-											<p>
-												<span className="font-semibold text-base-content">Start Date:</span>{" "}
-												{event.start_date}
-											</p>
-											<p>
-												<span className="font-semibold text-base-content">End Date:</span>{" "}
-												{event.end_date}
-											</p>
-											<p>
-												<span className="font-semibold text-base-content">Start Time:</span>{" "}
-												{event.start_time}
-											</p>
-											<p>
-												<span className="font-semibold text-base-content">End Time:</span>{" "}
-												{event.end_time}
-											</p>
-											<p>
-												<span className="font-semibold text-base-content">Location:</span>{" "}
-												{event.location}
-											</p>
+											<p><span className="font-semibold text-base-content">Start Date:</span> {event.start_date}</p>
+											<p><span className="font-semibold text-base-content">End Date:</span> {event.end_date}</p>
+											<p><span className="font-semibold text-base-content">Start Time:</span> {event.start_time}</p>
+											<p><span className="font-semibold text-base-content">End Time:</span> {event.end_time}</p>
+											<p><span className="font-semibold text-base-content">Location:</span> {event.location}</p>
 										</div>
 
 										<div className="rounded-2xl bg-base-100 p-5">
-											<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/55">
-												Description
-											</p>
-											<p className="mt-2 text-base-content/80">
-												{event.description || "No description provided."}
-											</p>
+											<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/55">Description</p>
+											<p className="mt-2 text-base-content/80">{event.description || "No description provided."}</p>
 										</div>
+
+										{/* Registration count */}
+										<div className="flex items-center gap-2 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
+											<FiUsers className="text-amber-700 shrink-0" />
+											<p className="text-sm font-bold text-amber-800">{registrationCount} {registrationCount === 1 ? "person" : "people"} registered</p>
+										</div>
+
+										{/* Register button for clients */}
+										{profile?.role === "client" && (
+											<div>
+												{registered ? (
+													<div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
+														<FiUserCheck /> You are registered for this event
+													</div>
+												) : (
+													<button
+														onClick={handleRegister}
+														disabled={registering}
+														className="btn btn-black rounded-full w-full"
+													>
+														{registering
+															? <span className="loading loading-spinner" />
+															: <><FiUserCheck /> Register for this Event</>
+														}
+													</button>
+												)}
+											</div>
+										)}
 									</div>
 								)}
 							</div>
 
-							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
-								<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-									Scan to open this event
-								</p>
-								<div className="flex flex-col items-center gap-4">
-									<QRCodeSVG
-										value={`${window.location.origin}/view-event/${event?.id || ""}`}
-										size={220}
-										includeMargin
-										className="rounded-2xl bg-white p-3 shadow-sm"
-									/>
-									<div className="text-center text-sm text-base-content/70">
-										Scan this QR code to open the event page directly on another
-										device.
+							{/* QR Code — only for admin */}
+							{profile?.role === "admin" && (
+								<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
+									<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+										Scan to register for this event
+									</p>
+									<div className="flex flex-col items-center gap-4">
+										<QRCodeSVG
+											value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
+											size={220}
+											includeMargin
+											className="rounded-2xl bg-white p-3 shadow-sm"
+										/>
+										<p className="text-center text-sm text-base-content/70">
+											Guests scan this to automatically register for the event.
+										</p>
 									</div>
 								</div>
-							</div>
+							)}
+
+							{/* For clients — no QR shown, just the info */}
+							{profile?.role !== "admin" && (
+								<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm flex flex-col items-center justify-center text-center gap-3">
+									<FiUserCheck className="text-4xl text-amber-600" />
+									<p className="font-bold text-slate-800">Scan the QR code at the event to register instantly.</p>
+									<p className="text-sm text-slate-500">Or use the Register button on the left to sign up now.</p>
+								</div>
+							)}
 						</div>
 
 						<div className="mt-8 flex justify-end">
