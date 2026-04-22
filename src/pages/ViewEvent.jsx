@@ -17,7 +17,6 @@ const ViewEvent = () => {
 	const [registrationCount, setRegistrationCount] = useState(0);
 	const { session, profile } = useContext(SessionContext);
 
-	// Check if came from QR scan
 	const fromScan = searchParams.get("scan") === "1";
 
 	useEffect(() => {
@@ -41,19 +40,16 @@ const ViewEvent = () => {
 		if (eventId) fetchEvent();
 	}, [eventId]);
 
-	// Check if already registered + get count
 	useEffect(() => {
 		if (!eventId) return;
 
 		const checkRegistration = async () => {
-			// Get total count
 			const { count } = await supabase
 				.from("registrations")
 				.select("*", { count: "exact", head: true })
 				.eq("event_id", eventId);
 			setRegistrationCount(count || 0);
 
-			// Check if current client is registered
 			if (session?.user?.id) {
 				const { data } = await supabase
 					.from("registrations")
@@ -68,16 +64,15 @@ const ViewEvent = () => {
 		checkRegistration();
 	}, [eventId, session?.user?.id]);
 
-	// Auto-register if came from QR scan
+	// Auto-register only when came from QR scan
 	useEffect(() => {
-		if (fromScan && session?.user?.id && profile?.role === "client" && event && !registered) {
+		if (fromScan && session?.user?.id && profile?.role === "client" && event && !registered && !registering) {
 			handleRegister();
 		}
 	}, [fromScan, session?.user?.id, profile?.role, event, registered]);
 
 	const handleRegister = async () => {
-		if (!session?.user?.id) return;
-		if (registered) return;
+		if (!session?.user?.id || registered) return;
 		setRegistering(true);
 
 		const { error } = await supabase
@@ -151,62 +146,38 @@ const ViewEvent = () => {
 										{/* Registration count */}
 										<div className="flex items-center gap-2 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
 											<FiUsers className="text-amber-700 shrink-0" />
-											<p className="text-sm font-bold text-amber-800">{registrationCount} {registrationCount === 1 ? "person" : "people"} registered</p>
+											<p className="text-sm font-bold text-amber-800">
+												{registrationCount} {registrationCount === 1 ? "person" : "people"} registered
+											</p>
 										</div>
 
-										{/* Register button for clients */}
-										{profile?.role === "client" && (
-											<div>
-												{registered ? (
-													<div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-														<FiUserCheck /> You are registered for this event
-													</div>
-												) : (
-													<button
-														onClick={handleRegister}
-														disabled={registering}
-														className="btn btn-black rounded-full w-full"
-													>
-														{registering
-															? <span className="loading loading-spinner" />
-															: <><FiUserCheck /> Register for this Event</>
-														}
-													</button>
-												)}
+										{/* Already registered status */}
+										{registered && (
+											<div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
+												<FiUserCheck /> You are registered for this event
 											</div>
 										)}
 									</div>
 								)}
 							</div>
 
-							{/* QR Code — only for admin */}
-							{profile?.role === "admin" && (
-								<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
-									<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-										Scan to register for this event
+							{/* QR Code — visible to everyone */}
+							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
+								<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+									Scan to register for this event
+								</p>
+								<div className="flex flex-col items-center gap-4">
+									<QRCodeSVG
+										value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
+										size={220}
+										includeMargin
+										className="rounded-2xl bg-white p-3 shadow-sm"
+									/>
+									<p className="text-center text-sm text-base-content/70">
+										Scan this QR code with your phone to register for this event instantly.
 									</p>
-									<div className="flex flex-col items-center gap-4">
-										<QRCodeSVG
-											value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
-											size={220}
-											includeMargin
-											className="rounded-2xl bg-white p-3 shadow-sm"
-										/>
-										<p className="text-center text-sm text-base-content/70">
-											Guests scan this to automatically register for the event.
-										</p>
-									</div>
 								</div>
-							)}
-
-							{/* For clients — no QR shown, just the info */}
-							{profile?.role !== "admin" && (
-								<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm flex flex-col items-center justify-center text-center gap-3">
-									<FiUserCheck className="text-4xl text-amber-600" />
-									<p className="font-bold text-slate-800">Scan the QR code at the event to register instantly.</p>
-									<p className="text-sm text-slate-500">Or use the Register button on the left to sign up now.</p>
-								</div>
-							)}
+							</div>
 						</div>
 
 						<div className="mt-8 flex justify-end">
