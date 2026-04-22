@@ -122,7 +122,6 @@ const NavBar = () => {
 		}
 	}, [session, profile?.id]);
 
-	// Close mobile menu on route change
 	useEffect(() => {
 		setMobileOpen(false);
 	}, [navigate]);
@@ -175,6 +174,7 @@ const NavBar = () => {
 										<li><NavLink to="/manage-events" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Events</NavLink></li>
 										<li><NavLink to="/manage-clients" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Clients</NavLink></li>
 										<li><NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Reservations</NavLink></li>
+										<li><NavLink to="/scan-qr" className="rounded-xl px-3 py-2 hover:bg-base-200">Scan QR</NavLink></li>
 									</ul>
 								</div>
 								<NavLink to="/admin-reservations" className={navLinkClass}>Calendar</NavLink>
@@ -186,6 +186,7 @@ const NavBar = () => {
 						{profile && profile.role !== "admin" && (
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
+								<NavLink to="/scan-qr" className={navLinkClass}>Scan QR</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/client-notifications" className={navLinkClass}>
 									<FiBell className="text-base" />
@@ -250,12 +251,9 @@ const NavBar = () => {
 			{/* Mobile menu overlay */}
 			{mobileOpen && (
 				<div className="fixed inset-0 z-40 lg:hidden">
-					{/* Backdrop */}
 					<div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={closeMobile} />
 
-					{/* Drawer */}
 					<div className="absolute top-0 right-0 h-full w-72 bg-base-100 shadow-2xl flex flex-col overflow-y-auto">
-						{/* Header */}
 						<div className="flex items-center justify-between px-5 py-4 border-b border-base-200">
 							<div>
 								<p className="font-bold text-base-content">Hacienda Amara</p>
@@ -266,7 +264,6 @@ const NavBar = () => {
 							</button>
 						</div>
 
-						{/* Profile info if logged in */}
 						{session && (
 							<div className="flex items-center gap-3 px-5 py-4 border-b border-base-200 bg-base-200/40">
 								<div className="h-10 w-10 overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center text-xs font-bold text-slate-800 shrink-0">
@@ -283,7 +280,6 @@ const NavBar = () => {
 							</div>
 						)}
 
-						{/* Links */}
 						<nav className="flex flex-col gap-1 p-4 flex-1">
 							<NavLink to="/" className={mobileLinkClass} onClick={closeMobile}>
 								<FiHome /> Home
@@ -311,6 +307,7 @@ const NavBar = () => {
 									<NavLink to="/manage-events" className={mobileLinkClass} onClick={closeMobile}>Manage Events</NavLink>
 									<NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
 									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
+									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
 									<NavLink to="/booking-qr" className={mobileLinkClass} onClick={closeMobile}>Booking QR</NavLink>
@@ -322,6 +319,7 @@ const NavBar = () => {
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
+									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/client-notifications" className={mobileLinkClass} onClick={closeMobile}>
 										<FiBell />
