@@ -181,6 +181,9 @@ const ViewEvent = () => {
 						</div>
 
 						<div className="mt-8 flex justify-end">
+							<Link to="/scan-qr" className="btn btn-outline rounded-full">
+								Scan QR
+							</Link>
 							<Link to="/events" className="btn btn-black rounded-full">
 								Back to Events
 							</Link>
