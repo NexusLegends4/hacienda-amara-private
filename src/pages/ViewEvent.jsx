@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../utils/supabase";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
 import { QRCodeSVG } from "qrcode.react";
-import { FiCheckCircle, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiCheckCircle, FiUserCheck, FiUsers, FiCamera, FiX } from "react-icons/fi";
+import { Html5Qrcode } from "html5-qrcode";
 
 const ViewEvent = () => {
 	const { eventId } = useParams();
@@ -15,7 +16,11 @@ const ViewEvent = () => {
 	const [registered, setRegistered] = useState(false);
 	const [registering, setRegistering] = useState(false);
 	const [registrationCount, setRegistrationCount] = useState(0);
+	const [scannerOpen, setScannerOpen] = useState(false);
+	const [scanStatus, setScanStatus] = useState("Starting camera...");
 	const { session, profile } = useContext(SessionContext);
+	const scannerRef = useRef(null);
+	const scannerId = "inline-qr-reader";
 
 	const fromScan = searchParams.get("scan") === "1";
 
@@ -64,7 +69,6 @@ const ViewEvent = () => {
 		checkRegistration();
 	}, [eventId, session?.user?.id]);
 
-	// Auto-register only when came from QR scan
 	useEffect(() => {
 		if (fromScan && session?.user?.id && profile?.role === "client" && event && !registered && !registering) {
 			handleRegister();
@@ -87,6 +91,81 @@ const ViewEvent = () => {
 		}
 		setRegistering(false);
 	};
+
+	const stopScanner = async () => {
+		if (scannerRef.current) {
+			try {
+				if (scannerRef.current.isScanning) {
+					await scannerRef.current.stop();
+				}
+				scannerRef.current.clear();
+			} catch (err) {
+				console.warn("Scanner stop error:", err);
+			}
+			scannerRef.current = null;
+		}
+		const container = document.getElementById(scannerId);
+		if (container) container.innerHTML = "";
+	};
+
+	const openScanner = async () => {
+		setScannerOpen(true);
+		setScanStatus("Starting camera...");
+
+		setTimeout(async () => {
+			try {
+				await stopScanner();
+				const qr = new Html5Qrcode(scannerId);
+				scannerRef.current = qr;
+
+				await qr.start(
+					{ facingMode: "environment" },
+					{
+						fps: 10,
+						qrbox: (w, h) => {
+							const size = Math.min(w, h) * 0.7;
+							return { width: size, height: size };
+						},
+					},
+					async (decodedText) => {
+						setScanStatus("QR code detected!");
+						await stopScanner();
+						setScannerOpen(false);
+
+						// Check if it's this event's QR
+						try {
+							const url = new URL(decodedText);
+							const match = url.pathname.match(/\/view-event\/([^?]+)/);
+							const scannedEventId = match?.[1];
+
+							if (scannedEventId === eventId) {
+								await handleRegister();
+							} else {
+								alert("This QR code is for a different event.");
+							}
+						} catch {
+							alert("Could not read the QR code.");
+						}
+					}
+				);
+				setScanStatus("Camera ready. Point at the QR code.");
+			} catch (err) {
+				console.error(err);
+				setScanStatus("Camera could not start. Allow camera access.");
+			}
+		}, 300);
+	};
+
+	const closeScanner = async () => {
+		await stopScanner();
+		setScannerOpen(false);
+	};
+
+	useEffect(() => {
+		return () => {
+			stopScanner();
+		};
+	}, []);
 
 	return (
 		<MainLayout>
@@ -123,6 +202,17 @@ const ViewEvent = () => {
 							</div>
 						)}
 
+						{/* Registered banner from inline scan */}
+						{registered && !fromScan && (
+							<div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-4">
+								<FiCheckCircle className="text-emerald-600 text-xl shrink-0" />
+								<div>
+									<p className="font-bold text-emerald-800">You are registered for this event!</p>
+									<p className="text-sm text-emerald-600">Your attendance has been recorded.</p>
+								</div>
+							</div>
+						)}
+
 						<div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.9fr]">
 							{/* Event Info */}
 							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
@@ -143,7 +233,6 @@ const ViewEvent = () => {
 											<p className="mt-2 text-base-content/80">{event.description || "No description provided."}</p>
 										</div>
 
-										{/* Registration count */}
 										<div className="flex items-center gap-2 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
 											<FiUsers className="text-amber-700 shrink-0" />
 											<p className="text-sm font-bold text-amber-800">
@@ -151,7 +240,6 @@ const ViewEvent = () => {
 											</p>
 										</div>
 
-										{/* Already registered status */}
 										{registered && (
 											<div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
 												<FiUserCheck /> You are registered for this event
@@ -161,29 +249,61 @@ const ViewEvent = () => {
 								)}
 							</div>
 
-							{/* QR Code — visible to everyone */}
+							{/* Right panel */}
 							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
-								<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-									Scan to register for this event
-								</p>
-								<div className="flex flex-col items-center gap-4">
-									<QRCodeSVG
-										value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
-										size={220}
-										includeMargin
-										className="rounded-2xl bg-white p-3 shadow-sm"
-									/>
-									<p className="text-center text-sm text-base-content/70">
-										Scan this QR code with your phone to register for this event instantly.
-									</p>
-								</div>
+								{/* QR Code display */}
+								{!scannerOpen && (
+									<>
+										<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+											Scan to register for this event
+										</p>
+										<div className="flex flex-col items-center gap-4">
+											<QRCodeSVG
+												value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
+												size={220}
+												includeMargin
+												className="rounded-2xl bg-white p-3 shadow-sm"
+											/>
+											<p className="text-center text-sm text-base-content/70">
+												Scan this QR code with your phone to register for this event instantly.
+											</p>
+										</div>
+									</>
+								)}
+
+								{/* Inline Scanner */}
+								{scannerOpen && (
+									<>
+										<div className="flex items-center justify-between mb-4">
+											<p className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+												Scanning...
+											</p>
+											<button onClick={closeScanner} className="btn btn-ghost btn-circle btn-sm">
+												<FiX />
+											</button>
+										</div>
+										<div className="overflow-hidden rounded-2xl bg-black">
+											<div id={scannerId} />
+										</div>
+										<p className="mt-3 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+											{scanStatus}
+										</p>
+									</>
+								)}
 							</div>
 						</div>
 
-						<div className="mt-8 flex justify-end">
-							<Link to="/scan-qr" className="btn btn-outline rounded-full">
-								Scan QR
-							</Link>
+						<div className="mt-8 flex justify-end gap-3">
+							{/* Scan QR button only for clients and only if not yet registered */}
+							{profile?.role === "client" && !registered && (
+								<button
+									onClick={scannerOpen ? closeScanner : openScanner}
+									className="btn btn-outline rounded-full"
+								>
+									<FiCamera />
+									{scannerOpen ? "Close Scanner" : "Scan QR"}
+								</button>
+							)}
 							<Link to="/events" className="btn btn-black rounded-full">
 								Back to Events
 							</Link>
