@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
 
 const ScanQr = () => {
@@ -27,7 +27,7 @@ const ScanQr = () => {
 			} catch (err) {
 				// Ignore clear errors
 			}
-			
+
 			const container = document.getElementById(scannerId);
 			if (container) container.innerHTML = "";
 		};
@@ -48,14 +48,14 @@ const ScanQr = () => {
 					const eventId = pathname.match(/\/(?:view|edit)-event\/(.+)/)?.[1];
 
 					if (eventId) {
-						navigate(`/view-event/${eventId}`);
+						navigate(`/view-event/${eventId}${scannedUrl.search}`);
 					} else {
 						navigate(`${pathname}${scannedUrl.search}${scannedUrl.hash}`);
 					}
 					return;
 				}
 
-				navigate(`/view-event/${decodedText}`);
+				navigate(`/view-event/${decodedText}?scan=1`);
 			} catch {
 				setStatus("Could not open the scanned QR content.");
 			}
@@ -64,7 +64,7 @@ const ScanQr = () => {
 		const startScanner = async () => {
 			try {
 				await stopScanner();
-				
+
 				if (!isMounted) return;
 
 				html5QrCode = new Html5Qrcode(scannerId);
@@ -111,7 +111,7 @@ const ScanQr = () => {
 								Scan Event Code
 							</h1>
 							<p className="mt-3 text-sm font-medium leading-relaxed text-slate-500 md:text-base">
-								Open event details quickly by pointing your camera at a valid QR code.
+								Point your camera at an event QR code to register instantly.
 							</p>
 						</div>
 
