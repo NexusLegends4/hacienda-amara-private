@@ -17,10 +17,12 @@ const ViewEvent = () => {
 	const [registering, setRegistering] = useState(false);
 	const [registrationCount, setRegistrationCount] = useState(0);
 	const [scannerOpen, setScannerOpen] = useState(false);
+	const [showQrForScan, setShowQrForScan] = useState(false);
 	const [scanStatus, setScanStatus] = useState("Starting camera...");
 	const { session, profile } = useContext(SessionContext);
 	const scannerRef = useRef(null);
 	const scannerId = "inline-qr-reader";
+	const qrTimerRef = useRef(null);
 
 	const fromScan = searchParams.get("scan") === "1";
 
@@ -32,29 +34,21 @@ const ViewEvent = () => {
 				.select()
 				.eq("id", eventId)
 				.single();
-
-			if (error) {
-				alert(error.message || error);
-				setEvent(null);
-			} else {
-				setEvent(data);
-			}
+			if (error) { alert(error.message || error); setEvent(null); }
+			else setEvent(data);
 			setLoading(false);
 		};
-
 		if (eventId) fetchEvent();
 	}, [eventId]);
 
 	useEffect(() => {
 		if (!eventId) return;
-
 		const checkRegistration = async () => {
 			const { count } = await supabase
 				.from("registrations")
 				.select("*", { count: "exact", head: true })
 				.eq("event_id", eventId);
 			setRegistrationCount(count || 0);
-
 			if (session?.user?.id) {
 				const { data } = await supabase
 					.from("registrations")
@@ -65,7 +59,6 @@ const ViewEvent = () => {
 				setRegistered(!!data);
 			}
 		};
-
 		checkRegistration();
 	}, [eventId, session?.user?.id]);
 
@@ -78,30 +71,21 @@ const ViewEvent = () => {
 	const handleRegister = async () => {
 		if (!session?.user?.id || registered) return;
 		setRegistering(true);
-
 		const { error } = await supabase
 			.from("registrations")
 			.insert({ profile_id: session.user.id, event_id: eventId });
-
-		if (error && !error.message.includes("duplicate")) {
-			alert(error.message);
-		} else {
-			setRegistered(true);
-			setRegistrationCount((prev) => prev + 1);
-		}
+		if (error && !error.message.includes("duplicate")) alert(error.message);
+		else { setRegistered(true); setRegistrationCount((prev) => prev + 1); }
 		setRegistering(false);
 	};
 
 	const stopScanner = async () => {
+		if (qrTimerRef.current) { clearTimeout(qrTimerRef.current); qrTimerRef.current = null; }
 		if (scannerRef.current) {
 			try {
-				if (scannerRef.current.isScanning) {
-					await scannerRef.current.stop();
-				}
+				if (scannerRef.current.isScanning) await scannerRef.current.stop();
 				scannerRef.current.clear();
-			} catch (err) {
-				console.warn("Scanner stop error:", err);
-			}
+			} catch (err) { console.warn("Scanner stop error:", err); }
 			scannerRef.current = null;
 		}
 		const container = document.getElementById(scannerId);
@@ -110,6 +94,7 @@ const ViewEvent = () => {
 
 	const openScanner = async () => {
 		setScannerOpen(true);
+		setShowQrForScan(false);
 		setScanStatus("Starting camera...");
 
 		setTimeout(async () => {
@@ -131,13 +116,12 @@ const ViewEvent = () => {
 						setScanStatus("QR code detected!");
 						await stopScanner();
 						setScannerOpen(false);
+						setShowQrForScan(false);
 
-						// Check if it's this event's QR
 						try {
 							const url = new URL(decodedText);
 							const match = url.pathname.match(/\/view-event\/([^?]+)/);
 							const scannedEventId = match?.[1];
-
 							if (scannedEventId === eventId) {
 								await handleRegister();
 							} else {
@@ -148,7 +132,15 @@ const ViewEvent = () => {
 						}
 					}
 				);
-				setScanStatus("Camera ready. Point at the QR code.");
+
+				setScanStatus("Camera ready...");
+
+				// After 1.5 seconds, show the QR code so camera can scan it
+				qrTimerRef.current = setTimeout(() => {
+					setShowQrForScan(true);
+					setScanStatus("Scanning QR code...");
+				}, 1500);
+
 			} catch (err) {
 				console.error(err);
 				setScanStatus("Camera could not start. Allow camera access.");
@@ -159,12 +151,11 @@ const ViewEvent = () => {
 	const closeScanner = async () => {
 		await stopScanner();
 		setScannerOpen(false);
+		setShowQrForScan(false);
 	};
 
 	useEffect(() => {
-		return () => {
-			stopScanner();
-		};
+		return () => { stopScanner(); };
 	}, []);
 
 	return (
@@ -174,9 +165,7 @@ const ViewEvent = () => {
 					<div className="rounded-[2rem] border border-black/5 bg-white/75 p-6 shadow-2xl backdrop-blur-xl md:p-8">
 						<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 							<div className="max-w-2xl">
-								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
-									Event Details
-								</p>
+								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">Event Details</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">
 									{event?.title || "Loading event details"}
 								</h1>
@@ -185,30 +174,17 @@ const ViewEvent = () => {
 								</p>
 							</div>
 							{profile?.role === "admin" && event && (
-								<Link to={`/edit-event/${event.id}`} className="btn btn-black rounded-full">
-									Edit Event
-								</Link>
+								<Link to={`/edit-event/${event.id}`} className="btn btn-black rounded-full">Edit Event</Link>
 							)}
 						</div>
 
-						{/* Auto-registered banner */}
-						{fromScan && registered && (
+						{/* Registered banners */}
+						{(fromScan || (!fromScan && registered)) && registered && (
 							<div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-4">
 								<FiCheckCircle className="text-emerald-600 text-xl shrink-0" />
 								<div>
 									<p className="font-bold text-emerald-800">You've been registered!</p>
 									<p className="text-sm text-emerald-600">Your attendance for this event has been recorded.</p>
-								</div>
-							</div>
-						)}
-
-						{/* Registered banner from inline scan */}
-						{registered && !fromScan && (
-							<div className="mt-6 flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-5 py-4">
-								<FiCheckCircle className="text-emerald-600 text-xl shrink-0" />
-								<div>
-									<p className="font-bold text-emerald-800">You are registered for this event!</p>
-									<p className="text-sm text-emerald-600">Your attendance has been recorded.</p>
 								</div>
 							</div>
 						)}
@@ -227,19 +203,16 @@ const ViewEvent = () => {
 											<p><span className="font-semibold text-base-content">End Time:</span> {event.end_time}</p>
 											<p><span className="font-semibold text-base-content">Location:</span> {event.location}</p>
 										</div>
-
 										<div className="rounded-2xl bg-base-100 p-5">
 											<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/55">Description</p>
 											<p className="mt-2 text-base-content/80">{event.description || "No description provided."}</p>
 										</div>
-
 										<div className="flex items-center gap-2 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
 											<FiUsers className="text-amber-700 shrink-0" />
 											<p className="text-sm font-bold text-amber-800">
 												{registrationCount} {registrationCount === 1 ? "person" : "people"} registered
 											</p>
 										</div>
-
 										{registered && (
 											<div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
 												<FiUserCheck /> You are registered for this event
@@ -251,7 +224,6 @@ const ViewEvent = () => {
 
 							{/* Right panel */}
 							<div className="rounded-3xl border border-base-200 bg-white/90 p-6 shadow-sm">
-								{/* QR Code display */}
 								{!scannerOpen && (
 									<>
 										<p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -265,26 +237,41 @@ const ViewEvent = () => {
 												className="rounded-2xl bg-white p-3 shadow-sm"
 											/>
 											<p className="text-center text-sm text-base-content/70">
-												Scan this QR code with your phone to register for this event instantly.
+												Scan this QR code with your phone to register instantly.
 											</p>
 										</div>
 									</>
 								)}
 
-								{/* Inline Scanner */}
 								{scannerOpen && (
 									<>
-										<div className="flex items-center justify-between mb-4">
+										<div className="flex items-center justify-between mb-3">
 											<p className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-												Scanning...
+												{showQrForScan ? "Scanning QR..." : "Camera starting..."}
 											</p>
 											<button onClick={closeScanner} className="btn btn-ghost btn-circle btn-sm">
 												<FiX />
 											</button>
 										</div>
-										<div className="overflow-hidden rounded-2xl bg-black">
-											<div id={scannerId} />
+
+										{/* Camera + QR side by side when QR is revealed */}
+										<div className={`grid gap-3 ${showQrForScan ? "grid-cols-2" : "grid-cols-1"}`}>
+											<div className="overflow-hidden rounded-2xl bg-black">
+												<div id={scannerId} />
+											</div>
+
+											{/* QR appears after 1.5s */}
+											{showQrForScan && (
+												<div className="flex items-center justify-center rounded-2xl bg-white border border-base-200 p-2">
+													<QRCodeSVG
+														value={`${window.location.origin}/view-event/${event?.id || ""}?scan=1`}
+														size={120}
+														includeMargin
+													/>
+												</div>
+											)}
 										</div>
+
 										<p className="mt-3 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
 											{scanStatus}
 										</p>
@@ -294,7 +281,6 @@ const ViewEvent = () => {
 						</div>
 
 						<div className="mt-8 flex justify-end gap-3">
-							{/* Scan QR button only for clients and only if not yet registered */}
 							{profile?.role === "client" && !registered && (
 								<button
 									onClick={scannerOpen ? closeScanner : openScanner}
