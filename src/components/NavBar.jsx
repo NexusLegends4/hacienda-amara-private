@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import SignUpIcon from "./icons/SignUpIcon";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
@@ -155,9 +154,7 @@ const NavBar = () => {
 
 						{!session && (
 							<>
-								<NavLink to="/sign-up" className={navLinkClass}>
-									<SignUpIcon className="text-base" /> Sign Up
-								</NavLink>
+								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/log-in" className={navLinkClass}>
 									<LoginIcon className="text-lg" /> Login
 								</NavLink>
@@ -181,6 +178,10 @@ const NavBar = () => {
 								<NavLink to="/booking-qr" className={navLinkClass}>Booking QR</NavLink>
 								<NavLink to="/admin-notifications" className={navLinkClass}>Notifications</NavLink>
 							</>
+						)}
+
+						{profile?.role === "staff" && (
+							<NavLink to="/manage-reservations" className={navLinkClass}>Reservations</NavLink>
 						)}
 
 						{profile && profile.role !== "admin" && (
@@ -291,9 +292,7 @@ const NavBar = () => {
 							{!session && (
 								<>
 									<div className="border-t border-base-200 my-2" />
-									<NavLink to="/sign-up" className={mobileLinkClass} onClick={closeMobile}>
-										<SignUpIcon /> Sign Up
-									</NavLink>
+									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/log-in" className={mobileLinkClass} onClick={closeMobile}>
 										<LoginIcon /> Login
 									</NavLink>
@@ -312,6 +311,13 @@ const NavBar = () => {
 									<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
 									<NavLink to="/booking-qr" className={mobileLinkClass} onClick={closeMobile}>Booking QR</NavLink>
 									<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
+								</>
+							)}
+
+							{profile?.role === "staff" && (
+								<>
+									<div className="border-t border-base-200 my-2" />
+									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Reservations</NavLink>
 								</>
 							)}
 
