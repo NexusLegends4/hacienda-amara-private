@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 
@@ -40,7 +40,11 @@ const SecurityCheck = () => {
 		return () => window.clearTimeout(timer);
 	}, [lockSeconds]);
 
-	const sourceMessage = "Complete this quick check to continue to your account.";
+	const sourceMessage = useMemo(() => {
+		return location.state?.source === "signup"
+			? "Your account has been created. Complete this quick check before logging in."
+			: "Complete this quick check to continue to your account.";
+	}, [location.state]);
 
 	const refreshChallenge = () => {
 		setChallenge(createChallenge());

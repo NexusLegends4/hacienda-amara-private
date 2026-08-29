@@ -99,7 +99,6 @@ const ViewEvent = () => {
 		downloadLink.href = canvas.toDataURL("image/png");
 		downloadLink.click();
 	};
-
 	return (
 		<MainLayout>
 			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 sm:px-4 sm:py-6 md:px-6">
