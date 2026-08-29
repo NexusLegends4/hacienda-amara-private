@@ -31,6 +31,9 @@ const getDisplayName = (profile) =>
 	profile?.email ||
 	"Unnamed staff";
 
+// Treat any legacy "client" role value from the database as "staff" everywhere in the UI.
+const normalizeRole = (role) => (role === "admin" ? "admin" : "staff");
+
 const ManageClients = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
@@ -125,7 +128,7 @@ const ManageClients = () => {
 			firstname: entry.firstname || "",
 			lastname: entry.lastname || "",
 			email: entry.email || "",
-			role: ["admin", "staff"].includes(entry.role) ? entry.role : "staff",
+			role: normalizeRole(entry.role),
 		});
 	};
 
@@ -134,7 +137,8 @@ const ManageClients = () => {
 			`${entry.firstname || ""} ${entry.lastname || ""} ${entry.email || ""}`
 				.toLowerCase()
 				.includes(searchTerm.toLowerCase().trim());
-		const matchesRole = roleFilter === "all" ? true : entry.role === roleFilter;
+		const matchesRole =
+			roleFilter === "all" ? true : normalizeRole(entry.role) === roleFilter;
 		const matchesStatus =
 			statusFilter === "all"
 				? true
@@ -227,7 +231,7 @@ const ManageClients = () => {
 			firstname: selectedProfile.firstname || "",
 			lastname: selectedProfile.lastname || "",
 			email: selectedProfile.email || "",
-			role: ["admin", "staff"].includes(selectedProfile.role) ? selectedProfile.role : "staff",
+			role: normalizeRole(selectedProfile.role),
 		});
 		setStatus("");
 	};
@@ -299,7 +303,7 @@ const ManageClients = () => {
 							<div className="flex flex-wrap gap-3">
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
 									<FiUsers />
-									<span>{profiles.filter((entry) => entry.role === "staff").length} staff</span>
+									<span>{profiles.filter((entry) => normalizeRole(entry.role) === "staff").length} staff</span>
 								</div>
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
 									<FiShield />
@@ -410,12 +414,12 @@ const ManageClients = () => {
 													<span
 														className={[
 															"badge badge-sm border-0",
-															entry.role === "admin"
+															normalizeRole(entry.role) === "admin"
 																? "bg-emerald-500 text-white"
 																: "bg-amber-400 text-slate-900",
 														].join(" ")}
 													>
-														{entry.role}
+														{normalizeRole(entry.role)}
 													</span>
 												</div>
 												<p
@@ -480,7 +484,7 @@ const ManageClients = () => {
 												{selectedProfile.email || "No email on file"}
 											</p>
 											<p className="mt-1 text-xs uppercase tracking-[0.2em] text-base-content/45">
-												{selectedProfile.role === "admin" ? "Administrator" : "Staff"}
+												{normalizeRole(selectedProfile.role) === "admin" ? "Administrator" : "Staff"}
 											</p>
 											{selectedIsDeleted && (
 												<p className="mt-2 inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
