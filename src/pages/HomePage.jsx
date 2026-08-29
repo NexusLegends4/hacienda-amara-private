@@ -14,9 +14,9 @@ const HomePage = () => {
     : "/events";
 
   const images = [
-    "https://scontent-mnl3-2.xx.fbcdn.net/v/t39.30808-6/494369075_122128145408749963_4990497671908646009_n.jpg?stp=dst-jpegr_tt6&cstp=mx2048x1153&ctp=s2048x1153&_nc_cat=110&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeF1nSsOdjuDLwrEDI_9kXRx-VCDRKTPXQf5UINEpM9dBzyOAMF84d2qECgvqklmE7ch8Mi4hhwbTHXVC1xuQACn&_nc_ohc=DnX6-2aeW94Q7kNvwGNPF6x&_nc_oc=AdqdwLiVcExhILF4LJ_78-RZGaNlfzCNT3MNhlNzlObeU27O53LJhtv62anvFnaGvSI&_nc_zt=23&se=-1&_nc_ht=scontent-mnl3-2.xx&_nc_gid=hn9-WcCSptWzl66lzS6Vbw&_nc_ss=7b2a8&oh=00_AQFLrvOeuUnIoo9rCwtz1c-HqwIMeAFBf9_AxhjdV3NXNQ&oe=6A8C9055",
-    "https://scontent-mnl3-1.xx.fbcdn.net/v/t39.30808-6/495211844_122128145354749963_2190067951936702202_n.jpg?stp=dst-jpegr_tt6&cstp=mx2048x1153&ctp=s2048x1153&_nc_cat=104&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeFU3vqsxmru-_0Jrs9vCcomZDihfd0nmxRkOKF93SebFJBT9iKC_nuXu66Q7USFQtFw03VuyKudesbU9YT4LOkM&_nc_ohc=BdKFH6CWf04Q7kNvwEAFk1_&_nc_oc=AdoYwJGOAOl_56pGEGCICe594UouB0LwPcJ5NPFPXN-nmzh5mdnY7CM7dkyyv3MH6Qc&_nc_zt=23&se=-1&_nc_ht=scontent-mnl3-1.xx&_nc_gid=qIwJZfHkkvp4lwOaorfzNQ&_nc_ss=7b2a8&oh=00_AQFyijitCrt-kNbz-3vh1BAoZ3U_tjA9JRaV8BES9-VLrQ&oe=6A8C8DF2",
-    "https://scontent-mnl3-3.xx.fbcdn.net/v/t39.30808-6/481303337_122113740890749963_5078274125687890241_n.jpg?stp=dst-jpg_tt6&cstp=mx2048x1536&ctp=s2048x1536&_nc_cat=109&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeFAXuMHXRsgvWku23naV4RL6iRisONI3WnqJGKw40jdaQBqKfLQnjz-oLA5B3k9YuScSHfRPyCpcWEvGViDeBZq&_nc_ohc=4McoBgCMiXIQ7kNvwHpdP6m&_nc_oc=AdpTicbFyPtAJNBLAFcvd4gImzMvbiYl8NSr5OKQVOSFYgYMhHh3MZHWlKOcpsk_uRM&_nc_zt=23&_nc_ht=scontent-mnl3-3.xx&_nc_gid=zhWj9eLHBWdbxXomNfanSw&_nc_ss=7b2a8&oh=00_AQGzP2p6iwsB348c6qsAZCz8aMTtSqajKX3gWnybmh87Ag&oe=6A8C845E",
+    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80",
   ];
 
   return (
