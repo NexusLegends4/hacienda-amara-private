@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
+import { SessionContext } from "../contexts/SessionContext";
 
 const ScanQr = () => {
 	const navigate = useNavigate();
+	const { session, profile } = useContext(SessionContext);
 	const [status, setStatus] = useState("Starting camera...");
 
 	useEffect(() => {
+		if (!session || profile?.role !== "admin") return undefined;
 		let isMounted = true;
 		let html5QrCode = null;
 		const scannerId = "qr-reader";
@@ -96,7 +99,13 @@ const ScanQr = () => {
 			isMounted = false;
 			void stopScanner();
 		};
-	}, [navigate]);
+	}, [navigate, profile?.role, session]);
+
+	if (!session || profile?.role !== "admin") {
+		return (
+			<MainLayout><div className="mx-auto flex min-h-[60vh] max-w-xl items-center px-4"><div className="w-full rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black">Admin access required</h1><p className="mt-3 text-base-content/70">Event attendance monitoring is available to administrators only.</p><button className="btn btn-black mt-6 rounded-full" onClick={() => navigate("/")}>Back Home</button></div></div></MainLayout>
+		);
+	}
 
 	return (
 		<MainLayout>
@@ -111,7 +120,7 @@ const ScanQr = () => {
 								Scan Event Code
 							</h1>
 							<p className="mt-3 text-sm font-medium leading-relaxed text-slate-500 md:text-base">
-								Point your camera at an event QR code to register instantly.
+								Scan a shared event QR code to open its event details and monitor attendance.
 							</p>
 						</div>
 
