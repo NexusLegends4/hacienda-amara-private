@@ -65,6 +65,11 @@ const AdminReservations = () => {
 	const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
 	const firstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
+	const reservationGuestName = (reservation) =>
+		`${reservation.profiles?.firstname || ""} ${reservation.profiles?.lastname || ""}`.trim() ||
+		reservation.guest_name ||
+		"Guest";
+
 	const renderCalendar = () => {
 		const year = currentDate.getFullYear();
 		const month = currentDate.getMonth();
@@ -102,7 +107,7 @@ const AdminReservations = () => {
 										<span className="font-bold truncate max-w-[45px]">{res.room_type}</span>
 										<StatusIcon className="shrink-0" />
 									</div>
-									<span className="truncate">{res.profiles?.firstname} {res.profiles?.lastname}</span>
+									<span className="truncate">{reservationGuestName(res)}</span>
 								</div>
 							);
 						})}

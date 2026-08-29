@@ -1,7 +1,6 @@
-import React, { useState, useContext, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
-import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle } from "react-icons/fi";
 
@@ -24,16 +23,14 @@ const RATES = {
 };
 
 const Reservations = () => {
-	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [date, setDate] = useState("");
 	const [roomType, setRoomType] = useState("Day Time (9 Hours)");
 	const [guests, setGuests] = useState(20);
+	const [guestName, setGuestName] = useState("");
+	const [guestEmail, setGuestEmail] = useState("");
+	const [guestPhone, setGuestPhone] = useState("");
 	const [loading, setLoading] = useState(false);
-
-	useEffect(() => {
-		if (!session || profile?.role === "admin") navigate("/");
-	}, [session, profile, navigate]);
 
 	const pricing = useMemo(() => {
 		if (!date) return 0;
@@ -49,11 +46,13 @@ const Reservations = () => {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (!session) { alert("Please log in."); navigate("/log-in"); return; }
 		if (pricing <= 0) { alert("Please select a valid date."); return; }
 		setLoading(true);
 		const { error } = await supabase.from("reservations").insert([{
-			profile_id: session.user.id,
+			profile_id: null,
+			guest_name: guestName.trim(),
+			guest_email: guestEmail.trim(),
+			guest_phone: guestPhone.trim(),
 			check_in: date,
 			check_out: checkOutDate,
 			room_type: roomType,
@@ -62,7 +61,7 @@ const Reservations = () => {
 			status: "pending",
 		}]);
 		if (error) alert(error.message);
-		else { alert("Reservation submitted! We will contact you for confirmation."); navigate("/"); }
+		else { alert("Reservation submitted! Resort staff will contact you for confirmation."); navigate("/"); }
 		setLoading(false);
 	};
 
@@ -89,8 +88,25 @@ const Reservations = () => {
 					</div>
 
 					<div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-xl backdrop-blur sm:rounded-[2rem] md:p-10">
+						<div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+							No account is needed. Enter your contact details to submit a reservation, and resort staff will contact you.
+						</div>
 						<form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1fr_0.8fr]">
 							<div className="space-y-6">
+								<div className="grid gap-4 sm:grid-cols-2">
+									<div className="form-control sm:col-span-2">
+										<label className="label-text font-bold mb-2">Full Name</label>
+										<input type="text" className="input input-bordered rounded-2xl" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
+									</div>
+									<div className="form-control">
+										<label className="label-text font-bold mb-2">Email Address</label>
+										<input type="email" className="input input-bordered rounded-2xl" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
+									</div>
+									<div className="form-control">
+										<label className="label-text font-bold mb-2">Phone Number</label>
+										<input type="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} required minLength="7" placeholder="09XX XXX XXXX" />
+									</div>
+								</div>
 								<div className="form-control">
 									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
 									<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />

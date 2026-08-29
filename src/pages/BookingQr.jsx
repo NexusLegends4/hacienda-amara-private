@@ -79,7 +79,7 @@ const BookingQr = () => {
                                 </p>
                                 <div className="mt-4 flex items-start gap-2 rounded-2xl bg-white/10 p-4 text-left text-xs text-white/60">
                                     <FiInfo className="mt-0.5 shrink-0" />
-                                    <span>Guest must be logged in to complete the booking. If not, they will be prompted to sign up first.</span>
+                                    <span>Guest must be logged in to complete the booking. Please provide guests with their account details before booking.</span>
                                 </div>
                             </div>
                         </div>

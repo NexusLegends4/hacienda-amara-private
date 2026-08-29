@@ -1,6 +1,4 @@
 import React from "react";
-import { FiPhone } from "react-icons/fi";
-import { FaFacebookF, FaInstagram } from "react-icons/fa";
 
 const Footer = () => {
 	return (
@@ -21,35 +19,6 @@ const Footer = () => {
 					</svg>
 					<p>Copyright © {new Date().getFullYear()} - All rights reserved</p>
 				</aside>
-				<nav className="grid-flow-col gap-4 md:place-self-center md:justify-self-end">
-					<div className="flex flex-wrap items-center gap-3">
-						<a
-							href="tel:09283534491"
-							className="inline-flex items-center gap-2 rounded-full border border-neutral-content/20 px-4 py-2 text-sm font-medium text-neutral-content transition hover:border-neutral-content/40 hover:bg-neutral-content/10"
-						>
-							<FiPhone className="text-base" />
-							09283534491
-						</a>
-						<a
-							href="https://www.facebook.com/profile.php?id=61572498911618"
-							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-2 rounded-full border border-neutral-content/20 px-4 py-2 text-sm font-medium text-neutral-content transition hover:border-neutral-content/40 hover:bg-neutral-content/10"
-						>
-							<FaFacebookF className="text-base" />
-							Facebook
-						</a>
-						<a
-							href="https://www.instagram.com/haciendaamara"
-							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-2 rounded-full border border-neutral-content/20 px-4 py-2 text-sm font-medium text-neutral-content transition hover:border-neutral-content/40 hover:bg-neutral-content/10"
-						>
-							<FaInstagram className="text-base" />
-							haciendaamara
-						</a>
-					</div>
-				</nav>
 			</footer>
 		</div>
 	);

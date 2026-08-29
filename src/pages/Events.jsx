@@ -3,7 +3,6 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import EventCard from "../components/EventCard";
 import { SessionContext } from "../contexts/SessionContext";
-import { Link, useNavigate } from "react-router-dom";
 
 const Events = () => {
 	const [events, setEvents] = useState([]);

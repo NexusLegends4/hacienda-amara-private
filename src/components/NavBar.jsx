@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import SignUpIcon from "./icons/SignUpIcon";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
@@ -155,9 +154,8 @@ const NavBar = () => {
 
 						{!session && (
 							<>
-								<NavLink to="/sign-up" className={navLinkClass}>
-									<SignUpIcon className="text-base" /> Sign Up
-								</NavLink>
+								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
+								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/log-in" className={navLinkClass}>
 									<LoginIcon className="text-lg" /> Login
 								</NavLink>
@@ -183,10 +181,13 @@ const NavBar = () => {
 							</>
 						)}
 
+						{profile?.role === "staff" && (
+							<NavLink to="/manage-reservations" className={navLinkClass}>Reservations</NavLink>
+						)}
+
 						{profile && profile.role !== "admin" && (
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
-								<NavLink to="/scan-qr" className={navLinkClass}>Scan QR</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/client-notifications" className={navLinkClass}>
 									<FiBell className="text-base" />
@@ -291,9 +292,8 @@ const NavBar = () => {
 							{!session && (
 								<>
 									<div className="border-t border-base-200 my-2" />
-									<NavLink to="/sign-up" className={mobileLinkClass} onClick={closeMobile}>
-										<SignUpIcon /> Sign Up
-									</NavLink>
+									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
+									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/log-in" className={mobileLinkClass} onClick={closeMobile}>
 										<LoginIcon /> Login
 									</NavLink>
@@ -315,11 +315,17 @@ const NavBar = () => {
 								</>
 							)}
 
+							{profile?.role === "staff" && (
+								<>
+									<div className="border-t border-base-200 my-2" />
+									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Reservations</NavLink>
+								</>
+							)}
+
 							{profile && profile.role !== "admin" && (
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
-									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/client-notifications" className={mobileLinkClass} onClick={closeMobile}>
 										<FiBell />

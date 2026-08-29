@@ -4,7 +4,7 @@ import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 
 const PROFILE_BACKGROUND_IMAGE =
@@ -79,7 +79,12 @@ const Login = () => {
 
 			const landingRole = profileData?.role === "admin" ? "admin" : "client";
 
-			navigate(landingRole === "admin" ? "/manage-events" : "/");
+			navigate("/security-check", {
+				state: {
+					source: "login",
+					nextPath: landingRole === "admin" ? "/manage-events" : "/",
+				},
+			});
 		}
 		setIsSubmitting(false);
 	};
@@ -125,15 +130,6 @@ const Login = () => {
 								{isSubmitting ? <span className="loading loading-spinner"></span> : <SendIcon className="text-base" />}
 								{isSubmitting ? " Logging in..." : " Log In"}
 							</button>
-							<div className="mt-6 border-t border-black/10 pt-4 text-center text-sm text-slate-700 md:text-base">
-								<span>Don't have an account? </span>
-								<Link
-									to="/sign-up"
-									className="font-semibold text-primary underline-offset-4 hover:underline"
-								>
-									Sign Up
-								</Link>
-							</div>
 						</form>
 					</div>
 				</div>

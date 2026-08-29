@@ -560,8 +560,9 @@ const ManageClients = () => {
 												}))
 											}
 										>
-											<option value="client">Client</option>
-											<option value="admin">Admin</option>
+										<option value="client">Client</option>
+										<option value="staff">Staff</option>
+										<option value="admin">Admin</option>
 										</select>
 									</label>
 
