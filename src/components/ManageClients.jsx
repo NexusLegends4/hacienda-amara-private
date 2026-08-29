@@ -1,44 +1,69 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../utils/supabase";
 import MainLayout from "../layouts/MainLayout";
 import Card from "./Card";
-import { FiUser, FiClock, FiCircle } from "react-icons/fi";
+import { FiUser, FiClock, FiCircle, FiAlertTriangle } from "react-icons/fi";
 
 const ManageClients = () => {
 	const [clients, setClients] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+	const channelRef = useRef(null);
 
 	const fetchClients = async () => {
-		const { data, error } = await supabase
-			.from("profiles")
-			.select("*")
-			.order("created_at", { ascending: false });
+		try {
+			const { data, error: fetchError } = await supabase
+				.from("profiles")
+				.select("*")
+				.order("created_at", { ascending: false });
 
-		if (error) {
-			console.error("Failed to fetch clients:", error.message);
-		} else {
+			if (fetchError) throw fetchError;
+
 			setClients(data ?? []);
+			setError(null);
+		} catch (err) {
+			console.error("Failed to fetch clients:", err);
+			setError(err.message || "Failed to load clients.");
+		} finally {
+			setLoading(false);
 		}
-		setLoading(false);
 	};
 
 	useEffect(() => {
+		let isMounted = true;
+
 		fetchClients();
 
-		// Real-time listener: Admin sees changes immediately when someone logs in/out
-		const subscription = supabase
-			.channel(`client-activity-${Math.random().toString(36).slice(2)}`)
+		// Unique channel name avoids "tried to subscribe multiple times"
+		// errors during React StrictMode double-mount or hot reload.
+		const channelName = `client-activity-${Math.random().toString(36).slice(2)}`;
+		const channel = supabase
+			.channel(channelName)
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "profiles" },
 				() => {
-					fetchClients();
+					if (isMounted) fetchClients();
 				}
 			)
-			.subscribe();
+			.subscribe((status, err) => {
+				if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+					console.error("Realtime subscription failed:", err);
+					if (isMounted) {
+						setError(
+							"Live updates unavailable — check that Realtime is enabled for 'profiles' in Supabase (Database → Replication)."
+						);
+					}
+				}
+			});
+
+		channelRef.current = channel;
 
 		return () => {
-			supabase.removeChannel(subscription);
+			isMounted = false;
+			if (channelRef.current) {
+				supabase.removeChannel(channelRef.current);
+			}
 		};
 	}, []);
 
@@ -69,11 +94,18 @@ const ManageClients = () => {
 						</div>
 					</div>
 
+					{error && (
+						<div className="alert bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center gap-2 px-4 py-3">
+							<FiAlertTriangle className="shrink-0" />
+							<span className="text-sm font-medium">{error}</span>
+						</div>
+					)}
+
 					{loading ? (
 						<div className="flex justify-center py-20">
 							<span className="loading loading-spinner loading-lg"></span>
 						</div>
-					) : clients.length === 0 ? (
+					) : clients.length === 0 && !error ? (
 						<div className="text-center py-20 text-slate-400 font-medium">No clients found.</div>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
