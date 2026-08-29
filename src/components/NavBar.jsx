@@ -154,6 +154,7 @@ const NavBar = () => {
 
 						{!session && (
 							<>
+								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/log-in" className={navLinkClass}>
 									<LoginIcon className="text-lg" /> Login
@@ -187,7 +188,6 @@ const NavBar = () => {
 						{profile && profile.role !== "admin" && (
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
-								<NavLink to="/scan-qr" className={navLinkClass}>Scan QR</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/client-notifications" className={navLinkClass}>
 									<FiBell className="text-base" />
@@ -292,6 +292,7 @@ const NavBar = () => {
 							{!session && (
 								<>
 									<div className="border-t border-base-200 my-2" />
+									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
 									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/log-in" className={mobileLinkClass} onClick={closeMobile}>
 										<LoginIcon /> Login
@@ -325,7 +326,6 @@ const NavBar = () => {
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
-									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/client-notifications" className={mobileLinkClass} onClick={closeMobile}>
 										<FiBell />
