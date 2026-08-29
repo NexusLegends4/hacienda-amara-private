@@ -17,11 +17,18 @@ const getInitials = (name) => {
 	return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
+const reservationGuestName = (reservation) =>
+	`${reservation.profiles?.firstname || ""} ${reservation.profiles?.lastname || ""}`.trim() ||
+	reservation.guest_name ||
+	"Guest";
+
 const ManageReservations = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [reservations, setReservations] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const canManageReservations = ["admin", "staff"].includes(profile?.role);
+	const isAdmin = profile?.role === "admin";
 	const adminDisplayName =
 		`${profile?.firstname || ""} ${profile?.lastname || ""}`.trim() ||
 		profile?.email ||
@@ -32,13 +39,13 @@ const ManageReservations = () => {
 			navigate("/log-in");
 			return;
 		}
-		if (profile && profile.role !== "admin") {
+		if (profile && !["admin", "staff"].includes(profile.role)) {
 			navigate("/");
 		}
 	}, [session, profile, navigate]);
 
 	useEffect(() => {
-		if (profile?.role === "admin") {
+		if (canManageReservations) {
 			fetchReservations();
 
 			const channel = supabase
@@ -59,7 +66,7 @@ const ManageReservations = () => {
 				supabase.removeChannel(channel);
 			};
 		}
-	}, [profile]);
+	}, [canManageReservations]);
 
 	const fetchReservations = async (showLoading = true) => {
 		if (showLoading) setLoading(true);
@@ -91,9 +98,7 @@ const ManageReservations = () => {
 			return;
 		}
 
-		const clientName =
-			`${resToUpdate?.profiles?.firstname || ""} ${resToUpdate?.profiles?.lastname || ""}`.trim() ||
-			"the client";
+		const clientName = resToUpdate ? reservationGuestName(resToUpdate) : "the client";
 
 		alert(
 			`Reservation for ${clientName} was ${newStatus === "confirmed" ? `accepted by ${adminDisplayName}` : `rejected by ${adminDisplayName}`}.`,
@@ -157,9 +162,11 @@ const ManageReservations = () => {
 								<button onClick={() => fetchReservations(true)} className="btn btn-outline rounded-full" title="Refresh List">
 									<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 								</button>
-								<button onClick={clearAllReservations} className="btn btn-error btn-outline rounded-full" title="Clear All Data">
-									<FiTrash2 /> Clear All
-								</button>
+								{isAdmin && (
+									<button onClick={clearAllReservations} className="btn btn-error btn-outline rounded-full" title="Clear All Data">
+										<FiTrash2 /> Clear All
+									</button>
+								)}
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full">
 									Back
 								</button>
@@ -185,13 +192,19 @@ const ManageReservations = () => {
 												{res.profiles?.avatar_url ? (
 													<img src={res.profiles.avatar_url} className="h-full w-full object-cover" alt="Guest" />
 												) : (
-													getInitials(`${res.profiles?.firstname || ""} ${res.profiles?.lastname || ""}`)
+											getInitials(reservationGuestName(res))
 												)}
 											</div>
 											<h3 className="font-bold text-lg truncate">
-												{res.profiles?.firstname} {res.profiles?.lastname}
-											</h3>
-										</div>
+										{reservationGuestName(res)}
+									</h3>
+								</div>
+								{res.guest_email && (
+									<div className="rounded-xl bg-base-200/60 px-3 py-2 text-xs text-base-content/70">
+										<p>{res.guest_email}</p>
+										<p>{res.guest_phone}</p>
+									</div>
+								)}
 										<p className="text-sm opacity-70 flex items-center gap-2">
 											<FiCalendar /> {res.check_in} to {res.check_out}
 										</p>
@@ -214,7 +227,7 @@ const ManageReservations = () => {
 											].join(" ")}>
 												{res.status || "pending"}
 											</span>
-											<div className="flex gap-2">
+											{isAdmin && <div className="flex gap-2">
 												<button
 													onClick={() => updateStatus(res.id, "confirmed")}
 													className="btn btn-sm btn-circle btn-ghost text-success text-xl"
@@ -229,14 +242,14 @@ const ManageReservations = () => {
 												>
 													<FiXCircle />
 												</button>
-											</div>
-											<button
+											</div>}
+											{isAdmin && <button
 												onClick={() => deleteReservation(res.id)}
 												className="btn btn-sm btn-circle btn-ghost text-error text-xl"
 												title="Delete"
 											>
 												<FiTrash2 />
-											</button>
+											</button>}
 										</div>
 									</div>
 								</div>
