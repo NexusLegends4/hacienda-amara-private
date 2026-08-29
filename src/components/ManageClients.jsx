@@ -286,20 +286,20 @@ const ManageClients = () => {
 						<div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
 							<div className="max-w-3xl">
 								<p className="text-sm font-medium uppercase tracking-[0.3em] text-base-content/50">
-									Client Accounts
+									Staff Accounts
 								</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-5xl">
-									Manage client profiles and promote accounts
+									Manage staff profiles and promote accounts
 								</h1>
 								<p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/70 md:text-base">
-									Open a client account, update their details, and change their
+									Open a staff account, update their details, and change their
 									role to admin when they are ready to manage the system.
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-3">
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
 									<FiUsers />
-									<span>{profiles.filter((entry) => entry.role === "client").length} clients</span>
+									<span>{profiles.filter((entry) => entry.role === "staff").length} staff</span>
 								</div>
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
 									<FiShield />
@@ -335,7 +335,7 @@ const ManageClients = () => {
 										value={roleFilter}
 										onChange={(event) => setRoleFilter(event.target.value)}
 									>
-										<option value="client">Clients</option>
+										<option value="staff">Staff</option>
 										<option value="admin">Admins</option>
 										<option value="all">All Roles</option>
 									</select>
@@ -365,7 +365,7 @@ const ManageClients = () => {
 							<div className="mt-5 space-y-3">
 								{loading && (
 									<div className="rounded-2xl border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60">
-										Loading client accounts...
+										Loading staff accounts...
 									</div>
 								)}
 
@@ -480,7 +480,7 @@ const ManageClients = () => {
 												{selectedProfile.email || "No email on file"}
 											</p>
 											<p className="mt-1 text-xs uppercase tracking-[0.2em] text-base-content/45">
-												{selectedProfile.role === "admin" ? "Administrator" : "Client"}
+												{selectedProfile.role === "admin" ? "Administrator" : "Staff"}
 											</p>
 											{selectedIsDeleted && (
 												<p className="mt-2 inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
@@ -551,29 +551,29 @@ const ManageClients = () => {
 											<span className="label-text font-medium">Account role</span>
 										</div>
 										<select
-																																																																						className="select select-bordered w-full"
-																																																																							value={form.role}
-																																																																							onChange={(event) =>
-																																																																								setForm((current) => ({
-																																																																									...current,
-																																																																									role: event.target.value,
-																																																																								}))
-																																																																						}
-																																																																					>
-																																																																						<option value="staff">Staff</option>
-																																																																						<option value="admin">Admin</option>
-																																																																					</select>
-																																																																					</label>
+											className="select select-bordered w-full"
+											value={form.role}
+											onChange={(event) =>
+												setForm((current) => ({
+													...current,
+													role: event.target.value,
+												}))
+											}
+										>
+											<option value="staff">Staff</option>
+											<option value="admin">Admin</option>
+										</select>
+									</label>
 
-																																																																					<div className="rounded-2xl bg-base-200 px-4 py-4 text-sm leading-6 text-base-content/70">
-																																																																							Only administrators can change account roles. Staff and admin are the available roles in the system.
-																																																																					</div>
+									<div className="rounded-2xl bg-base-200 px-4 py-4 text-sm leading-6 text-base-content/70">
+										Only administrators can change account roles. Staff and admin are the available roles in the system.
+									</div>
 
-																																																																					{status && (
-																																																																						<div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-																																																																							{status}
-																																																																						</div>
-																																																																					)}
+									{status && (
+										<div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+											{status}
+										</div>
+									)}
 									<div className="flex flex-wrap gap-3 pt-2">
 										<button
 											type="submit"
@@ -617,7 +617,7 @@ const ManageClients = () => {
 											No account selected
 										</h2>
 										<p className="mt-3 text-sm leading-6 text-base-content/60">
-											Pick a client from the left pane to inspect their profile and
+											Pick a staff member from the left pane to inspect their profile and
 											adjust their account details.
 										</p>
 									</div>
