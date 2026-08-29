@@ -551,33 +551,29 @@ const ManageClients = () => {
 											<span className="label-text font-medium">Account role</span>
 										</div>
 										<select
-											className="select select-bordered w-full"
-											value={form.role}
-											onChange={(event) =>
-												setForm((current) => ({
-													...current,
-													role: event.target.value,
-												}))
-											}
-										>
-										<option value="client">Client</option>
-										<option value="staff">Staff</option>
-										<option value="admin">Admin</option>
-										</select>
-									</label>
+																																																																						className="select select-bordered w-full"
+																																																																							value={form.role}
+																																																																							onChange={(event) =>
+																																																																								setForm((current) => ({
+																																																																									...current,
+																																																																									role: event.target.value,
+																																																																								}))
+																																																																						}
+																																																																					>
+																																																																						<option value="staff">Staff</option>
+																																																																						<option value="admin">Admin</option>
+																																																																					</select>
+																																																																					</label>
 
-									<div className="rounded-2xl bg-base-200 px-4 py-4 text-sm leading-6 text-base-content/70">
-										If you promote a client to admin, they will unlock admin-only
-										areas like event management and this page. If you delete a
-										client, the account can be restored later.
-									</div>
+																																																																					<div className="rounded-2xl bg-base-200 px-4 py-4 text-sm leading-6 text-base-content/70">
+																																																																							Only administrators can change account roles. Staff and admin are the available roles in the system.
+																																																																					</div>
 
-									{status && (
-										<div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-											{status}
-										</div>
-									)}
-
+																																																																					{status && (
+																																																																						<div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+																																																																							{status}
+																																																																						</div>
+																																																																					)}
 									<div className="flex flex-wrap gap-3 pt-2">
 										<button
 											type="submit"
