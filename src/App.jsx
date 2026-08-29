@@ -2,7 +2,6 @@ import "./App.css";
 import BookingQr from "./pages/BookingQr.jsx";
 import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
-import SignUp from "./pages/SignUp";
 import { useState, useEffect } from "react";
 import { supabase } from "./utils/supabase";
 import { SessionContext } from "./contexts/SessionContext.jsx";
@@ -28,6 +27,7 @@ import ClientNotifications from "./components/ClientNotifications";
 import Reviews from "./pages/Reviews";
 import PostReview from "./pages/PostReview";
 import Rules from "./pages/Rules";
+import SecurityCheck from "./pages/SecurityCheck";
 
 const THEME_STORAGE_KEY = "theme";
 
@@ -163,7 +163,7 @@ function App() {
 				.subscribe();
 
 			let adminChannel = null;
-			if (profile?.role === "admin") {
+			if (["admin", "staff"].includes(profile?.role)) {
 				adminChannel = supabase
 					.channel("admin-global-activity")
 					.on(
@@ -195,8 +195,8 @@ function App() {
 		<SessionContext.Provider value={{ session, profile, setSession, setProfile }}>
 			<Routes>
 				<Route path="/" element={<HomePage />} />
-				<Route path="/sign-up" element={<SignUp />} />
 				<Route path="/log-in" element={<Login />} />
+				<Route path="/security-check" element={<SecurityCheck />} />
 				<Route path="/profile" element={<Profile />} />
 				<Route path="/edit-profile" element={<EditProfile />} />
 				<Route path="/manage-events" element={<ManageEvents />} />
