@@ -14,7 +14,11 @@ const ManageClients = () => {
 			.select("*")
 			.order("created_at", { ascending: false });
 
-		if (!error) setClients(data);
+		if (error) {
+			console.error("Failed to fetch clients:", error.message);
+		} else {
+			setClients(data ?? []);
+		}
 		setLoading(false);
 	};
 
@@ -23,10 +27,14 @@ const ManageClients = () => {
 
 		// Real-time listener: Admin sees changes immediately when someone logs in/out
 		const subscription = supabase
-			.channel("client-activity")
-			.on("postgres_changes", { event: "*", table: "profiles" }, () => {
-				fetchClients();
-			})
+			.channel(`client-activity-${Math.random().toString(36).slice(2)}`)
+			.on(
+				"postgres_changes",
+				{ event: "*", schema: "public", table: "profiles" },
+				() => {
+					fetchClients();
+				}
+			)
 			.subscribe();
 
 		return () => {
@@ -55,14 +63,18 @@ const ManageClients = () => {
 							<div className="stat py-2 px-6">
 								<div className="stat-title text-xs uppercase font-bold tracking-widest">Active Now</div>
 								<div className="stat-value text-emerald-500 text-2xl">
-									{clients.filter(c => c.status === 'online').length}
+									{clients.filter((c) => c.status === "online").length}
 								</div>
 							</div>
 						</div>
 					</div>
 
 					{loading ? (
-						<div className="flex justify-center py-20"><span className="loading loading-spinner loading-lg"></span></div>
+						<div className="flex justify-center py-20">
+							<span className="loading loading-spinner loading-lg"></span>
+						</div>
+					) : clients.length === 0 ? (
+						<div className="text-center py-20 text-slate-400 font-medium">No clients found.</div>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 							{clients.map((client) => (
@@ -75,13 +87,23 @@ const ManageClients = () => {
 												</div>
 											</div>
 											<div>
-												<h3 className="font-bold text-lg text-slate-900">{client.firstname} {client.lastname}</h3>
-												<span className="badge badge-sm badge-outline opacity-50 uppercase text-[10px] font-bold tracking-tighter">{client.role}</span>
+												<h3 className="font-bold text-lg text-slate-900">
+													{client.firstname} {client.lastname}
+												</h3>
+												<span className="badge badge-sm badge-outline opacity-50 uppercase text-[10px] font-bold tracking-tighter">
+													{client.role}
+												</span>
 											</div>
 										</div>
-										<div className={`badge badge-sm gap-1.5 py-3 px-3 font-bold uppercase text-[10px] ${client.status === 'online' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-											<FiCircle className={client.status === 'online' ? 'fill-current' : ''} />
-											{client.status || 'offline'}
+										<div
+											className={`badge badge-sm gap-1.5 py-3 px-3 font-bold uppercase text-[10px] ${
+												client.status === "online"
+													? "bg-emerald-100 text-emerald-700 border-emerald-200"
+													: "bg-slate-100 text-slate-500 border-slate-200"
+											}`}
+										>
+											<FiCircle className={client.status === "online" ? "fill-current" : ""} />
+											{client.status || "offline"}
 										</div>
 									</div>
 
