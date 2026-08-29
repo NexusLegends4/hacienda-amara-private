@@ -31,7 +31,7 @@ const Settings = () => {
 	const [compactMode, setCompactMode] = useState(
 		localStorage.getItem("compactMode") === "true",
 	);
-	const [role, setRole] = useState(profile?.role || "client");
+	const [role, setRole] = useState(profile?.role || "staff");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -95,7 +95,7 @@ const Settings = () => {
 		setEmailNotifications(true);
 		setProfileVisibility("public");
 		setCompactMode(false);
-		setRole(profile?.role || "client");
+		setRole(profile?.role || "staff");
 		localStorage.setItem("emailNotifications", "true");
 		localStorage.setItem("profileVisibility", "public");
 		localStorage.setItem("compactMode", "false");

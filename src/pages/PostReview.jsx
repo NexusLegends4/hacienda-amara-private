@@ -28,8 +28,7 @@ const PostReview = () => {
 	const [uploading, setUploading] = useState(false);
 
 	useEffect(() => {
-		if (!session || profile?.role !== "client") {
-			// Only clients (guests with accounts) can post reviews.
+		if (!session || !["admin", "staff"].includes(profile?.role)) {
 			navigate("/");
 			return;
 		}

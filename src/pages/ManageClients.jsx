@@ -29,7 +29,7 @@ const getInitials = (name) => {
 const getDisplayName = (profile) =>
 	[profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim() ||
 	profile?.email ||
-	"Unnamed client";
+	"Unnamed staff";
 
 const ManageClients = () => {
 	const { session, profile } = useContext(SessionContext);
@@ -37,7 +37,7 @@ const ManageClients = () => {
 	const [profiles, setProfiles] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [roleFilter, setRoleFilter] = useState("client");
+	const [roleFilter, setRoleFilter] = useState("staff");
 	const [statusFilter, setStatusFilter] = useState("active");
 	const [selectedProfileId, setSelectedProfileId] = useState("");
 	const [saving, setSaving] = useState(false);
@@ -47,7 +47,7 @@ const ManageClients = () => {
 		firstname: "",
 		lastname: "",
 		email: "",
-		role: "client",
+		role: "staff",
 	});
 
 	useEffect(() => {
@@ -125,7 +125,7 @@ const ManageClients = () => {
 			firstname: entry.firstname || "",
 			lastname: entry.lastname || "",
 			email: entry.email || "",
-			role: entry.role || "client",
+			role: ["admin", "staff"].includes(entry.role) ? entry.role : "staff",
 		});
 	};
 
@@ -193,14 +193,14 @@ const ManageClients = () => {
 
 		setStatus(
 			`${getDisplayName(data)} updated successfully. ${
-				data.role === "admin" ? "This account is now an administrator." : "This account remains a client."
+				data.role === "admin" ? "This account is now an administrator." : "This account remains a staff member."
 			}`,
 		);
 		setForm({
 			firstname: data.firstname || "",
 			lastname: data.lastname || "",
 			email: data.email || "",
-			role: data.role || "client",
+			role: ["admin", "staff"].includes(data.role) ? data.role : "staff",
 		});
 		setProfiles((current) =>
 			current
@@ -227,7 +227,7 @@ const ManageClients = () => {
 			firstname: selectedProfile.firstname || "",
 			lastname: selectedProfile.lastname || "",
 			email: selectedProfile.email || "",
-			role: selectedProfile.role || "client",
+			role: ["admin", "staff"].includes(selectedProfile.role) ? selectedProfile.role : "staff",
 		});
 		setStatus("");
 	};
@@ -267,7 +267,7 @@ const ManageClients = () => {
 			firstname: data.firstname || "",
 			lastname: data.lastname || "",
 			email: data.email || "",
-			role: data.role || "client",
+			role: data.role || "staff",
 		});
 		setStatus(
 			`${getDisplayName(data)} ${action}d successfully. ${
