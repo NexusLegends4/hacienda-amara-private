@@ -34,3 +34,18 @@ VITE_SUPABASE_CHAT_MEDIA_BUCKET=chat-media
 If the bucket is missing or not writable yet, photo/video sending will fail instead of posting a private-only preview, so the chat stays honest about what other devices can see.
 
 The cleanup job removes chat messages and uploaded media older than 24 hours, so the chat does not keep photos and videos forever.
+
+## Guest Reservation Notifications
+
+Run `supabase/20260907_guest_reservation_notifications.sql` in the Supabase SQL editor. This keeps guest full names in the admin activity feed and preserves in-app notifications for account holders.
+
+For guests without an account to receive accepted or rejected reservation emails, configure these Vercel environment variables:
+
+```env
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=Hacienda Amara <bookings@your-verified-domain.com>
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only. The email route verifies the current admin session before sending.
