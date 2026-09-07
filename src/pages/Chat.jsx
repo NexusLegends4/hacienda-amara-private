@@ -21,7 +21,7 @@ const HACIENDA_AMARA_FACEBOOK_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-
 	HACIENDA_AMARA_FACEBOOK_URL,
 )}`;
 const HACIENDA_AMARA_PAYMENT_QR =
-	"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https%3A%2F%2Fscontent.fmnl25-7.fna.fbcdn.net%2Fv%2Ft39.30808-6%2F559429368_122155733324749963_5847375220171847776_n.jpg%3Fstp%3Ddst-jpg_tt6%26cstp%3Dmx1415x2000%26ctp%3Ds1415x2000%26_nc_cat%3D102%26ccb%3D1-7%26_nc_sid%3D833d8c%26_nc_eui2%3DAeG6pz74pRyLN3BzLLqQ8nlodgFoHZFCB-l2AWgdkUIH6QD-GK_LaB80Tpn8BTND-1lAKFsjZVIPZy_t_6HHoaUV%26_nc_ohc%3DlF78J5Xq3soQ7kNvwHvclBU%26_nc_oc%3DAdq8XMKNAKkKVkqmUS2NQv6cqilLCFnsbUGV_fTTkuZNGTIGUAVixTO1GJgD4A6JV8M%26_nc_zt%3D23%26_nc_ht%3Dscontent.fmnl25-7.fna%26_nc_gid%3DDod-7Q8K_4lX9jg6uQAHuA%26_nc_ss%3D7b2a8%26oh%3D00_AQIXjLpW5sj4KFFuwfSaFMTFMIyBgJ9tF3gGAEZBa5k75w%26oe%3D6AA42DD4";
+	"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https%3A%2F%2Fwww.facebook.com%2Fphoto.php%3Ffbid%3D122155733210749963%26set%3Dpb.61572498911618.-2207520000%26type%3D3";
 const HACIENDA_AMARA_LOCATION_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
 	HACIENDA_AMARA_MAPS_URL,
 )}`;
