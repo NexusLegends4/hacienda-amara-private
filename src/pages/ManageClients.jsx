@@ -11,6 +11,7 @@ import {
 	FiRefreshCw,
 	FiTrash2,
 	FiRotateCcw,
+	FiPlus,
 } from "react-icons/fi";
 import DOMPurify from "dompurify";
 
@@ -45,7 +46,10 @@ const ManageClients = () => {
 	const [selectedProfileId, setSelectedProfileId] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const [creating, setCreating] = useState(false);
+	const [showCreateForm, setShowCreateForm] = useState(false);
 	const [status, setStatus] = useState("");
+	const [createForm, setCreateForm] = useState({ firstname: "", lastname: "", email: "", password: "", role: "staff" });
 	const [form, setForm] = useState({
 		firstname: "",
 		lastname: "",
@@ -91,6 +95,23 @@ const ManageClients = () => {
 			setSelectedProfileId((current) => current || nextProfiles[0].id);
 		}
 	}, []);
+
+	const updateProfileCache = (updatedProfile) => {
+		setProfiles((current) =>
+			current
+				.map((entry) =>
+					entry.id === updatedProfile.id
+						? { ...entry, ...updatedProfile }
+						: entry,
+				)
+				.slice()
+				.sort((left, right) =>
+					getDisplayName(left)
+						.toLowerCase()
+						.localeCompare(getDisplayName(right).toLowerCase()),
+				),
+		);
+	};
 
 	useEffect(() => {
 		if (profile?.role !== "admin") return;
@@ -148,26 +169,6 @@ const ManageClients = () => {
 
 		return matchesSearch && matchesRole && matchesStatus;
 	});
-
-	const updateProfileCache = (updatedProfile) => {
-		setProfiles((current) =>
-			current
-				.map((entry) =>
-					entry.id === updatedProfile.id
-						? {
-								...entry,
-								...updatedProfile,
-						  }
-						: entry,
-				)
-				.slice()
-				.sort((left, right) =>
-					getDisplayName(left)
-						.toLowerCase()
-						.localeCompare(getDisplayName(right).toLowerCase()),
-				),
-		);
-	};
 
 	const handleSave = async (event) => {
 		event.preventDefault();
@@ -234,6 +235,37 @@ const ManageClients = () => {
 			role: normalizeRole(selectedProfile.role),
 		});
 		setStatus("");
+	};
+
+	const handleCreate = async (event) => {
+		event.preventDefault();
+		setCreating(true);
+		setStatus("");
+
+		try {
+			const response = await fetch("/api/admin-create-account", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+				body: JSON.stringify({
+					...createForm,
+					firstname: DOMPurify.sanitize(createForm.firstname.trim()),
+					lastname: DOMPurify.sanitize(createForm.lastname.trim()),
+					email: createForm.email.trim(),
+				}),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "Unable to create the account.");
+
+			setProfiles((current) => [result.profile, ...current]);
+			setSelectedProfileId(result.profile.id);
+			setCreateForm({ firstname: "", lastname: "", email: "", password: "", role: "staff" });
+			setShowCreateForm(false);
+			setStatus(`${getDisplayName(result.profile)} was created successfully.`);
+		} catch (error) {
+			setStatus(error.message || "Unable to create the account.");
+		} finally {
+			setCreating(false);
+		}
 	};
 
 	const handleDeleteToggle = async () => {
@@ -316,6 +348,10 @@ const ManageClients = () => {
 								>
 									<FiRefreshCw />
 									Refresh
+								</button>
+								<button type="button" onClick={() => { setShowCreateForm(true); setStatus(""); }} className="btn btn-black rounded-full">
+									<FiPlus />
+									Add account
 								</button>
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full">
 									Back
@@ -438,7 +474,26 @@ const ManageClients = () => {
 						</div>
 
 						<div className="rounded-[2rem] border border-black/5 bg-white/85 p-5 shadow-xl backdrop-blur sm:p-6">
-							{selectedProfile ? (
+							{showCreateForm ? (
+								<form onSubmit={handleCreate} className="space-y-6">
+									<div className="border-b border-base-200 pb-5">
+										<p className="text-xs font-semibold uppercase tracking-[0.22em] text-base-content/45">New account</p>
+										<h2 className="mt-2 text-2xl font-black text-base-content">Add staff or admin</h2>
+										<p className="mt-2 text-sm text-base-content/60">The account can sign in immediately using the password you provide.</p>
+									</div>
+									<div className="grid gap-5 md:grid-cols-2">
+										{["firstname", "lastname"].map((field) => (
+											<label key={field} className="form-control"><div className="label"><span className="label-text font-medium">{field === "firstname" ? "First name" : "Last name"}</span></div><input required type="text" value={createForm[field]} onChange={(event) => setCreateForm((current) => ({ ...current, [field]: event.target.value }))} className="input input-bordered w-full" /></label>
+										))}
+									</div>
+									<label className="form-control"><div className="label"><span className="label-text font-medium">Email</span></div><input required type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} className="input input-bordered w-full" /></label>
+									<div className="grid gap-5 md:grid-cols-2">
+										<label className="form-control"><div className="label"><span className="label-text font-medium">Temporary password</span></div><input required minLength={8} type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} className="input input-bordered w-full" /></label>
+										<label className="form-control"><div className="label"><span className="label-text font-medium">Account role</span></div><select className="select select-bordered w-full" value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+									</div>
+									<div className="flex flex-wrap gap-3 pt-2"><button type="submit" disabled={creating} className="btn btn-black rounded-full px-6"><FiPlus />{creating ? "Creating..." : "Create account"}</button><button type="button" onClick={() => setShowCreateForm(false)} className="btn btn-outline rounded-full px-6">Cancel</button></div>
+								</form>
+							) : selectedProfile ? (
 								<form onSubmit={handleSave} className="space-y-6">
 									<div className="flex items-start justify-between gap-4 border-b border-base-200 pb-5">
 										<div>
