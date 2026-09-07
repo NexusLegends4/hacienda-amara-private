@@ -47,3 +47,15 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 The `MAILTRAP_API_TOKEN` and `SUPABASE_SERVICE_ROLE_KEY` must remain server-side. The notification API accepts requests only from authenticated admin or staff users. `MAILTRAP_FROM_EMAIL` must be an approved sender in the Mailtrap sending domain.
+
+## Staff and Admin Account Creation
+
+To let administrators create staff or admin accounts from `Manage Staff`, run `supabase/20260907_admin_account_creation.sql` after the staff access migration. Add these Vercel environment variables:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_public_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+The service role key is server-only and must never be exposed as a `VITE_` variable.
