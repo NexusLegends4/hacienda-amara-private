@@ -243,9 +243,15 @@ const ManageClients = () => {
 		setStatus("");
 
 		try {
+			const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+			const accessToken = sessionData.session?.access_token;
+			if (sessionError || !accessToken) {
+				throw new Error("Your session expired. Please log in again.");
+			}
+
 			const response = await fetch("/api/admin-create-account", {
 				method: "POST",
-				headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
 				body: JSON.stringify({
 					...createForm,
 					firstname: DOMPurify.sanitize(createForm.firstname.trim()),
@@ -253,7 +259,17 @@ const ManageClients = () => {
 					email: createForm.email.trim(),
 				}),
 			});
-			const result = await response.json();
+			const responseText = await response.text();
+			let result;
+			try {
+				result = JSON.parse(responseText);
+			} catch {
+				throw new Error(
+					response.ok
+						? "The server returned an invalid response."
+						: `Account creation endpoint unavailable (${response.status}). Run this through Vercel, not Vite alone.`,
+				);
+			}
 			if (!response.ok) throw new Error(result.error || "Unable to create the account.");
 
 			setProfiles((current) => [result.profile, ...current]);
