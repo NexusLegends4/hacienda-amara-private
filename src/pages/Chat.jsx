@@ -21,7 +21,7 @@ const HACIENDA_AMARA_FACEBOOK_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-
 	HACIENDA_AMARA_FACEBOOK_URL,
 )}`;
 const HACIENDA_AMARA_PAYMENT_QR =
-	"https://scontent.fmnl9-2.fna.fbcdn.net/v/t1.15752-9/586101388_4313457875643178_1323786050449359968_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=9f807c&_nc_eui2=AeF8MCzKGVynPapvqPw66URbifWVdj1W1EKJ9ZV2PVbUQnWqOJyG40mBypc3lsyCOZtoN9UCBqYx5xKGy52kW7_b&_nc_ohc=iWoIMRjetowQ7kNvwE45bpj&_nc_oc=AdrLJu9v2kmxwQVcQozKQadNYjV8ueWaP-kB_vk6I9xYYhVbsIeyb0WOLCQFkBlZJRE&_nc_zt=23&_nc_ht=scontent.fmnl9-2.fna&_nc_ss=7a3a8&oh=03_Q7cD5AGLhx3iK6ZcKb8fL_FNAcsnYgOuhSDrzr6oen-MUaGdJg&oe=6A07D2D0";
+	"https://scontent.fmnl25-7.fna.fbcdn.net/v/t39.30808-6/559429368_122155733324749963_5847375220171847776_n.jpg?stp=dst-jpg_tt6&cstp=mx1415x2000&ctp=s1415x2000&_nc_cat=102&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeG6pz74pRyLN3BzLLqQ8nlodgFoHZFCB-l2AWgdkUIH6QD-GK_LaB80Tpn8BTND-1lAKFsjZVIPZy_t_6HHoaUV&_nc_ohc=lF78J5Xq3soQ7kNvwHvclBU&_nc_oc=Adq8XMKNAKkKVkqmUS2NQv6cqilLCFnsbUGV_fTTkuZNGTIGUAVixTO1GJgD4A6JV8M&_nc_zt=23&_nc_ht=scontent.fmnl25-7.fna&_nc_gid=Dod-7Q8K_4lX9jg6uQAHuA&_nc_ss=7b2a8&oh=00_AQIXjLpW5sj4KFFuwfSaFMTFMIyBgJ9tF3gGAEZBa5k75w&oe=6AA42DD4";
 const HACIENDA_AMARA_LOCATION_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
 	HACIENDA_AMARA_MAPS_URL,
 )}`;
