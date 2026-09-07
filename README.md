@@ -35,17 +35,15 @@ If the bucket is missing or not writable yet, photo/video sending will fail inst
 
 The cleanup job removes chat messages and uploaded media older than 24 hours, so the chat does not keep photos and videos forever.
 
-## Guest Reservation Notifications
+## Guest Reservation Email Notifications
 
-Run `supabase/20260907_guest_reservation_notifications.sql` in the Supabase SQL editor. This keeps guest full names in the admin activity feed and preserves in-app notifications for account holders.
-
-For guests without an account to receive accepted or rejected reservation emails, configure these Vercel environment variables:
+Run `supabase/20260907_guest_reservation_notifications.sql` in the Supabase SQL Editor. For guests without an account to receive accepted or rejected reservation emails through Mailtrap, add these Vercel environment variables:
 
 ```env
-RESEND_API_KEY=your_resend_api_key
-RESEND_FROM_EMAIL=Hacienda Amara <bookings@your-verified-domain.com>
+MAILTRAP_API_TOKEN=your_mailtrap_api_token
+MAILTRAP_FROM_EMAIL=your-verified-sender@example.com
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only. The email route verifies the current admin session before sending.
+The `MAILTRAP_API_TOKEN` and `SUPABASE_SERVICE_ROLE_KEY` must remain server-side. The notification API accepts requests only from authenticated admin or staff users. `MAILTRAP_FROM_EMAIL` must be an approved sender in the Mailtrap sending domain.
