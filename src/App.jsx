@@ -9,7 +9,7 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import ManageEvents from "./pages/ManageEvents";
-import ManageClients from "./pages/ManageClients";
+import ManageClients from "./components/ManageClients";
 import AdminNotifications from "./pages/AdminNotifications";
 import AddEvent from "./pages/AddEvent";
 import EditEvent from "./pages/EditEvent";
