@@ -29,10 +29,10 @@ const ManageReservations = () => {
 	const [loading, setLoading] = useState(true);
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
-	const adminDisplayName =
+	const managerDisplayName =
 		`${profile?.firstname || ""} ${profile?.lastname || ""}`.trim() ||
 		profile?.email ||
-		"Admin";
+		(isAdmin ? "Admin" : "Staff");
 
 	useEffect(() => {
 		if (!session) {
@@ -101,7 +101,7 @@ const ManageReservations = () => {
 		const clientName = resToUpdate ? reservationGuestName(resToUpdate) : "the client";
 
 		alert(
-			`Reservation for ${clientName} was ${newStatus === "confirmed" ? `accepted by ${adminDisplayName}` : `rejected by ${adminDisplayName}`}.`,
+			`Reservation for ${clientName} was ${newStatus === "confirmed" ? `accepted by ${managerDisplayName}` : `rejected by ${managerDisplayName}`}.`,
 		);
 		fetchReservations(false);
 	};
@@ -149,7 +149,7 @@ const ManageReservations = () => {
 						<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 							<div className="max-w-2xl">
 								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
-									Admin Dashboard
+									{isAdmin ? "Admin Dashboard" : "Staff Dashboard"}
 								</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">
 									Manage Reservations
@@ -162,7 +162,7 @@ const ManageReservations = () => {
 								<button onClick={() => fetchReservations(true)} className="btn btn-outline rounded-full" title="Refresh List">
 									<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 								</button>
-								{isAdmin && (
+								{canManageReservations && (
 									<button onClick={clearAllReservations} className="btn btn-error btn-outline rounded-full" title="Clear All Data">
 										<FiTrash2 /> Clear All
 									</button>
@@ -227,7 +227,7 @@ const ManageReservations = () => {
 											].join(" ")}>
 												{res.status || "pending"}
 											</span>
-											{isAdmin && <div className="flex gap-2">
+											{canManageReservations && <div className="flex gap-2">
 												<button
 													onClick={() => updateStatus(res.id, "confirmed")}
 													className="btn btn-sm btn-circle btn-ghost text-success text-xl"
@@ -243,7 +243,7 @@ const ManageReservations = () => {
 													<FiXCircle />
 												</button>
 											</div>}
-											{isAdmin && <button
+											{canManageReservations && <button
 												onClick={() => deleteReservation(res.id)}
 												className="btn btn-sm btn-circle btn-ghost text-error text-xl"
 												title="Delete"
