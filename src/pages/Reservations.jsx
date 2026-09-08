@@ -33,7 +33,7 @@ const Reservations = () => {
 	const [guestEmail, setGuestEmail] = useState("");
 	const [guestPhone, setGuestPhone] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [reservedDates, setReservedDates] = useState([]);
+	const [reservedBookings, setReservedBookings] = useState([]);
 	const [cancelDate, setCancelDate] = useState("");
 	const [cancelEmail, setCancelEmail] = useState("");
 	const [cancelPhone, setCancelPhone] = useState("");
@@ -49,16 +49,37 @@ const Reservations = () => {
 		const loadReservedDates = async () => {
 			const { data, error } = await supabase.rpc("get_reserved_date_ranges");
 
-			if (!error) setReservedDates(data || []);
+			if (!error) setReservedBookings(data || []);
 		};
 
 		loadReservedDates();
 	}, []);
 
+	const bookingWindows = useMemo(() => ({
+		"Day Time (9 Hours)": { start: "09:00", end: "18:00", endDateOffset: 0 },
+		"Night Time (9 Hours)": { start: "21:00", end: "06:00", endDateOffset: 1 },
+		"Overnight (21 Hours)": { start: "09:00", end: "06:00", endDateOffset: 1 },
+	}), []);
+
+	const getBookingInterval = (bookingDate, bookingRoomType) => {
+		const window = bookingWindows[bookingRoomType];
+		if (!window) return null;
+		const start = new Date(`${bookingDate}T${window.start}:00`);
+		const endDate = new Date(`${bookingDate}T00:00:00`);
+		endDate.setDate(endDate.getDate() + window.endDateOffset);
+		const end = new Date(`${endDate.toISOString().slice(0, 10)}T${window.end}:00`);
+		return { start, end };
+	};
+
 	const isDateReserved = useMemo(() => {
-		if (!date) return false;
-		return reservedDates.some((reservation) => date >= reservation.check_in && date <= reservation.check_out);
-	}, [date, reservedDates]);
+		const selectedInterval = getBookingInterval(date, roomType);
+		if (!selectedInterval) return false;
+
+		return reservedBookings.some((reservation) => {
+			const existingInterval = getBookingInterval(reservation.check_in, reservation.room_type);
+			return existingInterval && selectedInterval.start < existingInterval.end && selectedInterval.end > existingInterval.start;
+		});
+	}, [date, roomType, reservedBookings, bookingWindows]);
 
 	const pricing = useMemo(() => {
 		if (!date) return 0;
@@ -76,19 +97,18 @@ const Reservations = () => {
 		e.preventDefault();
 		if (pricing <= 0 || isDateReserved) { alert("Please select an available date."); return; }
 		setLoading(true);
-		const { error } = await supabase.from("reservations").insert([{
-			profile_id: null,
-			guest_name: guestName.trim(),
-			guest_email: guestEmail.trim(),
-			guest_phone: guestPhone.trim(),
-			check_in: date,
-			check_out: checkOutDate,
-			room_type: roomType,
-			guests: Number(guests),
-			total_price: pricing,
-			status: "pending",
-		}]);
+		const { data: reservationId, error } = await supabase.rpc("create_guest_reservation", {
+			reservation_guest_name: guestName.trim(),
+			reservation_guest_email: guestEmail.trim(),
+			reservation_guest_phone: guestPhone.trim(),
+			reservation_check_in: date,
+			reservation_check_out: checkOutDate,
+			reservation_room_type: roomType,
+			reservation_guests: Number(guests),
+			reservation_total_price: pricing,
+		});
 		if (error) alert(error.message);
+		else if (!reservationId) alert("That time slot is already booked. Please choose another schedule.");
 		else { alert("Reservation submitted! Resort staff will contact you for confirmation."); navigate("/"); }
 		setLoading(false);
 	};
