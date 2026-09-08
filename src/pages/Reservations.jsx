@@ -63,11 +63,18 @@ const Reservations = () => {
 
 	const getBookingInterval = (bookingDate, bookingRoomType) => {
 		const window = bookingWindows[bookingRoomType];
-		if (!window) return null;
+		if (!window || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate || "")) return null;
 		const start = new Date(`${bookingDate}T${window.start}:00`);
 		const endDate = new Date(`${bookingDate}T00:00:00`);
+		if (Number.isNaN(start.getTime()) || Number.isNaN(endDate.getTime())) return null;
 		endDate.setDate(endDate.getDate() + window.endDateOffset);
-		const end = new Date(`${endDate.toISOString().slice(0, 10)}T${window.end}:00`);
+		const endDateString = [
+			endDate.getFullYear(),
+			String(endDate.getMonth() + 1).padStart(2, "0"),
+			String(endDate.getDate()).padStart(2, "0"),
+		].join("-");
+		const end = new Date(`${endDateString}T${window.end}:00`);
+		if (Number.isNaN(end.getTime())) return null;
 		return { start, end };
 	};
 
@@ -129,7 +136,7 @@ const Reservations = () => {
 			alert("No active reservation matched those details.");
 		} else {
 			alert("Your reservation was cancelled. The date is now available again.");
-			setReservedDates((current) => current.filter((reservation) =>
+			setReservedBookings((current) => current.filter((reservation) =>
 				cancelDate < reservation.check_in || cancelDate > reservation.check_out,
 			));
 			setCancelDate("");
