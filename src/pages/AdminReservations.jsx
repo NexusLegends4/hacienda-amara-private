@@ -84,7 +84,9 @@ const AdminReservations = () => {
 		for (let d = 1; d <= totalDays; d++) {
 			const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 			// Show booking on all days from check-in to check-out
-			const dayBookings = reservations.filter(res => dateStr >= res.check_in && dateStr <= res.check_out);
+			const dayBookings = reservations.filter(
+				(res) => res.status !== "cancelled" && dateStr >= res.check_in && dateStr <= res.check_out,
+			);
 
 			days.push(
 				<div key={d} className="h-24 border border-gray-100 p-1 relative overflow-y-auto bg-white hover:bg-amber-50/30 transition-colors">

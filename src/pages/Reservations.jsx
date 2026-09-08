@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
-import { FiCalendar, FiUsers, FiInfo, FiCheckCircle } from "react-icons/fi";
+import { FiCalendar, FiUsers, FiInfo, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 const PH_HOLIDAYS_2026 = [
 	"2026-01-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-09",
@@ -33,12 +33,32 @@ const Reservations = () => {
 	const [guestEmail, setGuestEmail] = useState("");
 	const [guestPhone, setGuestPhone] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [reservedDates, setReservedDates] = useState([]);
+	const [cancelDate, setCancelDate] = useState("");
+	const [cancelEmail, setCancelEmail] = useState("");
+	const [cancelPhone, setCancelPhone] = useState("");
+	const [cancelling, setCancelling] = useState(false);
 
 	useEffect(() => {
 		if (["admin", "staff"].includes(profile?.role)) {
 			navigate(profile.role === "admin" ? "/admin-reservations" : "/manage-reservations", { replace: true });
 		}
 	}, [navigate, profile?.role]);
+
+	useEffect(() => {
+		const loadReservedDates = async () => {
+			const { data, error } = await supabase.rpc("get_reserved_date_ranges");
+
+			if (!error) setReservedDates(data || []);
+		};
+
+		loadReservedDates();
+	}, []);
+
+	const isDateReserved = useMemo(() => {
+		if (!date) return false;
+		return reservedDates.some((reservation) => date >= reservation.check_in && date <= reservation.check_out);
+	}, [date, reservedDates]);
 
 	const pricing = useMemo(() => {
 		if (!date) return 0;
@@ -54,7 +74,7 @@ const Reservations = () => {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (pricing <= 0) { alert("Please select a valid date."); return; }
+		if (pricing <= 0 || isDateReserved) { alert("Please select an available date."); return; }
 		setLoading(true);
 		const { error } = await supabase.from("reservations").insert([{
 			profile_id: null,
@@ -71,6 +91,33 @@ const Reservations = () => {
 		if (error) alert(error.message);
 		else { alert("Reservation submitted! Resort staff will contact you for confirmation."); navigate("/"); }
 		setLoading(false);
+	};
+
+	const handleCancelReservation = async (event) => {
+		event.preventDefault();
+		setCancelling(true);
+
+		const { data, error } = await supabase.rpc("cancel_guest_reservation", {
+			reservation_email: cancelEmail.trim(),
+			reservation_phone: cancelPhone.trim(),
+			reservation_check_in: cancelDate,
+		});
+
+		if (error) {
+			alert(error.message);
+		} else if (!data) {
+			alert("No active reservation matched those details.");
+		} else {
+			alert("Your reservation was cancelled. The date is now available again.");
+			setReservedDates((current) => current.filter((reservation) =>
+				cancelDate < reservation.check_in || cancelDate > reservation.check_out,
+			));
+			setCancelDate("");
+			setCancelEmail("");
+			setCancelPhone("");
+		}
+
+		setCancelling(false);
 	};
 
 	const isExpensive = date ? isWeekendOrHoliday(date) : null;
@@ -118,6 +165,7 @@ const Reservations = () => {
 								<div className="form-control">
 									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
 									<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
+									{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
 									{date && (
 										<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
 											{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies"}
@@ -166,13 +214,31 @@ const Reservations = () => {
 										<span className="text-3xl font-black">{pricing > 0 ? `₱${pricing.toLocaleString()}` : "—"}</span>
 									</div>
 								</div>
-								<button disabled={loading || pricing === 0} className="btn btn-black w-full rounded-full h-14 mt-8">
+								<button disabled={loading || pricing === 0 || isDateReserved} className="btn btn-black w-full rounded-full h-14 mt-8">
 									{loading ? <span className="loading loading-spinner"></span> : <><FiCheckCircle /> Confirm Reservation</>}
 								</button>
 							</div>
 						</form>
 					</div>
 				</div>
+
+					<div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/70 p-6 shadow-xl backdrop-blur sm:rounded-[2rem] sm:p-8">
+						<div className="flex items-start gap-3">
+							<FiXCircle className="mt-1 shrink-0 text-rose-600" />
+							<div>
+								<h2 className="text-xl font-bold text-rose-950">Cancel an existing reservation</h2>
+								<p className="mt-1 text-sm text-rose-900/70">Enter the same date, email, and phone number used when booking.</p>
+							</div>
+						</div>
+						<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4">
+							<input type="date" className="input input-bordered rounded-2xl bg-white" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
+							<input type="email" className="input input-bordered rounded-2xl bg-white" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
+							<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+							<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white">
+								{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
+							</button>
+						</form>
+					</div>
 			</div>
 		</MainLayout>
 	);
