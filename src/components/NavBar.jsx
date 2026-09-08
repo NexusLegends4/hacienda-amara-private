@@ -182,7 +182,7 @@ const NavBar = () => {
 						)}
 
 						{profile?.role === "staff" && (
-							<NavLink to="/manage-reservations" className={navLinkClass}>Reservations</NavLink>
+							<NavLink to="/manage-reservations" className={navLinkClass}>Manage Reservations</NavLink>
 						)}
 
 						{profile && profile.role !== "admin" && (
@@ -318,7 +318,7 @@ const NavBar = () => {
 							{profile?.role === "staff" && (
 								<>
 									<div className="border-t border-base-200 my-2" />
-									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Reservations</NavLink>
+									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
 								</>
 							)}
 

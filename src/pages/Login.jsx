@@ -6,6 +6,7 @@ import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
+import { SECURITY_VERIFIED_KEY } from "../utils/security";
 
 const PROFILE_BACKGROUND_IMAGE =
 	"https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=3fUFjvEWuogQ7kNvwGcc91D&_nc_oc=AdqW5AtIaFMzg06ui5Ap82t7gnoS1cVIpqdK9kLYl26gtnBuR1eF_lBVnI676gapmrw&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=V7ltjqr7MS5-BehPpo8N3w&_nc_ss=7a3a8&oh=00_Af0M5UyjzO6ZNJ52ZYpiN649-3b-MYBsd5wWJjFB-CaBrA&oe=69DE7687";
@@ -31,6 +32,7 @@ const Login = () => {
 	const handleSubmit = async (event) => {
 		// Send credentials to Supabase and redirect on success.
 		event.preventDefault();
+		sessionStorage.removeItem(SECURITY_VERIFIED_KEY);
 		const formData = new FormData(event.target);
 		setIsSubmitting(true);
 

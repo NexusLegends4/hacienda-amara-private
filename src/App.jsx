@@ -1,6 +1,6 @@
 import "./App.css";
 import BookingQr from "./pages/BookingQr.jsx";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import { useState, useEffect } from "react";
 import { supabase } from "./utils/supabase";
@@ -28,12 +28,32 @@ import Reviews from "./pages/Reviews";
 import PostReview from "./pages/PostReview";
 import Rules from "./pages/Rules";
 import SecurityCheck from "./pages/SecurityCheck";
+import { SECURITY_VERIFIED_KEY } from "./utils/security";
 
 const THEME_STORAGE_KEY = "theme";
 
 function App() {
 	const [session, setSession] = useState(null);
 	const [profile, setProfile] = useState(null);
+	const location = useLocation();
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		const isStaffOrAdmin = ["admin", "staff"].includes(profile?.role);
+		const isSecurityRoute = location.pathname === "/security-check";
+		const isLoginRoute = location.pathname === "/log-in";
+		const isVerified = sessionStorage.getItem(SECURITY_VERIFIED_KEY) === "true";
+
+		if (session && isStaffOrAdmin && !isSecurityRoute && !isLoginRoute && !isVerified) {
+			navigate("/security-check", {
+				replace: true,
+				state: {
+					nextPath: `${location.pathname}${location.search}${location.hash}`,
+					 source: "staff-admin-route",
+				},
+			});
+		}
+	}, [location.hash, location.pathname, location.search, navigate, profile?.role, session]);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -86,6 +106,7 @@ function App() {
 			console.log("event", event);
 			console.log("session", nextSession);
 			if (event === "SIGNED_OUT") {
+				sessionStorage.removeItem(SECURITY_VERIFIED_KEY);
 				setSession(null);
 				setProfile(null);
 			} else if (nextSession) {

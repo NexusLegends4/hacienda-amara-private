@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
+import { SECURITY_VERIFIED_KEY } from "../utils/security";
 
 const randomInt = (minimum, maximum) => {
 	const range = maximum - minimum + 1;
@@ -56,6 +57,7 @@ const SecurityCheck = () => {
 		if (lockSeconds > 0) return;
 
 		if (answer.trim().toUpperCase() === challenge.code) {
+			sessionStorage.setItem(SECURITY_VERIFIED_KEY, "true");
 			setMessage("Security check complete.");
 			navigate(destination, { replace: true });
 			return;
