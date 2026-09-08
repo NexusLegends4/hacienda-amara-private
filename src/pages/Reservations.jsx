@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useContext, useEffect } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
+import { SessionContext } from "../contexts/SessionContext.jsx";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle } from "react-icons/fi";
 
 const PH_HOLIDAYS_2026 = [
@@ -23,6 +24,7 @@ const RATES = {
 };
 
 const Reservations = () => {
+	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [date, setDate] = useState("");
 	const [roomType, setRoomType] = useState("Day Time (9 Hours)");
@@ -31,6 +33,12 @@ const Reservations = () => {
 	const [guestEmail, setGuestEmail] = useState("");
 	const [guestPhone, setGuestPhone] = useState("");
 	const [loading, setLoading] = useState(false);
+
+	useEffect(() => {
+		if (["admin", "staff"].includes(profile?.role)) {
+			navigate(profile.role === "admin" ? "/admin-reservations" : "/manage-reservations", { replace: true });
+		}
+	}, [navigate, profile?.role]);
 
 	const pricing = useMemo(() => {
 		if (!date) return 0;

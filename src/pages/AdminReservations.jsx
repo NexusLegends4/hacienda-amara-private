@@ -17,7 +17,7 @@ const AdminReservations = () => {
 			navigate("/log-in");
 			return;
 		}
-		if (profile && profile.role !== "admin") {
+		if (profile && !["admin", "staff"].includes(profile.role)) {
 			navigate("/");
 		}
 	}, [session, profile, navigate]);
@@ -38,7 +38,7 @@ const AdminReservations = () => {
 	}, []);
 
 	useEffect(() => {
-		if (profile?.role === "admin") {
+		if (["admin", "staff"].includes(profile?.role)) {
 			fetchReservations();
 
 			// Real-time listener for ALL changes (INSERT, UPDATE, DELETE) in reservations and profile updates

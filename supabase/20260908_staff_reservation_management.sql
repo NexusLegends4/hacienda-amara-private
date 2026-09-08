@@ -28,3 +28,14 @@ create policy "Staff can delete all reservations"
       where id = auth.uid() and role in ('admin', 'staff')
     )
   );
+
+drop policy if exists "Staff can delete auth notifications" on public.auth_notifications;
+create policy "Staff can delete auth notifications"
+  on public.auth_notifications
+  for delete to authenticated
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role in ('admin', 'staff')
+    )
+  );

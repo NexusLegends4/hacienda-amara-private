@@ -35,7 +35,7 @@ const AdminNotifications = () => {
 			return;
 		}
 
-		if (profile && profile.role !== "admin") {
+		if (profile && !["admin", "staff"].includes(profile.role)) {
 			navigate("/");
 		}
 	}, [session, profile, navigate]);
@@ -80,13 +80,13 @@ const AdminNotifications = () => {
 	};
 
 	useEffect(() => {
-		if (profile?.role !== "admin") return;
+		if (!["admin", "staff"].includes(profile?.role)) return;
 
 		void loadNotifications();
 	}, [profile?.role]);
 
 	useEffect(() => {
-		if (profile?.role !== "admin") return undefined;
+		if (!["admin", "staff"].includes(profile?.role)) return undefined;
 
 		const channel = supabase.channel("auth-notifications-live");
 
@@ -153,14 +153,14 @@ const AdminNotifications = () => {
 						<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 							<div className="max-w-2xl">
 								<p className="text-xs font-semibold uppercase tracking-[0.28em] text-base-content/50">
-									Admin Notifications
+									{profile?.role === "admin" ? "Admin Notifications" : "Staff Notifications"}
 								</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-5xl">
 									Booking and account activity
 								</h1>
 								<p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/70 md:text-base">
 									See new booking requests plus login, sign-up, and logout activity in real time.
-									This page is visible to administrators only.
+									This page is available to authorized staff and administrators.
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-3">

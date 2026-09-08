@@ -312,7 +312,7 @@ const Settings = () => {
 											Your role is managed separately by administrators.
 										</span>
 										<p className="mt-2 text-sm font-semibold text-base-content">
-											{profile?.role === "admin" ? "Administrator" : "Client"}
+											{profile?.role === "admin" ? "Administrator" : profile?.role === "staff" ? "Staff" : "Client"}
 										</p>
 									</div>
 								)}

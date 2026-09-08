@@ -162,9 +162,9 @@ const NavBar = () => {
 							</>
 						)}
 
-						{profile?.role === "admin" && (
+							{["admin", "staff"].includes(profile?.role) && (
 							<>
-								<div className="dropdown dropdown-bottom relative z-[999]">
+												{profile?.role === "admin" && <div className="dropdown dropdown-bottom relative z-[999]">
 									<div tabIndex={0} role="button" className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer">
 										Manage <FiChevronDown />
 									</div>
@@ -174,9 +174,8 @@ const NavBar = () => {
 										<li><NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Reservations</NavLink></li>
 										<li><NavLink to="/scan-qr" className="rounded-xl px-3 py-2 hover:bg-base-200">Scan QR</NavLink></li>
 									</ul>
-								</div>
+								</div>}
 								<NavLink to="/admin-reservations" className={navLinkClass}>Calendar</NavLink>
-								<NavLink to="/booking-qr" className={navLinkClass}>Booking QR</NavLink>
 								<NavLink to="/admin-notifications" className={navLinkClass}>Notifications</NavLink>
 							</>
 						)}
@@ -185,7 +184,7 @@ const NavBar = () => {
 							<NavLink to="/manage-reservations" className={navLinkClass}>Manage Reservations</NavLink>
 						)}
 
-						{profile && profile.role !== "admin" && (
+						{profile?.role === "client" && (
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
@@ -229,8 +228,8 @@ const NavBar = () => {
 					<div className="flex lg:hidden items-center gap-2">
 						{session && (
 							<div className="relative">
-								<div
-									onClick={() => { navigate("/client-notifications"); }}
+														<div
+															onClick={() => { navigate(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications"); }}
 									className="relative cursor-pointer"
 								>
 									{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
@@ -300,8 +299,9 @@ const NavBar = () => {
 								</>
 							)}
 
-							{profile?.role === "admin" && (
-								<>
+							{["admin", "staff"].includes(profile?.role) && (
+													<>
+													{profile?.role === "admin" && <>
 									<div className="border-t border-base-200 my-2" />
 									<p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Manage</p>
 									<NavLink to="/manage-events" className={mobileLinkClass} onClick={closeMobile}>Manage Events</NavLink>
@@ -310,9 +310,14 @@ const NavBar = () => {
 									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
-									<NavLink to="/booking-qr" className={mobileLinkClass} onClick={closeMobile}>Booking QR</NavLink>
 									<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
-								</>
+									</>}
+									{profile?.role === "staff" && <>
+										<div className="border-t border-base-200 my-2" />
+										<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
+										<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
+									</>}
+									</>
 							)}
 
 							{profile?.role === "staff" && (
@@ -322,7 +327,7 @@ const NavBar = () => {
 								</>
 							)}
 
-							{profile && profile.role !== "admin" && (
+							{profile?.role === "client" && (
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>

@@ -72,7 +72,7 @@ const Profile = () => {
 							</div>
 							<div>
 								<p className="text-sm uppercase tracking-[0.3em] text-white/70">
-									{profile?.role === "admin" ? "Admin" : "Client"}
+									{profile?.role === "admin" ? "Admin" : profile?.role === "staff" ? "Staff" : "Client"}
 								</p>
 								<h1 className="mt-2 text-3xl font-semibold text-white md:text-4xl">
 									{profile?.firstname} {profile?.lastname}
