@@ -83,9 +83,9 @@ const AdminReservations = () => {
 
 		for (let d = 1; d <= totalDays; d++) {
 			const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-			// Show booking on all days from check-in to check-out
+			// Show every reservation status so staff and admins share the same calendar view.
 			const dayBookings = reservations.filter(
-				(res) => res.status !== "cancelled" && dateStr >= res.check_in && dateStr <= res.check_out,
+				(res) => dateStr >= res.check_in && dateStr <= res.check_out,
 			);
 
 			days.push(
@@ -132,9 +132,11 @@ const AdminReservations = () => {
 					<div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-2xl backdrop-blur sm:rounded-[2rem] md:p-8">
 						<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 							<div className="max-w-2xl">
-								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">Admin Dashboard</p>
+												<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
+													{profile?.role === "staff" ? "Staff Dashboard" : "Admin Dashboard"}
+												</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">Reservation Calendar</h1>
-								<p className="mt-3 text-sm leading-6 text-base-content/75">Overview of all confirmed and pending bookings.</p>
+												<p className="mt-3 text-sm leading-6 text-base-content/75">Overview of pending, accepted, and rejected bookings.</p>
 							</div>
 							<div className="flex flex-wrap items-center gap-4">
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full px-8">
