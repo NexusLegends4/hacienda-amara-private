@@ -251,7 +251,10 @@ const Reservations = () => {
 							</div>
 						</div>
 						<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4">
-							<input type="date" className="input input-bordered rounded-2xl bg-white" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
+							<label className="flex flex-col gap-2 text-sm font-semibold text-rose-950">
+								<span>Reservation date</span>
+								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light]" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
+							</label>
 							<input type="email" className="input input-bordered rounded-2xl bg-white" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
 							<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white">
