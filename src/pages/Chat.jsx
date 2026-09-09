@@ -8,6 +8,8 @@ import DOMPurify from "dompurify";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
+const GUEST_CONVERSATION_KEY_STORAGE = "hacienda-amara-guest-conversation-key";
+const LEGACY_GUEST_CONVERSATION_KEY = "guest";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
 const CHAT_MEDIA_BUCKET = import.meta.env.VITE_SUPABASE_CHAT_MEDIA_BUCKET || "chat-media";
@@ -109,7 +111,21 @@ const getInitials = (name) => {
 	return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const getConversationKey = (profile) => profile?.id || "guest";
+const getGuestConversationKey = () => {
+	if (typeof window === "undefined") return LEGACY_GUEST_CONVERSATION_KEY;
+
+	const existingKey = localStorage.getItem(GUEST_CONVERSATION_KEY_STORAGE);
+	if (existingKey) return existingKey;
+
+	const randomPart = typeof crypto !== "undefined" && crypto.randomUUID
+		? crypto.randomUUID()
+		: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	const conversationKey = `guest-${randomPart}`;
+	localStorage.setItem(GUEST_CONVERSATION_KEY_STORAGE, conversationKey);
+	return conversationKey;
+};
+
+const getConversationKey = (profile) => profile?.id || getGuestConversationKey();
 
 const getBotReply = (text) => {
 	const lowerText = text.toLowerCase().trim();
@@ -623,6 +639,7 @@ const Chat = () => {
 		}
 
 		return Object.entries(historyByConversation)
+			.filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY)
 			.map(([key, messages]) => ({
 				key,
 				lastMessage: messages[messages.length - 1] || null,
@@ -717,7 +734,9 @@ const Chat = () => {
 			});
 
 			const nextSnapshot = isAdmin
-				? grouped
+				? Object.fromEntries(
+					Object.entries(grouped).filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY),
+				  )
 				: {
 						[conversationKey]: grouped[conversationKey] || [],
 				  };
