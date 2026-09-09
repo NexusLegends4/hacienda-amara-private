@@ -79,12 +79,10 @@ const Login = () => {
 				email: profileData.email || loginForm.email,
 			});
 
-			const landingRole = profileData?.role === "admin" ? "admin" : "staff";
-
 			navigate("/security-check", {
 				state: {
 					source: "login",
-					nextPath: landingRole === "admin" ? "/manage-events" : "/events",
+					nextPath: "/",
 				},
 			});
 		}
