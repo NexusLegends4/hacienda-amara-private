@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { SECURITY_VERIFIED_KEY } from "../utils/security";
+import { FiRefreshCw } from "react-icons/fi";
 
 const randomInt = (minimum, maximum) => {
 	const range = maximum - minimum + 1;
@@ -18,7 +19,20 @@ const createChallenge = () => {
 		code += characters[randomInt(0, characters.length - 1)];
 	}
 
-	return { code };
+	return {
+		code,
+		characters: [...code].map((character) => ({
+			character,
+			rotation: randomInt(-18, 18),
+			offset: randomInt(-7, 7),
+			scale: randomInt(92, 112) / 100,
+		})),
+		noise: Array.from({ length: 12 }, (_, index) => ({
+			left: randomInt(2, 98),
+			top: randomInt(8, 92),
+			delay: `${index * 35}ms`,
+		})),
+	};
 };
 
 const SecurityCheck = () => {
@@ -85,11 +99,41 @@ const SecurityCheck = () => {
 					<p className="mt-3 text-base-content/70">{sourceMessage}</p>
 
 					<form onSubmit={handleSubmit} className="mt-8 space-y-5">
-						<div className="rounded-2xl border border-dashed border-primary/40 bg-primary/10 px-5 py-4 text-center">
-							<p className="text-xs font-bold uppercase tracking-[0.18em] text-base-content/60">Type this CAPTCHA code</p>
-							<p className="mt-2 select-none font-mono text-3xl font-black tracking-[0.35em] text-primary" aria-label={`CAPTCHA code: ${challenge.code}`}>
-								{challenge.code}
-							</p>
+						<div className="rounded-2xl border border-primary/30 bg-primary/10 px-5 py-4">
+							<div className="flex items-center justify-between gap-3">
+								<p className="text-xs font-bold uppercase tracking-[0.18em] text-base-content/60">Type this CAPTCHA code</p>
+								<button className="btn btn-ghost btn-sm btn-square" onClick={refreshChallenge} type="button" aria-label="Generate a new CAPTCHA" title="Generate a new CAPTCHA">
+									<FiRefreshCw />
+								</button>
+							</div>
+							<div className="relative mt-3 h-20 select-none overflow-hidden rounded-xl border border-base-content/15 bg-base-100/80" aria-label={`CAPTCHA code: ${challenge.code}`}>
+								<div className="pointer-events-none absolute inset-0 opacity-50" aria-hidden="true">
+									{challenge.noise.map((dot) => (
+										<span
+											key={`${dot.left}-${dot.top}`}
+											className="absolute h-1 w-1 rounded-full bg-primary"
+											style={{ left: `${dot.left}%`, top: `${dot.top}%`, animationDelay: dot.delay }}
+										/>
+									))}
+									<span className="absolute left-[-5%] top-1/2 h-1 w-[110%] -rotate-6 bg-primary/30" />
+									<span className="absolute left-[-5%] top-1/2 h-1 w-[110%] rotate-12 bg-secondary/25" />
+								</div>
+								<div className="relative flex h-full items-center justify-center gap-0.5 px-3" role="img" aria-label={`CAPTCHA code: ${challenge.code}`}>
+									{challenge.characters.map((item, index) => (
+										<span
+											key={`${item.character}-${index}`}
+											className="font-mono text-3xl font-black text-primary drop-shadow-sm sm:text-4xl"
+											style={{
+												transform: `translateY(${item.offset}px) rotate(${item.rotation}deg) scale(${item.scale})`,
+												zIndex: index,
+												marginLeft: index === 0 ? 0 : "-2px",
+											}}
+										>
+											{item.character}
+										</span>
+									))}
+								</div>
+							</div>
 						</div>
 						<label className="block">
 							<span className="mb-2 block text-sm font-semibold text-base-content">Enter the code shown above</span>
@@ -115,9 +159,7 @@ const SecurityCheck = () => {
 						<button className="btn btn-primary w-full rounded-full" disabled={lockSeconds > 0} type="submit">
 							{lockSeconds > 0 ? `Please wait (${lockSeconds}s)` : "Continue"}
 						</button>
-						<button className="btn btn-ghost w-full" disabled={lockSeconds > 0} onClick={refreshChallenge} type="button">
-							Get a different question
-						</button>
+						<p className="text-center text-xs text-base-content/55">Characters may overlap or be tilted. Enter them without spaces.</p>
 					</form>
 				</section>
 			</div>
