@@ -21,7 +21,7 @@ const loadRecaptcha = () => new Promise((resolve, reject) => {
 
 	const script = document.createElement("script");
 	script.id = RECAPTCHA_SCRIPT_ID;
-	script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
+	script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}&trustedtypes=true`;
 	script.async = true;
 	script.defer = true;
 	script.onload = () => resolve(window.grecaptcha);

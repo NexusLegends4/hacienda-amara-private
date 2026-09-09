@@ -53,7 +53,7 @@ const SecurityCheck = () => {
 
 						{message && <p className="text-sm text-error" role="status">{message}</p>}
 
-						<button className="btn btn-primary w-full rounded-full" disabled={isSubmitting} type="submit">
+						<button className="btn btn-primary w-full rounded-full" data-action="security_check" data-sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY} disabled={isSubmitting} type="submit">
 							{isSubmitting ? <span className="loading loading-spinner" /> : "Continue"}
 						</button>
 					</form>

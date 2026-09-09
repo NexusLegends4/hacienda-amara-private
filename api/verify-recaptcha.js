@@ -30,7 +30,12 @@ export default async function handler(request, response) {
 		});
 		const result = await googleResponse.json();
 		const score = Number(result.score || 0);
-		const valid = result.success === true && result.action === expectedAction && score >= 0.5;
+		const allowedHostnames = (process.env.RECAPTCHA_ALLOWED_HOSTNAMES || "hacienda-amara-private.vercel.app,localhost")
+			.split(",")
+			.map((hostname) => hostname.trim())
+			.filter(Boolean);
+		const validHostname = !result.hostname || allowedHostnames.includes(result.hostname);
+		const valid = result.success === true && result.action === expectedAction && score >= 0.5 && validHostname;
 
 		if (!valid) {
 			return response.status(403).json({ success: false, message: "Security verification failed." });
