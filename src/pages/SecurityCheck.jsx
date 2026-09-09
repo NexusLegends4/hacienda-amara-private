@@ -1,16 +1,45 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import { SECURITY_VERIFIED_KEY } from "../utils/security";
-import { FiShield } from "react-icons/fi";
-import { verifyRecaptcha } from "../utils/recaptcha";
+
+const randomInt = (minimum, maximum) => {
+	const range = maximum - minimum + 1;
+	const values = new Uint32Array(1);
+	window.crypto.getRandomValues(values);
+	return minimum + (values[0] % range);
+};
+
+const createChallenge = () => {
+	const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+	let code = "";
+
+	for (let index = 0; index < 6; index += 1) {
+		code += characters[randomInt(0, characters.length - 1)];
+	}
+
+	return { code };
+};
 
 const SecurityCheck = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [challenge, setChallenge] = useState(createChallenge);
+	const [answer, setAnswer] = useState("");
+	const [wrongAttempts, setWrongAttempts] = useState(0);
+	const [lockSeconds, setLockSeconds] = useState(0);
 	const [message, setMessage] = useState("");
 	const destination = location.state?.nextPath || "/";
+
+	useEffect(() => {
+		if (lockSeconds <= 0) return undefined;
+
+		const timer = window.setTimeout(() => {
+			setLockSeconds((seconds) => seconds - 1);
+		}, 1000);
+
+		return () => window.clearTimeout(timer);
+	}, [lockSeconds]);
 
 	const sourceMessage = useMemo(() => {
 		return location.state?.source === "signup"
@@ -18,19 +47,32 @@ const SecurityCheck = () => {
 			: "Complete this quick check to continue to your account.";
 	}, [location.state]);
 
-	const handleSubmit = async (event) => {
+	const refreshChallenge = () => {
+		setChallenge(createChallenge());
+		setAnswer("");
+	};
+
+	const handleSubmit = (event) => {
 		event.preventDefault();
-		setIsSubmitting(true);
-		setMessage("");
-		try {
-			await verifyRecaptcha("security_check");
+		if (lockSeconds > 0) return;
+
+		if (answer.trim().toUpperCase() === challenge.code) {
 			sessionStorage.setItem(SECURITY_VERIFIED_KEY, "true");
 			setMessage("Security check complete.");
 			navigate(destination, { replace: true });
-		} catch (error) {
-			setMessage(error.message || "Security verification failed. Please try again.");
-		} finally {
-			setIsSubmitting(false);
+			return;
+		}
+
+		const nextAttempts = wrongAttempts + 1;
+		setWrongAttempts(nextAttempts);
+		refreshChallenge();
+
+		if (nextAttempts >= 3) {
+			setWrongAttempts(0);
+			setLockSeconds(5);
+			setMessage("Three incorrect answers. Please wait 5 seconds before trying again.");
+		} else {
+			setMessage(`Incorrect answer. ${3 - nextAttempts} attempt${3 - nextAttempts === 1 ? "" : "s"} remaining.`);
 		}
 	};
 
@@ -43,18 +85,38 @@ const SecurityCheck = () => {
 					<p className="mt-3 text-base-content/70">{sourceMessage}</p>
 
 					<form onSubmit={handleSubmit} className="mt-8 space-y-5">
-						<div className="rounded-xl border border-base-300 bg-base-100 p-5 shadow-sm">
-							<div className="flex items-center gap-4">
-								<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border-2 border-primary/50 bg-primary/5" aria-hidden="true"><FiShield className="text-primary" /></span>
-								<div className="flex-1"><strong className="block text-base">Protected by reCAPTCHA</strong><small className="text-base-content/60">Google risk analysis runs automatically when you continue.</small></div>
-							</div>
-							<p className="mt-4 text-xs leading-5 text-base-content/55">This site is protected by reCAPTCHA and the Google <a className="link" href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Privacy Policy</a> and <a className="link" href="https://policies.google.com/terms" target="_blank" rel="noreferrer">Terms of Service</a> apply.</p>
+						<div className="rounded-2xl border border-dashed border-primary/40 bg-primary/10 px-5 py-4 text-center">
+							<p className="text-xs font-bold uppercase tracking-[0.18em] text-base-content/60">Type this CAPTCHA code</p>
+							<p className="mt-2 select-none font-mono text-3xl font-black tracking-[0.35em] text-primary" aria-label={`CAPTCHA code: ${challenge.code}`}>
+								{challenge.code}
+							</p>
 						</div>
+						<label className="block">
+							<span className="mb-2 block text-sm font-semibold text-base-content">Enter the code shown above</span>
+							<input
+								autoFocus
+								className="input input-bordered w-full text-lg"
+								disabled={lockSeconds > 0}
+								autoComplete="off"
+								inputMode="text"
+								onChange={(event) => setAnswer(event.target.value)}
+								placeholder="Type the CAPTCHA code"
+								spellCheck="false"
+								value={answer}
+							/>
+						</label>
 
-						{message && <p className="text-sm text-error" role="status">{message}</p>}
+						{message && (
+							<p className={lockSeconds > 0 || wrongAttempts > 0 ? "text-sm text-error" : "text-sm text-success"} role="status">
+								{lockSeconds > 0 ? `Try again in ${lockSeconds} second${lockSeconds === 1 ? "" : "s"}.` : message}
+							</p>
+						)}
 
-						<button className="btn btn-primary w-full rounded-full" data-action="security_check" data-sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY} disabled={isSubmitting} type="submit">
-							{isSubmitting ? <span className="loading loading-spinner" /> : "Continue"}
+						<button className="btn btn-primary w-full rounded-full" disabled={lockSeconds > 0} type="submit">
+							{lockSeconds > 0 ? `Please wait (${lockSeconds}s)` : "Continue"}
+						</button>
+						<button className="btn btn-ghost w-full" disabled={lockSeconds > 0} onClick={refreshChallenge} type="button">
+							Get a different CAPTCHA
 						</button>
 					</form>
 				</section>
