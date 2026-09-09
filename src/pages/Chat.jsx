@@ -584,6 +584,7 @@ const Chat = () => {
 	const photoInputRef = useRef(null);
 	const videoInputRef = useRef(null);
 	const dbAvailableRef = useRef(true);
+	const isRefreshingHistoryRef = useRef(false);
 
 	const activeMessages = historyByConversation[activeConversationKey] || [];
 	const activeThreadName =
@@ -687,6 +688,7 @@ const Chat = () => {
 
 	const refreshFromDb = async () => {
 		if (!dbAvailableRef.current) return false;
+		isRefreshingHistoryRef.current = true;
 
 		try {
 			let query = supabase.from("chat_messages").select("*").order("created_at", { ascending: true });
@@ -725,6 +727,8 @@ const Chat = () => {
 			return nextSnapshot;
 		} catch {
 			return false;
+		} finally {
+			isRefreshingHistoryRef.current = false;
 		}
 	};
 
@@ -885,6 +889,7 @@ const Chat = () => {
 
 		channel.on("broadcast", { event: "message" }, ({ payload }) => {
 			if (!payload?.id || !payload?.conversationKey) return;
+			if (isRefreshingHistoryRef.current) return;
 
 			setHistoryByConversation((current) => {
 				const existing = current[payload.conversationKey] || [];
@@ -909,6 +914,7 @@ const Chat = () => {
 			},
 			({ new: row }) => {
 				if (!row?.id || !row?.conversation_key) return;
+				if (isRefreshingHistoryRef.current) return;
 
 				const message = normalizeDbMessage(row);
 				setHistoryByConversation((current) => {
