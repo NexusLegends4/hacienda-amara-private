@@ -21,6 +21,7 @@ const getInitials = (name) => {
 const PostReview = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
+	const [reviewerName, setReviewerName] = useState("");
 	const [rating, setRating] = useState(5);
 	const [comment, setComment] = useState("");
 	const [file, setFile] = useState(null);
@@ -28,12 +29,8 @@ const PostReview = () => {
 	const [uploading, setUploading] = useState(false);
 
 	useEffect(() => {
-		if (!session || !["admin", "staff"].includes(profile?.role)) {
-			navigate("/");
-			return;
-		}
-
 		const fetchExistingReview = async () => {
+			if (!session) return;
 			const { data } = await supabase
 				.from("reviews")
 				.select("*")
@@ -48,20 +45,21 @@ const PostReview = () => {
 			}
 		};
 		fetchExistingReview();
-	}, [session, profile, navigate]);
+	}, [session]);
 
 	const handlePost = async (e) => {
 		e.preventDefault();
-		if (!session) return alert("Please log in to post a review.");
+		if (reviewerName.trim().length < 2) return alert("Please enter the name used during registration.");
 		setUploading(true);
 
 		let mediaUrl = null;
 		if (file) {
 			// Sanitize filename and create a structured path
 			const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
-			const fileName = `${session.user.id}/${Date.now()}-${cleanFileName}`;
+			const ownerFolder = session?.user?.id || `guest-${crypto.randomUUID()}`;
+			const fileName = `${ownerFolder}/${Date.now()}-${cleanFileName}`;
 			
-			const { data, error: uploadError } = await supabase.storage
+			const { error: uploadError } = await supabase.storage
 				.from("review-media")
 				.upload(fileName, file, { upsert: true });
 
@@ -74,15 +72,18 @@ const PostReview = () => {
 			}
 		}
 
-		const { error } = await supabase.from("reviews").upsert([
-			{
-				profile_id: session.user.id,
-				rating,
-				comment: DOMPurify.sanitize(comment),
-				media_url: mediaUrl || (file ? null : existingMedia?.url) || null,
-				media_type: file ? (file.type.startsWith("video") ? "video" : "image") : (existingMedia?.type || null)
-			},
-		], { onConflict: 'profile_id' });
+		const review = {
+			profile_id: session?.user?.id || null,
+			reviewer_name: reviewerName.trim(),
+			rating,
+			comment: DOMPurify.sanitize(comment),
+			media_url: mediaUrl || (file ? null : existingMedia?.url) || null,
+			media_type: file ? (file.type.startsWith("video") ? "video" : "image") : (existingMedia?.type || null),
+		};
+		const query = session
+			? supabase.from("reviews").upsert([review], { onConflict: "profile_id" })
+			: supabase.from("reviews").insert(review);
+		const { error } = await query;
 
 		if (error) {
 			alert(error.message);
@@ -109,7 +110,7 @@ const PostReview = () => {
 						</div>
 					</div>
 
-					<div className="rounded-[2.5rem] border border-black/5 bg-white/80 p-6 shadow-xl backdrop-blur-xl sm:rounded-[3rem] md:p-12">
+						<div className="rounded-[2.5rem] border border-black/5 bg-white/80 p-6 shadow-xl backdrop-blur-xl sm:rounded-[3rem] md:p-12">
 						<div className="mb-10 flex items-center gap-4 border-b border-black/5 pb-8">
 							<div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-lg font-bold text-slate-800 shadow-md">
 								{profile?.avatar_url ? (
@@ -118,10 +119,18 @@ const PostReview = () => {
 									getInitials(`${profile?.firstname || ""} ${profile?.lastname || ""}`)
 								)}
 							</div>
-							<div>
+							<div className="w-full">
 								<p className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-slate-400">Posting as</p>
-								<p className="text-xl font-black text-slate-900 leading-tight">{profile?.firstname} {profile?.lastname}</p>
-								<p className="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">Verified Guest</p>
+								<input
+									type="text"
+									className="input input-bordered mt-2 w-full rounded-xl font-bold"
+									placeholder="Name used during registration"
+									value={reviewerName}
+									onChange={(e) => setReviewerName(e.target.value)}
+									required
+									minLength="2"
+								/>
+								<p className="text-xs text-emerald-600 font-bold uppercase tracking-widest mt-1">Customer review</p>
 							</div>
 						</div>
 						<form onSubmit={handlePost} className="grid gap-10 lg:grid-cols-[1fr_1.2fr]">

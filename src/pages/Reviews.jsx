@@ -81,11 +81,9 @@ const Reviews = () => {
 										<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 									</button>
 								)}
-								{profile?.role === "client" && (
-									<NavLink to="/post-review" className="btn btn-black rounded-full px-8">
-										Write a Review
-									</NavLink>
-								)}
+								<NavLink to="/post-review" className="btn btn-black rounded-full px-8">
+									Write a Review
+								</NavLink>
 								<button onClick={() => navigate(-1)} className="btn btn-outline rounded-full px-8">
 									Back
 								</button>
@@ -182,12 +180,12 @@ const Reviews = () => {
 												{rev.profiles?.avatar_url ? (
 													<img src={rev.profiles.avatar_url} className="h-full w-full object-cover" alt="Profile" />
 												) : (
-													getInitials(`${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`)
+															getInitials(rev.reviewer_name || `${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`)
 												)}
 											</div>
 											<div>
-												<p className="font-bold text-slate-900 text-sm">{rev.profiles?.firstname} {rev.profiles?.lastname}</p>
-												<p className="text-[0.65rem] uppercase tracking-widest font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">Verified Guest</p>
+													<p className="font-bold text-slate-900 text-sm">{rev.reviewer_name || `${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`}</p>
+													<p className="text-[0.65rem] uppercase tracking-widest font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block">Registered Customer</p>
 											</div>
 										</div>
 

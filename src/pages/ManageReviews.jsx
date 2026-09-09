@@ -223,11 +223,11 @@ const ManageReviews = () => {
 												{rev.profiles?.avatar_url ? (
 													<img src={rev.profiles.avatar_url} className="h-full w-full object-cover" alt="Profile" />
 												) : (
-													getInitials(`${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`)
+															getInitials(rev.reviewer_name || `${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`)
 												)}
 											</div>
 											<div>
-												<p className="font-bold text-slate-900 text-sm">{rev.profiles?.firstname} {rev.profiles?.lastname}</p>
+													<p className="font-bold text-slate-900 text-sm">{rev.reviewer_name || `${rev.profiles?.firstname || ""} ${rev.profiles?.lastname || ""}`}</p>
 												<p className="text-[0.7rem] uppercase tracking-wider text-slate-400">Verified Guest</p>
 											</div>
 										</div>
