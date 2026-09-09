@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiStar, FiMessageSquare, FiTrash2, FiRefreshCw } from "react-icons/fi";
+import { FiStar, FiMessageSquare, FiRefreshCw } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -29,7 +29,7 @@ const ManageReviews = () => {
 			return;
 		}
 		if (profile) {
-			if (profile.role !== "admin") {
+			if (!['admin', 'staff'].includes(profile.role)) {
 				navigate("/");
 			} else {
 				fetchReviews();
@@ -72,35 +72,6 @@ const ManageReviews = () => {
 		return { avg, total, counts };
 	}, [reviews]);
 
-	const deleteReview = async (id) => {
-		if (!window.confirm("Are you sure you want to delete this review?")) return;
-		const { error } = await supabase.from("reviews").delete().eq("id", id);
-		if (error) {
-			alert(error.message);
-		} else {
-			fetchReviews();
-		}
-	};
-
-	const clearAllReviews = async () => {
-		if (window.confirm("WARNING: This will permanently delete ALL guest reviews. Are you sure?")) {
-			setLoading(true);
-			// Deletes all rows by checking for IDs not equal to a dummy UUID
-			const { error } = await supabase
-				.from("reviews")
-				.delete()
-				.neq("id", "00000000-0000-0000-0000-000000000000");
-			
-			if (error) {
-				alert("Failed to clear reviews: " + error.message);
-			} else {
-				setReviews([]);
-				alert("All reviews have been successfully cleared.");
-			}
-			setLoading(false);
-		}
-	};
-
 	return (
 		<MainLayout>
 			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 sm:px-4 sm:py-6 md:px-6">
@@ -126,9 +97,6 @@ const ManageReviews = () => {
 								>
 									<FiRefreshCw className={loading ? "animate-spin" : ""} />
 									Refresh
-								</button>
-								<button onClick={clearAllReviews} className="btn btn-error btn-outline rounded-full" title="Clear All Data">
-									<FiTrash2 /> Clear All
 								</button>
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full">
 									Back
@@ -188,13 +156,6 @@ const ManageReviews = () => {
 												<FiStar key={i} className={i < rev.rating ? "fill-current" : ""} />
 											))}
 										</div>
-										<button
-											onClick={() => deleteReview(rev.id)}
-											className="btn btn-ghost btn-sm text-error"
-											title="Delete Review"
-										>
-											<FiTrash2 />
-										</button>
 									</div>
 									<p className="text-base-content/80 italic mb-4">"{rev.comment}"</p>
 									

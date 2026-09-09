@@ -15,6 +15,7 @@ const getInitials = (name) => {
 const Reviews = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
+	const isReadOnlyStaff = ["admin", "staff"].includes(profile?.role);
 	const [reviews, setReviews] = useState([]);
 	const [loading, setLoading] = useState(true);
 
@@ -73,7 +74,7 @@ const Reviews = () => {
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-3">
-								{profile?.role === "admin" && (
+								{isReadOnlyStaff && (
 									<button
 										onClick={() => fetchReviews(true)}
 										className="btn btn-outline rounded-full"
@@ -81,9 +82,11 @@ const Reviews = () => {
 										<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 									</button>
 								)}
-								<NavLink to="/post-review" className="btn btn-black rounded-full px-8">
-									Write a Review
-								</NavLink>
+								{!isReadOnlyStaff && (
+									<NavLink to="/post-review" className="btn btn-black rounded-full px-8">
+										Write a Review
+									</NavLink>
+								)}
 								<button onClick={() => navigate(-1)} className="btn btn-outline rounded-full px-8">
 									Back
 								</button>
@@ -195,13 +198,13 @@ const Reviews = () => {
 											</span>
 											<div className="flex items-center gap-2">
 												{/* Edit — only the review owner */}
-												{rev.profile_id === session?.user?.id && (
+														{!isReadOnlyStaff && rev.profile_id === session?.user?.id && (
 													<NavLink to="/post-review" className="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-wider text-[#8b5e34] hover:opacity-75 transition-opacity">
 														<FiEdit2 className="text-[10px]" /> Edit
 													</NavLink>
 												)}
 												{/* Delete — admin OR the review owner */}
-												{(profile?.role === "admin" || rev.profile_id === session?.user?.id) && (
+														{!isReadOnlyStaff && rev.profile_id === session?.user?.id && (
 													<button
 														onClick={() => handleDelete(rev.id)}
 														className="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:opacity-75 transition-opacity"
