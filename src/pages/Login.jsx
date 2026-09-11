@@ -7,6 +7,8 @@ import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 import { SECURITY_VERIFIED_KEY } from "../utils/security";
+import { verifyRecaptcha } from "../utils/recaptcha";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const PROFILE_BACKGROUND_IMAGE =
 	"https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=3fUFjvEWuogQ7kNvwGcc91D&_nc_oc=AdqW5AtIaFMzg06ui5Ap82t7gnoS1cVIpqdK9kLYl26gtnBuR1eF_lBVnI676gapmrw&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=V7ltjqr7MS5-BehPpo8N3w&_nc_ss=7a3a8&oh=00_Af0M5UyjzO6ZNJ52ZYpiN649-3b-MYBsd5wWJjFB-CaBrA&oe=69DE7687";
@@ -15,6 +17,8 @@ const Login = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [showV2Challenge, setShowV2Challenge] = useState(false);
+	const [pendingLoginForm, setPendingLoginForm] = useState(null);
 
 	useEffect(() => {
 		// Redirect already signed-in users to their role-based landing page.
@@ -29,18 +33,8 @@ const Login = () => {
 		}
 	}, [profile, navigate]);
 
-	const handleSubmit = async (event) => {
-		// Send credentials to Supabase and redirect on success.
-		event.preventDefault();
-		sessionStorage.removeItem(SECURITY_VERIFIED_KEY);
-		const formData = new FormData(event.target);
-		setIsSubmitting(true);
-
-		const loginForm = {
-			email: formData.get("email"),
-			password: formData.get("password"),
-		};
-
+	// Runs the actual Supabase login once any required reCAPTCHA check has passed.
+	const completeLogin = async (loginForm) => {
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email: loginForm.email,
 			password: loginForm.password,
@@ -89,6 +83,58 @@ const Login = () => {
 		setIsSubmitting(false);
 	};
 
+	const handleSubmit = async (event) => {
+		event.preventDefault();
+		sessionStorage.removeItem(SECURITY_VERIFIED_KEY);
+		const formData = new FormData(event.target);
+		setIsSubmitting(true);
+
+		const loginForm = {
+			email: formData.get("email"),
+			password: formData.get("password"),
+		};
+
+		// 1. Run the invisible v3 check first (existing utility).
+		try {
+			await verifyRecaptcha("login");
+			// Passed with a good score — go straight to login.
+			await completeLogin(loginForm);
+		} catch (err) {
+			// Low score, or verification failed — fall back to the visible v2 challenge.
+			console.warn("v3 check did not pass, falling back to v2:", err.message);
+			setPendingLoginForm(loginForm);
+			setShowV2Challenge(true);
+			setIsSubmitting(false);
+		}
+	};
+
+	// Called when the user completes the v2 "select all images with..." challenge.
+	const handleV2Change = async (v2Token) => {
+		if (!v2Token || !pendingLoginForm) return;
+
+		setIsSubmitting(true);
+
+		try {
+			const response = await fetch("/api/verify-recaptcha", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token: v2Token, type: "v2" }),
+			});
+			const result = await response.json();
+
+			if (!response.ok || !result.success) {
+				throw new Error(result.message || "Security verification failed.");
+			}
+
+			setShowV2Challenge(false);
+			await completeLogin(pendingLoginForm);
+			setPendingLoginForm(null);
+		} catch (err) {
+			alert(err.message || "Security check failed. Please try again.");
+			setIsSubmitting(false);
+		}
+	};
+
 	return (
 		<MainLayout>
 			<div className="relative left-1/2 right-1/2 -mx-[50vw] min-h-screen w-screen overflow-hidden px-4 py-12">
@@ -109,28 +155,42 @@ const Login = () => {
 						<div className="mt-3 space-y-1 text-sm text-slate-700 md:text-base">
 							<p>Welcome back. Please enter your details.</p>
 						</div>
-						<form onSubmit={handleSubmit} className="mt-8">
-							<Input
-								name="email"
-								placeholder="Enter your Email"
-								label="Email"
-								type="email"
-							/>
-							<Input
-								name="password"
-								placeholder="Enter your Password"
-								label="Password"
-								type="password"
-							/>
 
-							<button 
-								disabled={isSubmitting}
-								className="btn btn-black mt-6 h-12 min-h-12 w-full rounded-full px-6 text-sm md:text-base"
-							>
-								{isSubmitting ? <span className="loading loading-spinner"></span> : <SendIcon className="text-base" />}
-								{isSubmitting ? " Logging in..." : " Log In"}
-							</button>
-						</form>
+						{!showV2Challenge ? (
+							<form onSubmit={handleSubmit} className="mt-8">
+								<Input
+									name="email"
+									placeholder="Enter your Email"
+									label="Email"
+									type="email"
+								/>
+								<Input
+									name="password"
+									placeholder="Enter your Password"
+									label="Password"
+									type="password"
+								/>
+
+								<button
+									disabled={isSubmitting}
+									className="btn btn-black mt-6 h-12 min-h-12 w-full rounded-full px-6 text-sm md:text-base"
+								>
+									{isSubmitting ? <span className="loading loading-spinner"></span> : <SendIcon className="text-base" />}
+									{isSubmitting ? " Logging in..." : " Log In"}
+								</button>
+							</form>
+						) : (
+							<div className="mt-8 flex flex-col items-center gap-4">
+								<p className="text-sm text-slate-700">
+									We need one more quick check before you continue.
+								</p>
+								<ReCAPTCHA
+									sitekey={import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY}
+									onChange={handleV2Change}
+								/>
+								{isSubmitting && <span className="loading loading-spinner"></span>}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>
