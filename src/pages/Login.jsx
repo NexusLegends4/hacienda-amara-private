@@ -1,4 +1,3 @@
-```jsx
 import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
@@ -11,12 +10,12 @@ import { SECURITY_VERIFIED_KEY } from "../utils/security";
 import { verifyRecaptcha } from "../utils/recaptcha";
 import ReCAPTCHA from "react-google-recaptcha";
 
-import PROFILE_BACKGROUND_IMAGE from "../assets/login-background.jpg";
+const PROFILE_BACKGROUND_IMAGE =
+	"https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=3fUFjvEWuogQ7kNvwGcc91D&_nc_oc=AdqW5AtIaFMzg06ui5Ap82t7gnoS1cVIpqdK9kLYl26gtnBuR1eF_lBVnI676gapmrw&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=V7ltjqr7MS5-BehPpo8N3w&_nc_ss=7a3a8&oh=00_Af0M5UyjzO6ZNJ52ZYpiN649-3b-MYBsd5wWJjFB-CaBrA&oe=69DE7687";
 
 const Login = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
-
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [showV2Challenge, setShowV2Challenge] = useState(false);
 	const [pendingLoginForm, setPendingLoginForm] = useState(null);
@@ -62,11 +61,7 @@ const Login = () => {
 
 			if (profileData?.deleted_at) {
 				await supabase.auth.signOut();
-
-				alert(
-					"This account has been deleted. Please contact the administrator."
-				);
-
+				alert("This account has been deleted. Please contact the administrator.");
 				setIsSubmitting(false);
 				return;
 			}
@@ -74,10 +69,7 @@ const Login = () => {
 			await recordAuthNotification(supabase, {
 				eventType: "login",
 				profileId: data.user.id,
-				name: [profileData.firstname, profileData.lastname]
-					.filter(Boolean)
-					.join(" ")
-					.trim(),
+				name: [profileData.firstname, profileData.lastname].filter(Boolean).join(" ").trim(),
 				email: profileData.email || loginForm.email,
 			});
 
@@ -88,17 +80,13 @@ const Login = () => {
 				},
 			});
 		}
-
 		setIsSubmitting(false);
 	};
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
-
 		sessionStorage.removeItem(SECURITY_VERIFIED_KEY);
-
 		const formData = new FormData(event.target);
-
 		setIsSubmitting(true);
 
 		const loginForm = {
@@ -106,63 +94,43 @@ const Login = () => {
 			password: formData.get("password"),
 		};
 
-		// Run the invisible v3 check first.
+		// 1. Run the invisible v3 check first (existing utility).
 		try {
 			await verifyRecaptcha("login");
-
 			// Passed with a good score — go straight to login.
 			await completeLogin(loginForm);
 		} catch (err) {
-			// Low score or verification failed — fall back to visible v2.
-			console.warn(
-				"v3 check did not pass, falling back to v2:",
-				err.message
-			);
-
+			// Low score, or verification failed — fall back to the visible v2 challenge.
+			console.warn("v3 check did not pass, falling back to v2:", err.message);
 			setPendingLoginForm(loginForm);
 			setShowV2Challenge(true);
 			setIsSubmitting(false);
 		}
 	};
 
-	// Called when the user completes the v2 challenge.
+	// Called when the user completes the v2 "select all images with..." challenge.
 	const handleV2Change = async (v2Token) => {
-		if (!v2Token || !pendingLoginForm) {
-			return;
-		}
+		if (!v2Token || !pendingLoginForm) return;
 
 		setIsSubmitting(true);
 
 		try {
 			const response = await fetch("/api/verify-recaptcha", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					token: v2Token,
-					type: "v2",
-				}),
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token: v2Token, type: "v2" }),
 			});
-
 			const result = await response.json();
 
 			if (!response.ok || !result.success) {
-				throw new Error(
-					result.message || "Security verification failed."
-				);
+				throw new Error(result.message || "Security verification failed.");
 			}
 
 			setShowV2Challenge(false);
-
 			await completeLogin(pendingLoginForm);
-
 			setPendingLoginForm(null);
 		} catch (err) {
-			alert(
-				err.message || "Security check failed. Please try again."
-			);
-
+			alert(err.message || "Security check failed. Please try again.");
 			setIsSubmitting(false);
 		}
 	};
@@ -170,7 +138,6 @@ const Login = () => {
 	return (
 		<MainLayout>
 			<div className="relative left-1/2 right-1/2 -mx-[50vw] min-h-screen w-screen overflow-hidden px-4 py-12">
-				{/* Background image */}
 				<div
 					className="absolute inset-0 scale-110 bg-cover bg-center bg-no-repeat blur-2xl"
 					style={{
@@ -178,21 +145,15 @@ const Login = () => {
 						backgroundPosition: "left center",
 					}}
 				/>
-
-				{/* Background overlay */}
 				<div className="absolute inset-0 bg-gradient-to-b from-[#6b4b2a]/35 via-[#9a6a3c]/20 to-[#f8e8d2]/60" />
 
-				{/* Login container */}
 				<div className="relative mx-auto flex min-h-[75vh] w-full max-w-2xl items-center justify-center">
 					<div className="w-full rounded-[2rem] border border-white/30 bg-white/40 p-9 text-slate-900 shadow-2xl backdrop-blur-xl md:p-12">
 						<h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-5xl">
 							Log In
 						</h1>
-
 						<div className="mt-3 space-y-1 text-sm text-slate-700 md:text-base">
-							<p>
-								Welcome back. Please enter your details.
-							</p>
+							<p>Welcome back. Please enter your details.</p>
 						</div>
 
 						{!showV2Challenge ? (
@@ -203,7 +164,6 @@ const Login = () => {
 									label="Email"
 									type="email"
 								/>
-
 								<Input
 									name="password"
 									placeholder="Enter your Password"
@@ -212,39 +172,23 @@ const Login = () => {
 								/>
 
 								<button
-									type="submit"
 									disabled={isSubmitting}
 									className="btn btn-black mt-6 h-12 min-h-12 w-full rounded-full px-6 text-sm md:text-base"
 								>
-									{isSubmitting ? (
-										<span className="loading loading-spinner" />
-									) : (
-										<SendIcon className="text-base" />
-									)}
-
-									{isSubmitting
-										? " Logging in..."
-										: " Log In"}
+									{isSubmitting ? <span className="loading loading-spinner"></span> : <SendIcon className="text-base" />}
+									{isSubmitting ? " Logging in..." : " Log In"}
 								</button>
 							</form>
 						) : (
 							<div className="mt-8 flex flex-col items-center gap-4">
 								<p className="text-sm text-slate-700">
-									We need one more quick check before you
-									continue.
+									We need one more quick check before you continue.
 								</p>
-
 								<ReCAPTCHA
-									sitekey={
-										import.meta.env
-											.VITE_RECAPTCHA_V2_SITE_KEY
-									}
+									sitekey={import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY}
 									onChange={handleV2Change}
 								/>
-
-								{isSubmitting && (
-									<span className="loading loading-spinner" />
-								)}
+								{isSubmitting && <span className="loading loading-spinner"></span>}
 							</div>
 						)}
 					</div>
@@ -255,4 +199,3 @@ const Login = () => {
 };
 
 export default Login;
-```
