@@ -1,62 +1,55 @@
-const RECAPTCHA_SCRIPT_ID = "google-recaptcha-v3";
-
-const loadRecaptcha = () => new Promise((resolve, reject) => {
-	if (window.grecaptcha) {
-		resolve(window.grecaptcha);
-		return;
-	}
-
-	const existingScript = document.getElementById(RECAPTCHA_SCRIPT_ID);
-	if (existingScript) {
-		existingScript.addEventListener("load", () => resolve(window.grecaptcha), { once: true });
-		existingScript.addEventListener("error", () => reject(new Error("Google reCAPTCHA could not load.")), { once: true });
-		return;
-	}
-
-	const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-	if (!siteKey) {
-		reject(new Error("reCAPTCHA is not configured. Add VITE_RECAPTCHA_SITE_KEY."));
-		return;
-	}
-
-	const script = document.createElement("script");
-	script.id = RECAPTCHA_SCRIPT_ID;
-	script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}&trustedtypes=true`;
-	script.async = true;
-	script.defer = true;
-	script.onload = () => resolve(window.grecaptcha);
-	script.onerror = () => reject(new Error("Google reCAPTCHA could not load."));
-	document.head.appendChild(script);
-});
-
-export const verifyRecaptcha = async (action) => {
-	const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-	if (!siteKey) throw new Error("reCAPTCHA is not configured. Add VITE_RECAPTCHA_SITE_KEY.");
-
-	const grecaptcha = await loadRecaptcha();
-	const token = await new Promise((resolve, reject) => {
-		grecaptcha.ready(() => {
-			grecaptcha.execute(siteKey, { action }).then(resolve).catch(reject);
-		});
-	});
-
-	const response = await fetch("/api/verify-recaptcha", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ token, action }),
-	});
-	const responseText = await response.text();
-	let result;
+const readJsonBody = (request) => {
+	if (request.body && typeof request.body === "object") return request.body;
 	try {
-		result = JSON.parse(responseText);
+		return JSON.parse(request.body || "{}");
 	} catch {
-		throw new Error(response.status === 404
-			? "The local verification API is unavailable. Use Vercel or vercel dev to test reCAPTCHA locally."
-			: "Security verification service returned an invalid response.");
+		return {};
 	}
-	if (!response.ok || !result.success) {
-		throw new Error(result.message || "Security verification failed. Please try again.");
+};
+
+export default async function handler(request, response) {
+	if (request.method !== "POST") {
+		response.setHeader("Allow", "POST");
+		return response.status(405).json({ success: false, message: "Method not allowed." });
 	}
 
-	return result;
-};
+	const { token, action, type } = readJsonBody(request);
+	const isV2 = type === "v2";
+	const secret = isV2 ? process.env.RECAPTCHA_V2_SECRET_KEY : process.env.RECAPTCHA_SECRET_KEY;
+	const expectedAction = typeof action === "string" ? action : "";
+
+	if (!secret || !token || (!isV2 && !expectedAction)) {
+		return response.status(400).json({ success: false, message: "Missing reCAPTCHA verification data." });
+	}
+
+	try {
+		const params = new URLSearchParams({ secret, response: token });
+		const googleResponse = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: params,
+		});
+		const result = await googleResponse.json();
+		const score = Number(result.score || 0);
+		const allowedHostnames = (process.env.RECAPTCHA_ALLOWED_HOSTNAMES || "hacienda-amara-private.vercel.app,localhost")
+			.split(",")
+			.map((hostname) => hostname.trim())
+			.filter(Boolean);
+		const validHostname = !result.hostname || allowedHostnames.includes(result.hostname);
+
+		// v2 has no score or action — success + valid hostname is enough.
+		// v3 additionally requires a matching action name and a passing score.
+		const valid = isV2
+			? result.success === true && validHostname
+			: result.success === true && result.action === expectedAction && score >= 0.5 && validHostname;
+
+		if (!valid) {
+			return response.status(403).json({ success: false, message: "Security verification failed." });
+		}
+
+		return response.status(200).json({ success: true, score: score || null });
+	} catch (error) {
+		console.error("reCAPTCHA verification failed", error);
+		return response.status(502).json({ success: false, message: "Security verification is temporarily unavailable." });
+	}
+}
