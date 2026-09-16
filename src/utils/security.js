@@ -1,1 +1,0 @@
-export const SECURITY_VERIFIED_KEY = "hacienda-security-verified";
