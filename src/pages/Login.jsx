@@ -20,11 +20,7 @@ const Login = () => {
 			return;
 		}
 
-		if (profile?.role === "admin") {
-			navigate("/manage-events");
-		} else {
-			navigate("/");
-		}
+		navigate("/");
 	}, [profile, navigate]);
 
 	const handleSubmit = async (event) => {
@@ -75,11 +71,7 @@ const Login = () => {
 				email: profileData.email || loginForm.email,
 			});
 
-			if (profileData?.role === "admin") {
-				navigate("/manage-events");
-			} else {
-				navigate("/");
-			}
+			navigate("/");
 		}
 		setIsSubmitting(false);
 	};
