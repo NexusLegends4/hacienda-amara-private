@@ -10,9 +10,11 @@ import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import ManageEvents from "./pages/ManageEvents";
 import ManageClients from "./pages/ManageClients";
+import ManagePackages from "./pages/ManagePackages";
 import AdminNotifications from "./pages/AdminNotifications";
 import AddEvent from "./pages/AddEvent";
 import EditEvent from "./pages/EditEvent";
+import EditPackage from "./pages/EditPackage";
 import Events from "./pages/Events";
 import ViewEvent from "./pages/ViewEvent";
 import Settings from "./pages/Settings";
@@ -198,8 +200,9 @@ if (event === "SIGNED_OUT") {
 				<Route path="/log-in" element={<Login />} />
 				<Route path="/profile" element={<Profile />} />
 				<Route path="/edit-profile" element={<EditProfile />} />
-				<Route path="/manage-events" element={<ManageEvents />} />
-				<Route path="/manage-clients" element={<ManageClients />} />
+<Route path="/manage-events" element={<ManageEvents />} />
+<Route path="/manage-packages" element={<ManagePackages />} />
+<Route path="/manage-clients" element={<ManageClients />} />
 				<Route path="/admin-reservations" element={<AdminReservations />} />
 				<Route path="/reviews" element={<Reviews />} />
 				<Route path="/post-review" element={<PostReview />} />
@@ -211,6 +214,8 @@ if (event === "SIGNED_OUT") {
 				<Route path="/client-notifications" element={<ClientNotifications />} />
 				<Route path="/add-event" element={<AddEvent />} />
 				<Route path="/edit-event/:eventId" element={<EditEvent />} />
+				<Route path="/edit-package" element={<EditPackage />} />
+				<Route path="/edit-package/:packageId" element={<EditPackage />} />
 				<Route path="/view-event/:eventId" element={<ViewEvent />} />
 				<Route path="/scan-qr" element={<ScanQr />} />
 				<Route path="/chat" element={<Chat />} />

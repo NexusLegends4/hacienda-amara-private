@@ -77,10 +77,10 @@ const BookingQr = () => {
                                 <p className="mt-5 text-sm leading-6 text-white/70">
                                     Scanning this code opens the reservation page directly on the guest's phone.
                                 </p>
-                                <div className="mt-4 flex items-start gap-2 rounded-2xl bg-white/10 p-4 text-left text-xs text-white/60">
-                                    <FiInfo className="mt-0.5 shrink-0" />
-                                    <span>Guest must be logged in to complete the booking. Please provide guests with their account details before booking.</span>
-                                </div>
+                            <div className="mt-4 flex items-start gap-2 rounded-2xl bg-white/10 p-4 text-left text-xs text-white/60">
+                                <FiInfo className="mt-0.5 shrink-0" />
+                                <span>No login is required. Guests can submit a reservation with their contact details.</span>
+                            </div>
                             </div>
                         </div>
                     </div>

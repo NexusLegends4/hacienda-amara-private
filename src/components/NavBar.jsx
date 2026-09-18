@@ -164,17 +164,19 @@ const NavBar = () => {
 
 							{["admin", "staff"].includes(profile?.role) && (
 							<>
-												{profile?.role === "admin" && <div className="dropdown dropdown-bottom relative z-[999]">
-									<div tabIndex={0} role="button" className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer">
-										Manage <FiChevronDown />
-									</div>
-									<ul tabIndex={0} className="menu menu-sm dropdown-content z-[1000] mt-2 w-52 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl">
-										<li><NavLink to="/manage-events" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Events</NavLink></li>
-										<li><NavLink to="/manage-clients" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Clients</NavLink></li>
-										<li><NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Reservations</NavLink></li>
-										<li><NavLink to="/scan-qr" className="rounded-xl px-3 py-2 hover:bg-base-200">Scan QR</NavLink></li>
-									</ul>
-								</div>}
+{profile?.role === "admin" && <div className="dropdown dropdown-bottom relative z-[999]">
+    <div tabIndex={0} role="button" className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer">
+        Manage <FiChevronDown />
+    </div>
+    <ul tabIndex={0} className="menu menu-sm dropdown-content z-[1000] mt-2 w-52 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl">
+        <li><NavLink to="/manage-events" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Events</NavLink></li>
+        <li><NavLink to="/manage-packages" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Packages</NavLink></li>
+        <li><NavLink to="/edit-package" className="rounded-xl px-3 py-2 hover:bg-base-200">Edit Packages</NavLink></li>
+        <li><NavLink to="/manage-clients" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Clients</NavLink></li>
+        <li><NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Reservations</NavLink></li>
+        <li><NavLink to="/scan-qr" className="rounded-xl px-3 py-2 hover:bg-base-200">Scan QR</NavLink></li>
+    </ul>
+</div>}
 								<NavLink to="/admin-reservations" className={navLinkClass}>Calendar</NavLink>
 								<NavLink to="/admin-notifications" className={navLinkClass}>Notifications</NavLink>
 							</>
@@ -301,17 +303,18 @@ const NavBar = () => {
 
 							{["admin", "staff"].includes(profile?.role) && (
 													<>
-													{profile?.role === "admin" && <>
-									<div className="border-t border-base-200 my-2" />
-									<p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Manage</p>
-									<NavLink to="/manage-events" className={mobileLinkClass} onClick={closeMobile}>Manage Events</NavLink>
-									<NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
-									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
-									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
-									<div className="border-t border-base-200 my-2" />
-									<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
-									<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
-									</>}
+{profile?.role === "admin" && <>
+    <div className="border-t border-base-200 my-2" />
+    <p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Manage</p>
+    <NavLink to="/manage-events" className={mobileLinkClass} onClick={closeMobile}>Manage Events</NavLink>
+    <NavLink to="/manage-packages" className={mobileLinkClass} onClick={closeMobile}>Manage Packages</NavLink>
+    <NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
+    <NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
+    <NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
+    <div className="border-t border-base-200 my-2" />
+    <NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
+    <NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
+    </>}
 									{profile?.role === "staff" && <>
 										<div className="border-t border-base-200 my-2" />
 										<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>

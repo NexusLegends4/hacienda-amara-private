@@ -17,21 +17,17 @@ const isWeekendOrHoliday = (dateStr) => {
 	return [0, 5, 6].includes(day) || PH_HOLIDAYS_2026.includes(dateStr);
 };
 
-const RATES = {
-	"Day Time (9 Hours)": { weekday: 6999, weekend: 7999 },
-	"Night Time (9 Hours)": { weekday: 7999, weekend: 8999 },
-	"Overnight (21 Hours)": { weekday: 14999, weekend: 17999 },
-};
-
 const Reservations = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
+	const [packages, setPackages] = useState([]);
+	const [packageLoading, setPackageLoading] = useState(true);
 	const [date, setDate] = useState("");
-	const [roomType, setRoomType] = useState("Day Time (9 Hours)");
 	const [guests, setGuests] = useState(20);
 	const [guestName, setGuestName] = useState("");
 	const [guestEmail, setGuestEmail] = useState("");
 	const [guestPhone, setGuestPhone] = useState("");
+	const [selectedPackageId, setSelectedPackageId] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [reservedBookings, setReservedBookings] = useState([]);
 	const [cancelDate, setCancelDate] = useState("");
@@ -46,6 +42,26 @@ const Reservations = () => {
 	}, [navigate, profile?.role]);
 
 	useEffect(() => {
+		const loadPackages = async () => {
+			const { data, error } = await supabase
+				.from("packages")
+				.select("id, name, description, base_price, min_price, max_price, duration_hours, check_in_time, check_out_time, max_guests, additional_guest_price, features")
+				.eq("is_active", true)
+				.order("display_order", { ascending: true });
+
+			if (error) {
+				alert(error.message);
+				return;
+			}
+
+			setPackages(data || []);
+			setPackageLoading(false);
+		};
+
+		loadPackages();
+	}, []);
+
+	useEffect(() => {
 		const loadReservedDates = async () => {
 			const { data, error } = await supabase.rpc("get_reserved_date_ranges");
 
@@ -55,11 +71,15 @@ const Reservations = () => {
 		loadReservedDates();
 	}, []);
 
-	const bookingWindows = useMemo(() => ({
-		"Day Time (9 Hours)": { start: "09:00", end: "18:00", endDateOffset: 0 },
-		"Night Time (9 Hours)": { start: "21:00", end: "06:00", endDateOffset: 1 },
-		"Overnight (21 Hours)": { start: "09:00", end: "06:00", endDateOffset: 1 },
-	}), []);
+	const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId) || packages[0] || null;
+	const roomType = selectedPackage?.name || "";
+	const bookingWindows = useMemo(() => Object.fromEntries(
+		packages.map((pkg) => [pkg.name, {
+			start: pkg.check_in_time?.slice(0, 5) || "09:00",
+			end: pkg.check_out_time?.slice(0, 5) || "18:00",
+			endDateOffset: (pkg.check_out_time || "18:00") <= (pkg.check_in_time || "09:00") ? 1 : 0,
+		}]),
+	), [packages]);
 
 	const getBookingInterval = (bookingDate, bookingRoomType) => {
 		const window = bookingWindows[bookingRoomType];
@@ -78,27 +98,34 @@ const Reservations = () => {
 		return { start, end };
 	};
 
-	const isDateReserved = useMemo(() => {
-		const selectedInterval = getBookingInterval(date, roomType);
+	const isDateReserved = packages.length > 0 && selectedPackage ? (() => {
+		const selectedInterval = getBookingInterval(date, selectedPackage.name);
 		if (!selectedInterval) return false;
 
 		return reservedBookings.some((reservation) => {
 			const existingInterval = getBookingInterval(reservation.check_in, reservation.room_type);
 			return existingInterval && selectedInterval.start < existingInterval.end && selectedInterval.end > existingInterval.start;
 		});
-	}, [date, roomType, reservedBookings, bookingWindows]);
+	})() : false;
 
 	const pricing = useMemo(() => {
-		if (!date) return 0;
-		const base = isWeekendOrHoliday(date) ? RATES[roomType].weekend : RATES[roomType].weekday;
-		return base + Math.max(0, guests - 20) * 200;
-	}, [date, roomType, guests]);
+		if (!date || !selectedPackage) return 0;
+		const extraGuests = Math.max(0, guests - Number(selectedPackage.max_guests || 20));
+		return Number(selectedPackage.base_price || 0) + extraGuests * Number(selectedPackage.additional_guest_price || 0);
+	}, [date, selectedPackage, guests]);
 
-	const checkOutDate = useMemo(() => {
+	const checkOutDate = selectedPackage ? (() => {
 		if (!date) return null;
-		if (roomType === "Day Time (9 Hours)") return date;
-		return new Date(new Date(date + "T00:00:00").getTime() + 86400000).toISOString().split("T")[0];
-	}, [date, roomType]);
+		const window = bookingWindows[selectedPackage.name];
+		if (!window) return null;
+		const checkout = new Date(`${date}T00:00:00`);
+		checkout.setDate(checkout.getDate() + window.endDateOffset);
+		return [
+			checkout.getFullYear(),
+			String(checkout.getMonth() + 1).padStart(2, "0"),
+			String(checkout.getDate()).padStart(2, "0"),
+		].join("-");
+	})() : null;
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -148,6 +175,14 @@ const Reservations = () => {
 	};
 
 	const isExpensive = date ? isWeekendOrHoliday(date) : null;
+	const formatTime = (time) => {
+		if (!time) return "—";
+		const [hours, minutes] = time.slice(0, 5).split(":");
+		const hour = Number(hours);
+		const suffix = hour >= 12 ? "PM" : "AM";
+		const displayHour = hour % 12 || 12;
+		return `${displayHour}:${minutes} ${suffix}`;
+	};
 
 	return (
 		<MainLayout>
@@ -161,7 +196,7 @@ const Reservations = () => {
 								<p className="mt-3 max-w-xl text-sm leading-6 text-base-content/75 md:text-base">
 									Escape the ordinary at Hacienda Amara. Select your preferred date and package below.
 									<br />
-									<span className="font-bold text-amber-700 block mt-2">Rates are for 20 pax. Additional pax: ₱200/head.</span>
+									<span className="font-bold text-amber-700 block mt-2">Rates and guest limits update automatically when packages change.</span>
 									<span className="text-emerald-700 font-bold italic">Kids 8 years old and below are FREE!</span>
 								</p>
 							</div>
@@ -202,16 +237,34 @@ const Reservations = () => {
 
 								<div className="form-control">
 									<label className="label-text font-bold mb-2">Select Package</label>
-									<select className="select select-bordered rounded-2xl" value={roomType} onChange={e => setRoomType(e.target.value)}>
-										<option value="Day Time (9 Hours)">Day Time — 9:00 AM to 6:00 PM (9 Hours)</option>
-										<option value="Night Time (9 Hours)">Night Time — 9:00 PM to 6:00 AM (9 Hours)</option>
-										<option value="Overnight (21 Hours)">Overnight — 9:00 AM to 6:00 AM next day (21 Hours)</option>
+									{packageLoading ? (
+										<div className="flex h-12 items-center justify-center"><span className="loading loading-spinner loading-sm"></span></div>
+									) : packages.length === 0 ? (
+										<div className="rounded-2xl border border-dashed border-error p-4 text-sm font-semibold text-error">No active packages are available.</div>
+									) : (
+									<select className="select select-bordered rounded-2xl" value={selectedPackageId} onChange={e => setSelectedPackageId(e.target.value)}>
+										{packages.map((pkg) => (
+											<option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+										))}
 									</select>
-									{date && (
+									)}
+									{selectedPackage && (
 										<div className="mt-3 rounded-2xl bg-amber-50 border border-amber-100 p-4 text-xs space-y-1">
-											<p className="font-bold text-amber-800 uppercase tracking-wider">2026 Rates</p>
-											<p className="text-slate-600">Weekday (Mon–Thu): <strong>₱{RATES[roomType].weekday.toLocaleString()}</strong></p>
-											<p className="text-slate-600">Weekend/Holiday (Fri–Sun): <strong>₱{RATES[roomType].weekend.toLocaleString()}</strong></p>
+											<p className="font-bold text-amber-800 uppercase tracking-wider">Package Details</p>
+											<p className="text-slate-600">{selectedPackage.description || "No description available."}</p>
+											<p className="text-slate-600">Schedule: <strong>{formatTime(selectedPackage.check_in_time)} – {formatTime(selectedPackage.check_out_time)}</strong> ({selectedPackage.duration_hours} hours)</p>
+											<p className="text-slate-600">Included guests: <strong>{selectedPackage.max_guests}</strong> · Extra guest: <strong>₱{Number(selectedPackage.additional_guest_price).toLocaleString()}/head</strong></p>
+											{selectedPackage.features?.length > 0 && (
+												<ul className="list-disc pl-4 text-slate-600">
+													{selectedPackage.features.map((feature) => <li key={feature}>{feature}</li>)}
+												</ul>
+											)}
+											{date && (
+												<div className="mt-2 border-t border-amber-100 pt-2">
+													<p className="font-bold text-amber-800">Selected Rate</p>
+													<p className="text-slate-600">Base: <strong>₱{Number(selectedPackage.base_price).toLocaleString()}</strong> · Min–Max: <strong>₱{Number(selectedPackage.min_price).toLocaleString()} – ₱{Number(selectedPackage.max_price).toLocaleString()}</strong></p>
+												</div>
+											)}
 										</div>
 									)}
 								</div>
@@ -219,7 +272,7 @@ const Reservations = () => {
 								<div className="form-control">
 									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiUsers /> Number of Guests</label>
 									<input type="number" className="input input-bordered rounded-2xl" value={guests} onChange={e => setGuests(Number(e.target.value))} min="1" max="70" required />
-									<p className="label-text-alt mt-1">Base rate covers 20 pax. ₱200 added per extra guest. Kids 8 & below are free.</p>
+									<p className="label-text-alt mt-1">Base rate covers {selectedPackage?.max_guests || 20} pax. ₱{Number(selectedPackage?.additional_guest_price || 0).toLocaleString()} added per extra guest. Kids 8 & below are free.</p>
 								</div>
 							</div>
 
@@ -230,10 +283,10 @@ const Reservations = () => {
 									<div className="flex justify-between text-sm opacity-70"><span>Date</span><span>{date || "—"}</span></div>
 									<div className="flex justify-between text-sm opacity-70"><span>Check-out</span><span>{checkOutDate || "—"}</span></div>
 									<div className="flex justify-between text-sm opacity-70"><span>Guests</span><span>{guests}</span></div>
-									{guests > 20 && (
+									{(selectedPackage && guests > Number(selectedPackage.max_guests || 20)) && (
 										<div className="flex justify-between text-sm text-amber-700">
-											<span>Extra pax ({guests - 20} × ₱200)</span>
-											<span>₱{((guests - 20) * 200).toLocaleString()}</span>
+											<span>Extra pax ({guests - Number(selectedPackage.max_guests || 20)} × ₱{Number(selectedPackage.additional_guest_price || 0).toLocaleString()})</span>
+											<span>₱{((guests - Number(selectedPackage.max_guests || 20)) * Number(selectedPackage.additional_guest_price || 0)).toLocaleString()}</span>
 										</div>
 									)}
 									<div className="border-t border-black/10 pt-4 flex justify-between items-end">
