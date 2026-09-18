@@ -60,7 +60,7 @@ on conflict (reservation_id, status) do nothing;
 
 create table if not exists public.guest_reservation_notifications (
   id uuid primary key default gen_random_uuid(),
-  reservation_id uuid not null unique references public.reservations(id) on delete cascade,
+  reservation_id uuid not null references public.reservations(id) on delete cascade,
   recipient_name text not null,
   recipient_email text not null,
   message text not null,
@@ -74,6 +74,9 @@ create table if not exists public.guest_reservation_notifications (
 alter table public.guest_reservation_notifications enable row level security;
 
 revoke all on table public.guest_reservation_notifications from public;
+
+alter table public.guest_reservation_notifications
+  drop constraint if exists guest_reservation_notifications_reservation_id_key;
 
 create or replace function public.create_guest_reservation(
   reservation_guest_name text,
@@ -171,6 +174,7 @@ begin
     set recipient_name = excluded.recipient_name,
         recipient_email = excluded.recipient_email,
         message = excluded.message,
+        status = excluded.status,
         room_type = excluded.room_type,
         check_in = excluded.check_in,
         created_at = excluded.created_at;

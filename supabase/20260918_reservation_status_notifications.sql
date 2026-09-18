@@ -96,7 +96,13 @@ begin
       new.room_type,
       new.check_in
     )
-    on conflict (reservation_id, status) do nothing;
+    on conflict (reservation_id, status) do update
+      set recipient_name = excluded.recipient_name,
+          recipient_email = excluded.recipient_email,
+          message = excluded.message,
+          room_type = excluded.room_type,
+          check_in = excluded.check_in,
+          created_at = excluded.created_at;
   end if;
 
   return new;
