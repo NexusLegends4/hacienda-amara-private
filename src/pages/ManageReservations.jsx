@@ -29,10 +29,6 @@ const ManageReservations = () => {
 	const [loading, setLoading] = useState(true);
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
-	const managerDisplayName =
-		`${profile?.firstname || ""} ${profile?.lastname || ""}`.trim() ||
-		profile?.email ||
-		(isAdmin ? "Admin" : "Staff");
 
 	useEffect(() => {
 		if (!session) {
@@ -99,10 +95,9 @@ const ManageReservations = () => {
 		}
 
 		const clientName = resToUpdate ? reservationGuestName(resToUpdate) : "the client";
+		const action = newStatus === "confirmed" ? "accepted" : "declined";
 
-		alert(
-			`Reservation for ${clientName} was ${newStatus === "confirmed" ? `accepted by ${managerDisplayName}` : `rejected by ${managerDisplayName}`}.`,
-		);
+		alert(`Reservation for ${clientName} was ${action}.`);
 		fetchReservations(false);
 	};
 

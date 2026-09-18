@@ -29,7 +29,9 @@ $$;
 revoke all on function public.cancel_guest_reservation(text, text, date) from public;
 grant execute on function public.cancel_guest_reservation(text, text, date) to anon, authenticated;
 
-create or replace function public.get_reserved_date_ranges()
+drop function if exists public.get_reserved_date_ranges();
+
+create function public.get_reserved_date_ranges()
 returns table (check_in date, check_out date)
 language sql
 security definer
