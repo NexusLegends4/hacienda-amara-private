@@ -143,7 +143,10 @@ const Reservations = () => {
 		});
 		if (error) alert(error.message);
 		else if (!reservationId) alert("That time slot is already booked. Please choose another schedule.");
-		else { alert("Reservation submitted! Resort staff will contact you for confirmation."); navigate("/"); }
+		else {
+			alert("Reservation submitted! Resort staff will contact you for confirmation.");
+			navigate(`/guest-notifications/${reservationId}`);
+		}
 		setLoading(false);
 	};
 

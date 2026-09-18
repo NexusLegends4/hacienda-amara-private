@@ -8,10 +8,10 @@ declare
   handler_name text;
   customer_name text;
   booking_label text;
+  guest_message text;
 begin
   if old.status is not distinct from new.status
-    or new.status not in ('confirmed', 'cancelled')
-    or new.profile_id is null then
+    or new.status not in ('confirmed', 'cancelled') then
     return new;
   end if;
 
@@ -29,36 +29,75 @@ begin
     from public.profiles
     where id = auth.uid();
 
-  select trim(concat_ws(' ', firstname, lastname))
-    into customer_name
-    from public.profiles
-    where id = new.profile_id;
-
   booking_label := coalesce(nullif(new.room_type, ''), 'your reservation')
     || ' on '
     || coalesce(new.check_in::text, 'the selected date');
 
-  insert into public.notifications (profile_id, message, type)
-  values (
-    new.profile_id,
-    case new.status
+  if new.profile_id is not null then
+    select trim(concat_ws(' ', firstname, lastname))
+      into customer_name
+      from public.profiles
+      where id = new.profile_id;
+
+    insert into public.notifications (profile_id, message, type)
+    values (
+      new.profile_id,
+      case new.status
+        when 'confirmed' then
+          coalesce(nullif(handler_name, ''), 'Admin or staff')
+          || ' accepted '
+          || coalesce(nullif(customer_name, ''), 'your booking')
+          || '''s booking for '
+          || booking_label
+          || '.'
+        when 'cancelled' then
+          coalesce(nullif(handler_name, ''), 'Admin or staff')
+          || ' declined '
+          || coalesce(nullif(customer_name, ''), 'your booking')
+          || '''s booking for '
+          || booking_label
+          || '.'
+      end,
+      'reservation'
+    );
+  else
+    customer_name := coalesce(nullif(new.guest_name, ''), 'Guest');
+    guest_message := case new.status
       when 'confirmed' then
         coalesce(nullif(handler_name, ''), 'Admin or staff')
         || ' accepted '
-        || coalesce(nullif(customer_name, ''), 'your booking')
+        || customer_name
         || '''s booking for '
         || booking_label
         || '.'
       when 'cancelled' then
         coalesce(nullif(handler_name, ''), 'Admin or staff')
         || ' declined '
-        || coalesce(nullif(customer_name, ''), 'your booking')
+        || customer_name
         || '''s booking for '
         || booking_label
         || '.'
-    end,
-    'reservation'
-  );
+    end;
+
+    insert into public.guest_reservation_notifications (
+      reservation_id,
+      recipient_name,
+      recipient_email,
+      message,
+      status,
+      room_type,
+      check_in
+    ) values (
+      new.id,
+      customer_name,
+      new.guest_email,
+      guest_message,
+      new.status,
+      new.room_type,
+      new.check_in
+    )
+    on conflict (reservation_id, status) do nothing;
+  end if;
 
   return new;
 end;

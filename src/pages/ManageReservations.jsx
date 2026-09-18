@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiCalendar, FiCheckCircle, FiXCircle, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiCalendar, FiCheckCircle, FiRefreshCw, FiTrash2 } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -211,7 +211,7 @@ const ManageReservations = () => {
 										</p>
 									</div>
 									<div className="mt-6 pt-4 border-t border-black/5 flex flex-col gap-3">
-										<div className="flex items-center justify-between">
+										<div className="flex items-center justify-between gap-2">
 											<span className={[
 												"badge uppercase text-[10px] font-bold",
 												res.status === "confirmed"
@@ -222,29 +222,25 @@ const ManageReservations = () => {
 											].join(" ")}>
 												{res.status || "pending"}
 											</span>
-											{canManageReservations && <div className="flex gap-2">
+											{canManageReservations && <div className="flex shrink-0 gap-1.5">
 												<button
 													onClick={() => updateStatus(res.id, "confirmed")}
 													className="btn btn-sm btn-circle btn-ghost text-success text-xl"
-													title="Confirm"
+													title="Accept reservation"
+													aria-label={`Accept reservation for ${reservationGuestName(res)}`}
 												>
 													<FiCheckCircle />
 												</button>
+
 												<button
-													onClick={() => updateStatus(res.id, "cancelled")}
+													onClick={() => deleteReservation(res.id)}
 													className="btn btn-sm btn-circle btn-ghost text-error text-xl"
-													title="Cancel"
+													title="Delete"
+													aria-label={`Delete reservation for ${reservationGuestName(res)}`}
 												>
-													<FiXCircle />
+													<FiTrash2 />
 												</button>
 											</div>}
-											{canManageReservations && <button
-												onClick={() => deleteReservation(res.id)}
-												className="btn btn-sm btn-circle btn-ghost text-error text-xl"
-												title="Delete"
-											>
-												<FiTrash2 />
-											</button>}
 										</div>
 									</div>
 								</div>

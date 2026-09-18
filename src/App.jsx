@@ -29,6 +29,8 @@ import ClientNotifications from "./components/ClientNotifications";
 import Reviews from "./pages/Reviews";
 import PostReview from "./pages/PostReview";
 import Rules from "./pages/Rules";
+import GuestNotifications from "./pages/GuestNotifications";
+import GuestNotificationAccess from "./pages/GuestNotificationAccess";
 
 
 const THEME_STORAGE_KEY = "theme";
@@ -212,7 +214,9 @@ if (event === "SIGNED_OUT") {
 				<Route path="/manage-reservations" element={<ManageReservations />} />
 				<Route path="/admin-notifications" element={<AdminNotifications />} />
 				<Route path="/client-notifications" element={<ClientNotifications />} />
-				<Route path="/add-event" element={<AddEvent />} />
+			<Route path="/guest-notifications" element={<GuestNotificationAccess />} />
+			<Route path="/guest-notifications/:reservationToken" element={<GuestNotifications />} />
+			<Route path="/add-event" element={<AddEvent />} />
 				<Route path="/edit-event/:eventId" element={<EditEvent />} />
 				<Route path="/edit-package" element={<EditPackage />} />
 				<Route path="/edit-package/:packageId" element={<EditPackage />} />
