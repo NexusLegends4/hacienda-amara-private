@@ -118,14 +118,21 @@ begin
     'pending',
     reservation_room_type,
     reservation_check_in
-  );
+  )
+  on conflict (reservation_id, status) do update
+    set recipient_name = excluded.recipient_name,
+        recipient_email = excluded.recipient_email,
+        message = excluded.message,
+        room_type = excluded.room_type,
+        check_in = excluded.check_in,
+        created_at = excluded.created_at;
 
   return access_token;
 end;
 $$;
 
 revoke all on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) from public;
-grant execute on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) to anon, authenticated;
+grant execute on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) to anon;
 
 create or replace function public.get_guest_reservation_notification(reservation_token uuid)
 returns table (
@@ -160,7 +167,7 @@ as $$
 $$;
 
 revoke all on function public.get_guest_reservation_notification(uuid) from public;
-grant execute on function public.get_guest_reservation_notification(uuid) to anon, authenticated;
+grant execute on function public.get_guest_reservation_notification(uuid) to anon;
 
 create or replace function public.find_guest_reservation(
   reservation_email text,
@@ -184,4 +191,4 @@ as $$
 $$;
 
 revoke all on function public.find_guest_reservation(text, text, date) from public;
-grant execute on function public.find_guest_reservation(text, text, date) to anon, authenticated;
+grant execute on function public.find_guest_reservation(text, text, date) to anon;
