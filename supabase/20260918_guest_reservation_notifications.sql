@@ -217,6 +217,8 @@ $$;
 revoke all on function public.get_guest_reservation_notification(uuid) from public;
 grant execute on function public.get_guest_reservation_notification(uuid) to anon;
 
+drop function if exists public.find_guest_reservation(text, text, date);
+
 create or replace function public.find_guest_reservation(
   reservation_email text,
   reservation_phone text,
