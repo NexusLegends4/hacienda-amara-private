@@ -11,9 +11,52 @@ create table if not exists public.reservation_access_tokens (
 create index if not exists reservation_access_tokens_expires_at_idx
   on public.reservation_access_tokens (expires_at);
 
+create index if not exists reservation_access_tokens_reservation_id_idx
+  on public.reservation_access_tokens (reservation_id);
+
+create index if not exists reservations_guest_lookup_idx
+  on public.reservations (guest_email, guest_phone, check_in);
+
 alter table public.reservation_access_tokens enable row level security;
 
 revoke all on table public.reservation_access_tokens from public;
+
+-- Backfill access links and notification records for reservations created before
+-- this migration was installed.
+insert into public.reservation_access_tokens (reservation_id, token_hash, expires_at)
+select
+  reservation.id,
+  hashtextextended(gen_random_uuid()::text, 0),
+  now() + interval '90 days'
+from public.reservations reservation
+where reservation.profile_id is null
+  and not exists (
+    select 1
+    from public.reservation_access_tokens access_token
+    where access_token.reservation_id = reservation.id
+  );
+
+insert into public.guest_reservation_notifications (
+  reservation_id,
+  recipient_name,
+  recipient_email,
+  message,
+  status,
+  room_type,
+  check_in
+)
+select
+  reservation.id,
+  coalesce(nullif(trim(reservation.guest_name), ''), 'Guest'),
+  reservation.guest_email,
+  'Your reservation has been submitted and is pending staff review.',
+  reservation.status,
+  reservation.room_type,
+  reservation.check_in
+from public.reservations reservation
+where reservation.profile_id is null
+  and reservation.status in ('pending', 'confirmed')
+on conflict (reservation_id, status) do nothing;
 
 create table if not exists public.guest_reservation_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -100,7 +143,12 @@ begin
     new_id,
     hashtextextended(access_token::text, 0),
     now() + interval '90 days'
-  );
+  )
+  on conflict (reservation_id) do update
+    set token_hash = excluded.token_hash,
+        expires_at = excluded.expires_at,
+        created_at = excluded.created_at
+  returning id into access_token;
 
   insert into public.guest_reservation_notifications (
     reservation_id,
@@ -174,19 +222,37 @@ create or replace function public.find_guest_reservation(
   reservation_phone text,
   reservation_check_in date
 )
-returns uuid
+returns table (
+  reservation_token uuid,
+  guest_name text,
+  room_type text,
+  check_in date,
+  status text,
+  message text
+)
 language sql
 security definer
 stable
 set search_path = public
 as $$
-  select access_token.reservation_id
-  from public.reservation_access_tokens access_token
-  join public.reservations reservation on reservation.id = access_token.reservation_id
+  select
+    access_token.id as reservation_token,
+    notification.recipient_name as guest_name,
+    notification.room_type,
+    notification.check_in,
+    notification.status,
+    notification.message
+  from public.reservations reservation
+  join public.reservation_access_tokens access_token
+    on access_token.reservation_id = reservation.id
+  join public.guest_reservation_notifications notification
+    on notification.reservation_id = reservation.id
+   and notification.status = reservation.status
   where lower(reservation.guest_email) = lower(trim(reservation_email))
-    and reservation.guest_phone = trim(reservation_phone)
+    and trim(reservation.guest_phone) = trim(reservation_phone)
     and reservation.check_in = reservation_check_in
-  order by access_token.created_at desc
+    and access_token.expires_at > now()
+  order by reservation.created_at desc
   limit 1;
 $$;
 

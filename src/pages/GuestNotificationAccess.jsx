@@ -28,12 +28,12 @@ const GuestNotificationAccess = () => {
 			return;
 		}
 
-		if (!data) {
+		if (!data?.length || !data[0].reservation_token) {
 			alert("No reservation matched those details.");
 			return;
 		}
 
-		navigate(`/guest-notifications/${data}`);
+		navigate(`/guest-notifications/${data[0].reservation_token}`);
 	};
 
 	return (

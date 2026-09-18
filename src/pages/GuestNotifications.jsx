@@ -49,15 +49,11 @@ const GuestNotifications = () => {
 
 	const statusLabel = reservation?.status === "confirmed"
 		? "Accepted"
-		: reservation?.status === "cancelled"
-			? "Declined"
-			: "Pending";
+		: "Pending";
 
 	const statusClasses = reservation?.status === "confirmed"
 		? "bg-emerald-50 text-emerald-800 border-emerald-200"
-		: reservation?.status === "cancelled"
-			? "bg-rose-50 text-rose-800 border-rose-200"
-			: "bg-amber-50 text-amber-800 border-amber-200";
+		: "bg-amber-50 text-amber-800 border-amber-200";
 
 	return (
 		<MainLayout>
