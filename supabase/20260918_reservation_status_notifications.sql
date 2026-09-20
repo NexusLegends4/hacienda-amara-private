@@ -15,25 +15,16 @@ begin
     return new;
   end if;
 
-  if not exists (
-    select 1
-    from public.profiles handler
-    where handler.id = auth.uid()
-      and handler.role in ('admin', 'staff')
-  ) then
-    raise exception 'Only admin or staff can update reservation status';
-  end if;
-
-  select trim(concat_ws(' ', firstname, lastname))
-    into handler_name
-    from public.profiles
-    where id = auth.uid();
-
-  booking_label := coalesce(nullif(new.room_type, ''), 'your reservation')
-    || ' on '
-    || coalesce(new.check_in::text, 'the selected date');
-
   if new.profile_id is not null then
+    select trim(concat_ws(' ', firstname, lastname))
+      into handler_name
+      from public.profiles
+      where id = auth.uid();
+
+    booking_label := coalesce(nullif(new.room_type, ''), 'your reservation')
+      || ' on '
+      || coalesce(new.check_in::text, 'the selected date');
+
     select trim(concat_ws(' ', firstname, lastname))
       into customer_name
       from public.profiles
@@ -62,21 +53,18 @@ begin
     );
   else
     customer_name := coalesce(nullif(new.guest_name, ''), 'Guest');
+    booking_label := coalesce(nullif(new.room_type, ''), 'your reservation')
+      || ' on '
+      || coalesce(new.check_in::text, 'the selected date');
     guest_message := case new.status
       when 'confirmed' then
-        coalesce(nullif(handler_name, ''), 'Admin or staff')
-        || ' accepted '
-        || customer_name
-        || '''s booking for '
+        'Good news! Your reservation for '
         || booking_label
-        || '.'
+        || ' has been accepted by Hacienda Amara.'
       when 'cancelled' then
-        coalesce(nullif(handler_name, ''), 'Admin or staff')
-        || ' declined '
-        || customer_name
-        || '''s booking for '
+        'Your reservation for '
         || booking_label
-        || '.'
+        || ' was not accepted. Please contact Hacienda Amara for assistance.'
     end;
 
     insert into public.guest_reservation_notifications (
@@ -116,6 +104,7 @@ drop trigger if exists tr_reservation_status_update on public.reservations;
 create trigger tr_reservation_status_update
 after update on public.reservations
 for each row
+when (old.status is distinct from new.status and new.profile_id is null)
 execute function public.on_reservation_status_update();
 
 do $$
@@ -125,8 +114,8 @@ begin
     from pg_publication_tables
     where pubname = 'supabase_realtime'
       and schemaname = 'public'
-      and tablename = 'notifications'
+      and tablename = 'guest_reservation_notifications'
   ) then
-    alter publication supabase_realtime add table public.notifications;
+    alter publication supabase_realtime add table public.guest_reservation_notifications;
   end if;
 end $$;

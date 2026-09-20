@@ -33,7 +33,25 @@ const GuestNotifications = () => {
 	useEffect(() => {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void loadNotification();
-	}, [loadNotification]);
+
+		const channel = supabase
+			.channel(`reservation-notification-${reservationToken}`)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "guest_reservation_notifications",
+					filter: `reservation_id=eq.${reservationToken}`,
+				},
+				() => void loadNotification(),
+			)
+			.subscribe();
+
+		return () => {
+			void supabase.removeChannel(channel);
+		};
+	}, [loadNotification, reservationToken]);
 
 	const copyNotificationLink = async () => {
 		const notificationUrl = `${window.location.origin}/guest-notifications/${reservationToken}`;
