@@ -29,7 +29,7 @@ const GuestNotificationAccess = () => {
 		}
 
 		if (!data?.length || !data[0].reservation_token) {
-			alert("No reservation matched those details.");
+			alert("No active reservation matched those details. Check the email, phone number, and reservation date.");
 			return;
 		}
 
@@ -56,7 +56,7 @@ const GuestNotificationAccess = () => {
 						</div>
 
 						<p className="mt-4 text-sm leading-6 text-base-content/70">
-							Enter the same details used when you submitted your reservation. Only the matching booking notification will be shown.
+							Enter the same email, phone number, and reservation date used when you booked.
 						</p>
 
 						<form onSubmit={handleSubmit} className="mt-8 space-y-5">

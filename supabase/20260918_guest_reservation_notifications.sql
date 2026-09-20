@@ -17,9 +17,26 @@ create index if not exists reservation_access_tokens_reservation_id_idx
 create index if not exists reservations_guest_lookup_idx
   on public.reservations (guest_email, guest_phone, check_in);
 
-alter table public.reservation_access_tokens enable row level security;
+alter table public.reservations
+  drop constraint if exists reservations_guest_contact_lookup_key;
 
-revoke all on table public.reservation_access_tokens from public;
+alter table public.reservations
+  add column if not exists normalized_guest_email text;
+
+alter table public.reservations
+  add column if not exists normalized_guest_phone text;
+
+update public.reservations
+set normalized_guest_email = lower(trim(guest_email)),
+    normalized_guest_phone = regexp_replace(guest_phone, '[^0-9]', '', 'g')
+where normalized_guest_email is null
+   or normalized_guest_phone is null;
+
+alter table public.reservations
+  add constraint reservations_guest_contact_lookup_key
+  unique (normalized_guest_email, normalized_guest_phone, check_in);
+
+alter table public.reservation_access_tokens enable row level security;
 
 -- Backfill access links and notification records for reservations created before
 -- this migration was installed.
@@ -131,20 +148,21 @@ begin
   end loop;
 
   insert into public.reservations (
-    profile_id, guest_name, guest_email, guest_phone, check_in, check_out,
+    profile_id, guest_name, normalized_guest_email, normalized_guest_phone,
+    guest_email, guest_phone, check_in, check_out,
     room_type, guests, total_price, status
   ) values (
-    null, trim(reservation_guest_name), trim(reservation_guest_email),
-    trim(reservation_guest_phone), reservation_check_in, reservation_check_out,
+    null, trim(reservation_guest_name), lower(trim(reservation_guest_email)),
+    regexp_replace(reservation_guest_phone, '[^0-9]', '', 'g'),
+    trim(reservation_guest_email), trim(reservation_guest_phone),
+    reservation_check_in, reservation_check_out,
     reservation_room_type, reservation_guests, reservation_total_price, 'pending'
   ) returning id into new_id;
-
-  access_token := gen_random_uuid();
 
   insert into public.reservation_access_tokens (reservation_id, token_hash, expires_at)
   values (
     new_id,
-    hashtextextended(access_token::text, 0),
+    hashtextextended(new_id::text, 0),
     now() + interval '90 days'
   )
   on conflict (reservation_id) do update
@@ -179,7 +197,7 @@ begin
         check_in = excluded.check_in,
         created_at = excluded.created_at;
 
-  return access_token;
+  return new_id;
 end;
 $$;
 
@@ -242,7 +260,7 @@ stable
 set search_path = public
 as $$
   select
-    access_token.id as reservation_token,
+    reservation.id as reservation_token,
     notification.recipient_name as guest_name,
     notification.room_type,
     notification.check_in,
@@ -254,9 +272,11 @@ as $$
   join public.guest_reservation_notifications notification
     on notification.reservation_id = reservation.id
    and notification.status = reservation.status
-  where lower(reservation.guest_email) = lower(trim(reservation_email))
-    and trim(reservation.guest_phone) = trim(reservation_phone)
+  where reservation.normalized_guest_email = lower(trim(reservation_email))
+    and regexp_replace(reservation.guest_phone, '[^0-9]', '', 'g') =
+        regexp_replace(reservation_phone, '[^0-9]', '', 'g')
     and reservation.check_in = reservation_check_in
+    and reservation.status in ('pending', 'confirmed')
     and access_token.expires_at > now()
   order by reservation.created_at desc
   limit 1;

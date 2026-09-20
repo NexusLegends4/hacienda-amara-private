@@ -90,7 +90,7 @@ begin
     ) values (
       new.id,
       customer_name,
-      new.guest_email,
+      coalesce(new.guest_email, ''),
       guest_message,
       new.status,
       new.room_type,
