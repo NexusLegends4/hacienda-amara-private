@@ -29,21 +29,102 @@ alter table public.reservations
 update public.reservations
 set normalized_guest_email = lower(trim(guest_email)),
     normalized_guest_phone = regexp_replace(guest_phone, '[^0-9]', '', 'g')
-where normalized_guest_email is null
-   or normalized_guest_phone is null;
+where profile_id is null
+  and (
+    normalized_guest_email is distinct from lower(trim(guest_email))
+    or normalized_guest_phone is distinct from regexp_replace(guest_phone, '[^0-9]', '', 'g')
+  );
 
-alter table public.reservations
-  add constraint reservations_guest_contact_lookup_key
-  unique (normalized_guest_email, normalized_guest_phone, check_in);
+create index if not exists reservations_guest_contact_lookup_idx
+  on public.reservations (normalized_guest_email, normalized_guest_phone, check_in);
 
 alter table public.reservation_access_tokens enable row level security;
+
+create table if not exists public.guest_reservation_notifications (
+  id uuid primary key default gen_random_uuid(),
+  reservation_id uuid not null references public.reservations(id) on delete cascade,
+  recipient_name text not null,
+  recipient_email text not null,
+  message text not null,
+  status text not null check (status in ('pending', 'confirmed', 'cancelled')),
+  room_type text not null,
+  check_in date not null,
+  created_at timestamptz not null default now(),
+  constraint guest_reservation_notifications_reservation_status_key unique (reservation_id, status)
+);
+
+alter table public.guest_reservation_notifications enable row level security;
+
+revoke all on table public.guest_reservation_notifications from public;
+
+create or replace function public.can_read_guest_reservation_notification(notification_reservation_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.reservation_access_tokens access_token
+    where access_token.reservation_id = notification_reservation_id
+      and access_token.expires_at > now()
+  );
+$$;
+
+revoke all on function public.can_read_guest_reservation_notification(uuid) from public;
+grant execute on function public.can_read_guest_reservation_notification(uuid) to anon, authenticated;
+
+drop policy if exists guest_reservation_notifications_read_access on public.guest_reservation_notifications;
+
+create policy guest_reservation_notifications_read_access
+  on public.guest_reservation_notifications
+  for select
+  to anon, authenticated
+  using (public.can_read_guest_reservation_notification(reservation_id));
+
+grant select on table public.guest_reservation_notifications to anon, authenticated;
+
+do $$
+begin
+  if to_regclass('public.guest_reservation_notifications') is not null
+    and not exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'guest_reservation_notifications'
+    ) then
+    alter publication supabase_realtime add table public.guest_reservation_notifications;
+  end if;
+end $$;
+
+alter table public.guest_reservation_notifications
+  drop constraint if exists guest_reservation_notifications_reservation_id_key;
+
+alter table public.guest_reservation_notifications
+  drop constraint if exists guest_reservation_notifications_reservation_status_key;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.guest_reservation_notifications'::regclass
+      and conname = 'guest_reservation_notifications_reservation_status_key'
+  ) then
+    alter table public.guest_reservation_notifications
+      add constraint guest_reservation_notifications_reservation_status_key
+      unique (reservation_id, status);
+  end if;
+end $$;
 
 -- Backfill access links and notification records for reservations created before
 -- this migration was installed.
 insert into public.reservation_access_tokens (reservation_id, token_hash, expires_at)
 select
   reservation.id,
-  hashtextextended(gen_random_uuid()::text, 0),
+  hashtextextended(reservation.id::text, 0),
   now() + interval '90 days'
 from public.reservations reservation
 where reservation.profile_id is null
@@ -74,26 +155,6 @@ from public.reservations reservation
 where reservation.profile_id is null
   and reservation.status in ('pending', 'confirmed')
 on conflict (reservation_id, status) do nothing;
-
-create table if not exists public.guest_reservation_notifications (
-  id uuid primary key default gen_random_uuid(),
-  reservation_id uuid not null references public.reservations(id) on delete cascade,
-  recipient_name text not null,
-  recipient_email text not null,
-  message text not null,
-  status text not null check (status in ('pending', 'confirmed', 'cancelled')),
-  room_type text not null,
-  check_in date not null,
-  created_at timestamptz not null default now(),
-  constraint guest_reservation_notifications_reservation_status_key unique (reservation_id, status)
-);
-
-alter table public.guest_reservation_notifications enable row level security;
-
-revoke all on table public.guest_reservation_notifications from public;
-
-alter table public.guest_reservation_notifications
-  drop constraint if exists guest_reservation_notifications_reservation_id_key;
 
 create or replace function public.create_guest_reservation(
   reservation_guest_name text,
@@ -202,7 +263,7 @@ end;
 $$;
 
 revoke all on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) from public;
-grant execute on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) to anon;
+grant execute on function public.create_guest_reservation(text, text, text, date, date, text, integer, numeric) to anon, authenticated;
 
 create or replace function public.get_guest_reservation_notification(reservation_token uuid)
 returns table (
@@ -224,20 +285,25 @@ as $$
     n.check_in,
     n.status,
     n.message,
-    r.created_at
+    n.created_at as updated_at
   from public.guest_reservation_notifications n
   join public.reservation_access_tokens access_token
     on access_token.reservation_id = n.reservation_id
   join public.reservations r
     on r.id = n.reservation_id
-  where access_token.token_hash = hashtextextended(reservation_token::text, 0)
+  where r.status = n.status
     and access_token.expires_at > now()
-  order by r.created_at desc
+    and (
+      access_token.reservation_id = reservation_token
+      or access_token.token_hash = hashtextextended(reservation_token::text, 0)
+      or access_token.id = reservation_token
+    )
+  order by n.created_at desc
   limit 1;
 $$;
 
 revoke all on function public.get_guest_reservation_notification(uuid) from public;
-grant execute on function public.get_guest_reservation_notification(uuid) to anon;
+grant execute on function public.get_guest_reservation_notification(uuid) to anon, authenticated;
 
 drop function if exists public.find_guest_reservation(text, text, date);
 
@@ -273,7 +339,7 @@ as $$
     on notification.reservation_id = reservation.id
    and notification.status = reservation.status
   where reservation.normalized_guest_email = lower(trim(reservation_email))
-    and regexp_replace(reservation.guest_phone, '[^0-9]', '', 'g') =
+    and reservation.normalized_guest_phone =
         regexp_replace(reservation_phone, '[^0-9]', '', 'g')
     and reservation.check_in = reservation_check_in
     and reservation.status in ('pending', 'confirmed')
@@ -283,4 +349,4 @@ as $$
 $$;
 
 revoke all on function public.find_guest_reservation(text, text, date) from public;
-grant execute on function public.find_guest_reservation(text, text, date) to anon;
+grant execute on function public.find_guest_reservation(text, text, date) to anon, authenticated;

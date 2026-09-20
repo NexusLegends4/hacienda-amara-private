@@ -11,13 +11,13 @@ const GuestNotifications = () => {
 	const [loading, setLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
 
-	const loadNotification = useCallback(async () => {
+	const loadNotification = useCallback(async (showLoading = true) => {
 		if (!reservationToken) {
 			navigate("/", { replace: true });
 			return;
 		}
 
-		setLoading(true);
+		if (showLoading) setLoading(true);
 		const { data, error } = await supabase.rpc("get_guest_reservation_notification", {
 			reservation_token: reservationToken,
 		});
@@ -27,7 +27,7 @@ const GuestNotifications = () => {
 		} else {
 			setReservation(data[0]);
 		}
-		setLoading(false);
+		if (showLoading) setLoading(false);
 	}, [reservationToken, navigate]);
 
 	useEffect(() => {
@@ -39,16 +39,21 @@ const GuestNotifications = () => {
 			.on(
 				"postgres_changes",
 				{
-					event: "UPDATE",
+					event: "*",
 					schema: "public",
 					table: "guest_reservation_notifications",
 					filter: `reservation_id=eq.${reservationToken}`,
 				},
-				() => void loadNotification(),
+				() => void loadNotification(false),
 			)
 			.subscribe();
 
+		const refreshTimer = window.setInterval(() => {
+			void loadNotification(false);
+		}, 5000);
+
 		return () => {
+			window.clearInterval(refreshTimer);
 			void supabase.removeChannel(channel);
 		};
 	}, [loadNotification, reservationToken]);
@@ -67,11 +72,15 @@ const GuestNotifications = () => {
 
 	const statusLabel = reservation?.status === "confirmed"
 		? "Accepted"
-		: "Pending";
+		: reservation?.status === "cancelled"
+			? "Declined"
+			: "Pending";
 
 	const statusClasses = reservation?.status === "confirmed"
 		? "bg-emerald-50 text-emerald-800 border-emerald-200"
-		: "bg-amber-50 text-amber-800 border-amber-200";
+		: reservation?.status === "cancelled"
+			? "bg-rose-50 text-rose-800 border-rose-200"
+			: "bg-amber-50 text-amber-800 border-amber-200";
 
 	return (
 		<MainLayout>

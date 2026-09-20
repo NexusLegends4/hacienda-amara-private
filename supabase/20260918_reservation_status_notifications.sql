@@ -104,18 +104,18 @@ drop trigger if exists tr_reservation_status_update on public.reservations;
 create trigger tr_reservation_status_update
 after update on public.reservations
 for each row
-when (old.status is distinct from new.status and new.profile_id is null)
 execute function public.on_reservation_status_update();
 
 do $$
 begin
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'guest_reservation_notifications'
-  ) then
+  if to_regclass('public.guest_reservation_notifications') is not null
+    and not exists (
+      select 1
+      from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'guest_reservation_notifications'
+    ) then
     alter publication supabase_realtime add table public.guest_reservation_notifications;
   end if;
 end $$;
