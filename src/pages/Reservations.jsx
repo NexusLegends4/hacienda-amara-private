@@ -232,7 +232,7 @@ const Reservations = () => {
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
-										<input type="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} required minLength="7" placeholder="09XX XXX XXXX" />
+										<input type="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} required minLength="7" pattern="[0-9+() -]{7,}" placeholder="09XX XXX XXXX" />
 									</div>
 								</div>
 								<div className="form-control">
