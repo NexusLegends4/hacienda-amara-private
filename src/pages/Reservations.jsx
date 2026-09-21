@@ -17,6 +17,8 @@ const isWeekendOrHoliday = (dateStr) => {
 	return [0, 5, 6].includes(day) || PH_HOLIDAYS_2026.includes(dateStr);
 };
 
+const isPhilippinePhoneNumber = (phone) => /^(?:09\d{9}|639\d{9})$/.test(phone);
+
 const Reservations = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
@@ -134,6 +136,10 @@ const Reservations = () => {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		if (pricing <= 0 || isDateReserved) { alert("Please select an available date."); return; }
+		if (!isPhilippinePhoneNumber(guestPhone.trim())) {
+			alert("Please enter a valid Philippine mobile number: 09XXXXXXXXX or 639XXXXXXXXX.");
+			return;
+		}
 		setLoading(true);
 		const { data: reservationId, error } = await supabase.rpc("create_guest_reservation", {
 			reservation_guest_name: guestName.trim(),
@@ -232,7 +238,8 @@ const Reservations = () => {
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
-										<input type="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} required minLength="7" pattern="[0-9+() -]{7,}" placeholder="09XX XXX XXXX" />
+										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
+										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
 									</div>
 								</div>
 								<div className="form-control">
