@@ -111,7 +111,10 @@ const Reservations = () => {
 	const pricing = useMemo(() => {
 		if (!date || !selectedPackage) return 0;
 		const extraGuests = Math.max(0, guests - Number(selectedPackage.max_guests || 20));
-		return Number(selectedPackage.base_price || 0) + extraGuests * Number(selectedPackage.additional_guest_price || 0);
+		// Use max_price for weekends/holidays, base_price (min_price) for weekdays
+		const isWeekendHoliday = isWeekendOrHoliday(date);
+		const basePrice = isWeekendHoliday ? Number(selectedPackage.max_price || 0) : Number(selectedPackage.base_price || 0);
+		return basePrice + extraGuests * Number(selectedPackage.additional_guest_price || 0);
 	}, [date, selectedPackage, guests]);
 
 	const checkOutDate = selectedPackage ? (() => {
@@ -265,7 +268,8 @@ const Reservations = () => {
 											{date && (
 												<div className="mt-2 border-t border-amber-100 pt-2">
 													<p className="font-bold text-amber-800">Selected Rate</p>
-													<p className="text-slate-600">Base: <strong>₱{Number(selectedPackage.base_price).toLocaleString()}</strong> · Min–Max: <strong>₱{Number(selectedPackage.min_price).toLocaleString()} – ₱{Number(selectedPackage.max_price).toLocaleString()}</strong></p>
+													<p className="text-slate-600">Rate Type: <strong>{isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday (Mon-Thu)"}</strong></p>
+													<p className="text-slate-600">Base: <strong>₱{Number(isWeekendOrHoliday(date) ? selectedPackage.max_price : selectedPackage.base_price).toLocaleString()}</strong> · Min–Max: <strong>₱{Number(selectedPackage.min_price).toLocaleString()} – ₱{Number(selectedPackage.max_price).toLocaleString()}</strong></p>
 												</div>
 											)}
 										</div>
@@ -284,12 +288,18 @@ const Reservations = () => {
 									<h2 className="text-xl font-bold flex items-center gap-2"><FiInfo /> Summary</h2>
 									<div className="flex justify-between text-sm opacity-70"><span>Package</span><span className="text-right max-w-[140px]">{roomType}</span></div>
 									<div className="flex justify-between text-sm opacity-70"><span>Date</span><span>{date || "—"}</span></div>
+									<div className="flex justify-between text-sm opacity-70"><span>Rate Type</span><span>{date ? (isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday (Mon-Thu)") : "—"}</span></div>
 									<div className="flex justify-between text-sm opacity-70"><span>Check-out</span><span>{checkOutDate || "—"}</span></div>
 									<div className="flex justify-between text-sm opacity-70"><span>Guests</span><span>{guests}</span></div>
-									{(selectedPackage && guests > Number(selectedPackage.max_guests || 20)) && (
-										<div className="flex justify-between text-sm text-amber-700">
-											<span>Extra pax ({guests - Number(selectedPackage.max_guests || 20)} × ₱{Number(selectedPackage.additional_guest_price || 0).toLocaleString()})</span>
-											<span>₱{((guests - Number(selectedPackage.max_guests || 20)) * Number(selectedPackage.additional_guest_price || 0)).toLocaleString()}</span>
+									{date && selectedPackage && (
+										<div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-sm">
+											<div className="flex justify-between"><span>Base Rate ({isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday"})</span><span>₱{Number(isWeekendOrHoliday(date) ? selectedPackage.max_price : selectedPackage.base_price).toLocaleString()}</span></div>
+											{(selectedPackage && guests > Number(selectedPackage.max_guests || 20)) && (
+												<div className="flex justify-between text-amber-700">
+													<span>Extra pax ({guests - Number(selectedPackage.max_guests || 20)} × ₱{Number(selectedPackage.additional_guest_price || 0).toLocaleString()})</span>
+													<span>₱{((guests - Number(selectedPackage.max_guests || 20)) * Number(selectedPackage.additional_guest_price || 0)).toLocaleString()}</span>
+												</div>
+											)}
 										</div>
 									)}
 									<div className="border-t border-black/10 pt-4 flex justify-between items-end">
