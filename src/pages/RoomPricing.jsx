@@ -1,17 +1,36 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { useNavigate } from "react-router-dom";
-import { FiTrendingUp, FiSun, FiCalendar, FiCheck } from "react-icons/fi";
+import { FiCheck } from "react-icons/fi";
 import { supabase } from "../utils/supabase";
+
+const HOLIDAY_NAMES = {
+    "2026-01-01": "New Year's Day",
+    "2026-02-17": "Chinese New Year",
+    "2026-04-02": "Maundy Thursday",
+    "2026-04-03": "Good Friday",
+    "2026-04-04": "Black Saturday",
+    "2026-04-09": "Araw ng Kagitingan",
+    "2026-05-01": "Labor Day",
+    "2026-06-12": "Independence Day",
+    "2026-08-21": "Ninoy Aquino Day",
+    "2026-08-31": "National Heroes Day",
+    "2026-11-01": "All Saints' Day",
+    "2026-11-02": "All Souls' Day",
+    "2026-11-30": "Bonifacio Day",
+    "2026-12-08": "Feast of the Immaculate Conception",
+    "2026-12-24": "Christmas Eve",
+    "2026-12-25": "Christmas Day",
+    "2026-12-30": "Rizal Day",
+    "2026-12-31": "Last Day of the Year",
+};
+
+const PH_HOLIDAYS_2026 = Object.keys(HOLIDAY_NAMES);
 
 const RoomPricing = () => {
     const navigate = useNavigate();
     const [packages, setPackages] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchPackages();
-    }, []);
 
     const fetchPackages = async () => {
         const { data, error } = await supabase
@@ -26,6 +45,11 @@ const RoomPricing = () => {
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void fetchPackages();
+    }, []);
 
     return (
         <MainLayout>
@@ -44,6 +68,7 @@ const RoomPricing = () => {
                                     View our current rates and inclusions for your next stay.
                                     <br />
                                     <span className="font-bold text-amber-700 block mt-2">Rates: Prices are for 20 pax. Additional pax: ₱200/head.</span>
+                                    <span className="font-bold text-rose-600 block mt-1">Higher rates apply on Fridays, Saturdays, Sundays, and Philippine holidays.</span>
                                     <span className="text-emerald-700 font-bold italic">Kids 8 years old and below are FREE!</span>
                                 </p>
                             </div>
@@ -71,20 +96,20 @@ const RoomPricing = () => {
                                     <h2 className="text-xl font-bold text-base-content">{pkg.name}</h2>
 <div className="mt-4 space-y-2">
                                          <div className="flex items-baseline gap-1">
-                                             <span className="text-4xl font-black text-slate-900">
-                                                 ₱{Number(pkg.min_price).toLocaleString()}
-                                             </span>
-                                             <span className="text-sm text-base-content/50">/ stay (Mon-Thu)</span>
-                                         </div>
-                                         <div className="flex items-baseline gap-1">
-                                             <span className="text-4xl font-black text-slate-900">
-                                                 ₱{Number(pkg.max_price).toLocaleString()}
-                                             </span>
-                                             <span className="text-sm text-base-content/50">/ stay (Fri-Sun & Holiday)</span>
-                                         </div>
-                                     </div>
-                                     <p className="mt-1 text-xs text-amber-600 font-medium italic">
-                                         Base: ₱{Number(pkg.base_price).toLocaleString()} (Mon-Thu rate)
+                                          <span className="text-4xl font-black text-slate-900">
+                                              ₱{Number(pkg.base_price).toLocaleString()}
+                                          </span>
+                                              <span className="text-sm text-base-content/50">/ stay (Mon-Thu)</span>
+                                          </div>
+                                          <div className="flex items-baseline gap-1">
+                                              <span className="text-4xl font-black text-slate-900">
+                                                  ₱{Number(pkg.max_price).toLocaleString()}
+                                              </span>
+                                              <span className="text-sm text-base-content/50">/ stay (Fri-Sun & Holiday)</span>
+                                          </div>
+                                      </div>
+                                      <p className="mt-1 text-xs text-amber-600 font-medium italic">
+                                          Select your booking date to see the exact rate. Holiday rates apply to the dates listed above.
                                      </p>
 
                                     <div className="mt-8 space-y-3">
