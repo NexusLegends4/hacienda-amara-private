@@ -30,6 +30,7 @@ const Reservations = () => {
 	const [selectedPackageId, setSelectedPackageId] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [reservedBookings, setReservedBookings] = useState([]);
+	const [reservationConflict, setReservationConflict] = useState(false);
 	const [cancelDate, setCancelDate] = useState("");
 	const [cancelEmail, setCancelEmail] = useState("");
 	const [cancelPhone, setCancelPhone] = useState("");
@@ -145,8 +146,12 @@ const Reservations = () => {
 			reservation_total_price: pricing,
 		});
 		if (error) alert(error.message);
-		else if (!reservationId) alert("That time slot is already booked. Please choose another schedule.");
-		else {
+		else if (!reservationId) {
+			setReservationConflict(true);
+			setLoading(false);
+			return;
+		} else {
+			setReservationConflict(false);
 			alert("Reservation submitted! Resort staff will contact you for confirmation.");
 			navigate(`/guest-notifications/${reservationId}`);
 		}
@@ -234,6 +239,7 @@ const Reservations = () => {
 									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
 									<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
 									{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
+									{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
 									{date && (
 										<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
 											{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies"}
