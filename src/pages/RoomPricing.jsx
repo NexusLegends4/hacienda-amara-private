@@ -69,15 +69,23 @@ const RoomPricing = () => {
                             packages.map((pkg) => (
                                 <div key={pkg.id} className="rounded-[2rem] border border-black/5 bg-white/80 p-8 shadow-xl backdrop-blur transition-transform hover:scale-[1.02]">
                                     <h2 className="text-xl font-bold text-base-content">{pkg.name}</h2>
-                                    <div className="mt-4 flex items-baseline gap-1">
-                                        <span className="text-4xl font-black text-slate-900">
-                                            ₱{Number(pkg.min_price).toLocaleString()} - ₱{Number(pkg.max_price).toLocaleString()}
-                                        </span>
-                                        <span className="text-sm text-base-content/50">/ night</span>
-                                    </div>
-                                    <p className="mt-1 text-xs text-amber-600 font-medium italic">
-                                        Base: ₱{Number(pkg.base_price).toLocaleString()}
-                                    </p>
+<div className="mt-4 space-y-2">
+                                         <div className="flex items-baseline gap-1">
+                                             <span className="text-4xl font-black text-slate-900">
+                                                 ₱{Number(pkg.min_price).toLocaleString()}
+                                             </span>
+                                             <span className="text-sm text-base-content/50">/ stay (Mon-Thu)</span>
+                                         </div>
+                                         <div className="flex items-baseline gap-1">
+                                             <span className="text-4xl font-black text-slate-900">
+                                                 ₱{Number(pkg.max_price).toLocaleString()}
+                                             </span>
+                                             <span className="text-sm text-base-content/50">/ stay (Fri-Sun & Holiday)</span>
+                                         </div>
+                                     </div>
+                                     <p className="mt-1 text-xs text-amber-600 font-medium italic">
+                                         Base: ₱{Number(pkg.base_price).toLocaleString()} (Mon-Thu rate)
+                                     </p>
 
                                     <div className="mt-8 space-y-3">
                                         {pkg.features?.map((f) => (
