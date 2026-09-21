@@ -95,6 +95,7 @@ const AdminReservations = () => {
 						{dayBookings.map(res => {
 							const isConfirmed = res.status === 'confirmed' || res.status === 'Accepted';
 							const isCancelled = res.status === 'cancelled' || res.status === 'Rejected';
+							const statusLabel = isConfirmed ? 'Accepted' : isCancelled ? 'Cancelled' : 'Pending';
 
 							const statusClasses = 
 								isConfirmed ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
@@ -104,12 +105,13 @@ const AdminReservations = () => {
 							const StatusIcon = isConfirmed ? FiCheckCircle : (isCancelled ? FiXCircle : FiClock);
 
 							return (
-								<div key={`${res.id}-${d}`} className={`text-[9px] p-1 rounded leading-tight border ${statusClasses} flex flex-col gap-0.5`} title={`Status: ${res.status || 'pending'}`}>
+								<div key={`${res.id}-${d}`} className={`text-[9px] p-1 rounded leading-tight border ${statusClasses} flex flex-col gap-0.5`} title={`Status: ${statusLabel}`}>
 									<div className="flex items-center justify-between gap-1">
 										<span className="font-bold truncate max-w-[45px]">{res.room_type}</span>
 										<StatusIcon className="shrink-0" />
 									</div>
 									<span className="truncate">{reservationGuestName(res)}</span>
+									<span className="truncate font-semibold">{statusLabel}</span>
 								</div>
 							);
 						})}
@@ -136,7 +138,7 @@ const AdminReservations = () => {
 													{profile?.role === "staff" ? "Staff Dashboard" : "Admin Dashboard"}
 												</p>
 								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">Reservation Calendar</h1>
-												<p className="mt-3 text-sm leading-6 text-base-content/75">Overview of pending, accepted, and rejected bookings.</p>
+												<p className="mt-3 text-sm leading-6 text-base-content/75">Overview of pending, accepted, and cancelled bookings.</p>
 							</div>
 							<div className="flex flex-wrap items-center gap-4">
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full px-8">
@@ -163,7 +165,7 @@ const AdminReservations = () => {
 						</div>
 						<div className="flex items-center gap-1.5 text-rose-700">
 							<div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-							<span>Rejected</span>
+							<span>Cancelled</span>
 						</div>
 					</div>
 
