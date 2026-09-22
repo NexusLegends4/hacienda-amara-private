@@ -6,9 +6,9 @@ import { SessionContext } from "../contexts/SessionContext.jsx";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 const PH_HOLIDAYS_2026 = [
-	"2026-01-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-09",
-	"2026-05-01", "2026-06-12", "2026-08-21", "2026-08-31", "2026-11-01",
-	"2026-11-30", "2026-12-08", "2026-12-25", "2026-12-30", "2026-12-31",
+	"2026-01-01", "2026-02-17", "2026-03-20", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-09",
+	"2026-05-01", "2026-06-12", "2026-08-21", "2026-08-31", "2026-11-01", "2026-11-02",
+	"2026-11-30", "2026-12-08", "2026-12-24", "2026-12-25", "2026-12-30", "2026-12-31",
 ];
 
 const isWeekendOrHoliday = (dateStr) => {
@@ -249,7 +249,7 @@ const Reservations = () => {
 									{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
 									{date && (
 										<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
-											{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies"}
+											{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies (including February 25)"}
 										</p>
 									)}
 								</div>

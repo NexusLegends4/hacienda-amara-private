@@ -7,6 +7,7 @@ import { supabase } from "../utils/supabase";
 const HOLIDAY_NAMES = {
     "2026-01-01": "New Year's Day",
     "2026-02-17": "Chinese New Year",
+    "2026-03-20": "Eid'l Fitr",
     "2026-04-02": "Maundy Thursday",
     "2026-04-03": "Good Friday",
     "2026-04-04": "Black Saturday",
@@ -68,7 +69,8 @@ const RoomPricing = () => {
                                     View our current rates and inclusions for your next stay.
                                     <br />
                                     <span className="font-bold text-amber-700 block mt-2">Rates: Prices are for 20 pax. Additional pax: ₱200/head.</span>
-                                    <span className="font-bold text-rose-600 block mt-1">Higher rates apply on Fridays, Saturdays, Sundays, and Philippine holidays.</span>
+                                    <span className="font-bold text-rose-600 block mt-1">Higher rates apply on Fridays, Saturdays, Sundays, and listed Philippine holidays.</span>
+                                    <span className="font-medium text-base-content/70 block mt-1">February 25 (EDSA People Power Revolution Anniversary) uses the regular weekday rate.</span>
                                     <span className="text-emerald-700 font-bold italic">Kids 8 years old and below are FREE!</span>
                                 </p>
                             </div>
