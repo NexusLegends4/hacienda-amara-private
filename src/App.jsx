@@ -3,6 +3,7 @@ import BookingQr from "./pages/BookingQr.jsx";
 import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./utils/supabase";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 import Login from "./pages/Login";
@@ -31,6 +32,8 @@ import PostReview from "./pages/PostReview";
 import Rules from "./pages/Rules";
 import GuestNotifications from "./pages/GuestNotifications";
 import GuestNotificationAccess from "./pages/GuestNotificationAccess";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 
 const THEME_STORAGE_KEY = "theme";
@@ -38,6 +41,7 @@ const THEME_STORAGE_KEY = "theme";
 function App() {
  	const [session, setSession] = useState(null);
  	const [profile, setProfile] = useState(null);
+	const navigate = useNavigate();
 
  	useEffect(() => {
  		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -89,10 +93,15 @@ function App() {
 		} = supabase.auth.onAuthStateChange((event, nextSession) => {
 			console.log("event", event);
 			console.log("session", nextSession);
-if (event === "SIGNED_OUT") {
- 				setSession(null);
- 				setProfile(null);
- 			} else if (nextSession) {
+			if (event === "PASSWORD_RECOVERY") {
+				if (nextSession) {
+					setSession(nextSession);
+				}
+				navigate("/reset-password");
+			} else if (event === "SIGNED_OUT") {
+				setSession(null);
+				setProfile(null);
+			} else if (nextSession) {
 				setSession(nextSession);
 			}
 		});
@@ -100,7 +109,7 @@ if (event === "SIGNED_OUT") {
 		return () => {
 			subscription.unsubscribe();
 		};
-	}, []);
+	}, [navigate]);
 
 	useEffect(() => {
 		const fetchProfile = async () => {
@@ -146,7 +155,7 @@ if (event === "SIGNED_OUT") {
 				supabase.removeChannel(profileChannel);
 			};
 		}
-	}, [session, setProfile]);
+	}, [session, setProfile, navigate]);
 
 	useEffect(() => {
 		if (session && profile) {
@@ -199,8 +208,10 @@ if (event === "SIGNED_OUT") {
 		<SessionContext.Provider value={{ session, profile, setSession, setProfile }}>
 			<Routes>
 				<Route path="/" element={<HomePage />} />
-				<Route path="/log-in" element={<Login />} />
-				<Route path="/profile" element={<Profile />} />
+			<Route path="/log-in" element={<Login />} />
+			<Route path="/forgot-password" element={<ForgotPassword />} />
+			<Route path="/reset-password" element={<ResetPassword />} />
+			<Route path="/profile" element={<Profile />} />
 				<Route path="/edit-profile" element={<EditProfile />} />
 <Route path="/manage-events" element={<ManageEvents />} />
 <Route path="/manage-packages" element={<ManagePackages />} />

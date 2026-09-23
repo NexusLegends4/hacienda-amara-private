@@ -5,6 +5,7 @@ import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 
 const PROFILE_BACKGROUND_IMAGE =
@@ -119,6 +120,9 @@ const Login = () => {
 								{isSubmitting ? " Logging in..." : " Log In"}
 							</button>
 						</form>
+						<Link to="/forgot-password" className="mt-4 block text-center text-sm font-medium text-slate-700 hover:underline">
+							Forgot your password?
+						</Link>
 					</div>
 				</div>
 			</div>
