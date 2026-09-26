@@ -336,7 +336,7 @@ const Reservations = () => {
 								<p className="mt-1 text-sm text-rose-900/70">Enter the same date, email, and phone number used when booking.</p>
 							</div>
 						</div>
-<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-3 items-end">
+<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4 items-end">
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Reservation date</label>
 								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light]" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
@@ -349,8 +349,8 @@ const Reservations = () => {
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
 								<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
-							<div className="md:col-span-3 flex justify-end">
-								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[48px] w-full md:w-auto">
+							<div className="md:col-start-4 md:row-span-3 self-end">
+								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-full min-h-[48px] w-full md:w-auto">
 									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
 								</button>
 							</div>
