@@ -132,19 +132,19 @@ const NavBar = () => {
 			<div className="navbar relative z-50 overflow-visible border-b border-base-200 bg-base-100/90 shadow-sm backdrop-blur">
 				<div className="flex w-full max-w-7xl mx-auto items-center px-3 py-3 sm:px-4">
 					{/* Brand */}
-					<NavLink to="/" className="flex-1" aria-label="Hacienda Amara - Home">
-						<div className="leading-tight">
-							<div className="text-sm font-bold tracking-tight text-base-content sm:text-base md:text-lg">
+					<NavLink to="/" className="flex-1 min-w-0" aria-label="Hacienda Amara - Home">
+						<div className="leading-tight min-w-0">
+							<div className="text-sm font-bold tracking-tight text-base-content sm:text-base md:text-lg truncate">
 								Hacienda Amara
 							</div>
-							<div className="hidden text-[0.65rem] uppercase tracking-[0.28em] text-base-content/55 sm:block md:text-xs">
+							<div className="block text-[0.6rem] uppercase tracking-[0.12em] text-base-content/70 sm:text-[0.65rem] md:text-[0.7rem] lg:text-[0.75rem] xl:text-[0.8rem] truncate">
 								Private Resort and Events Place
 							</div>
 						</div>
 					</NavLink>
 
 					{/* Desktop nav */}
-					<div className="hidden lg:flex flex-wrap items-center gap-2">
+					<div className="hidden lg:flex flex-wrap items-center gap-2 lg:gap-3 xl:gap-4">
 						<NavLink to="/about" className={navLinkClass}>About Us</NavLink>
 						<NavLink to="/rules" className={navLinkClass}>Rules</NavLink>
 						
@@ -231,25 +231,25 @@ const NavBar = () => {
 						)}
 					</div>
 
-					{/* Mobile right side */}
-					<div className="flex lg:hidden items-center gap-2">
+{/* Mobile right side */}
+					<div className="flex lg:hidden items-center gap-1 sm:gap-2">
 						{session && (
 							<div className="relative">
 														<div
 															onClick={() => { navigate(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications"); }}
-									className="relative cursor-pointer"
-								>
-									{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
-										<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
+												className="relative cursor-pointer"
+											>
+												{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
+													<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
+												)}
+											</div>
+										</div>
 									)}
-								</div>
-							</div>
-						)}
 						<button
 							onClick={() => setMobileOpen(!mobileOpen)}
-							className="btn btn-ghost btn-circle border border-base-300"
+							className="btn btn-ghost btn-circle border border-base-300 p-2"
 						>
-							{mobileOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+							{mobileOpen ? <FiX className="text-lg sm:text-xl" /> : <FiMenu className="text-lg sm:text-xl" />}
 						</button>
 					</div>
 				</div>
@@ -260,11 +260,11 @@ const NavBar = () => {
 				<div className="fixed inset-0 z-40 lg:hidden">
 					<div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={closeMobile} />
 
-					<div className="absolute top-0 right-0 h-full w-72 bg-base-100 shadow-2xl flex flex-col overflow-y-auto">
-						<div className="flex items-center justify-between px-5 py-4 border-b border-base-200">
+					<div className="absolute top-0 right-0 h-full w-full max-w-sm bg-base-100 shadow-2xl flex flex-col overflow-y-auto">
+						<div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-base-200">
 							<div>
-								<p className="font-bold text-base-content">Hacienda Amara</p>
-								<p className="text-[0.65rem] uppercase tracking-widest text-base-content/50">Menu</p>
+								<p className="font-bold text-base-content sm:text-lg">Hacienda Amara</p>
+								<p className="text-[0.6rem] uppercase tracking-widest text-base-content/50">Menu</p>
 							</div>
 							<button onClick={closeMobile} className="btn btn-ghost btn-circle btn-sm">
 								<FiX className="text-lg" />
@@ -272,8 +272,8 @@ const NavBar = () => {
 						</div>
 
 						{session && (
-							<div className="flex items-center gap-3 px-5 py-4 border-b border-base-200 bg-base-200/40">
-								<div className="h-10 w-10 overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center text-xs font-bold text-slate-800 shrink-0">
+							<div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 border-b border-base-200 bg-base-200/40">
+								<div className="h-9 w-9 sm:h-10 sm:w-10 overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center text-xs sm:text-sm font-bold text-slate-800 shrink-0">
 									{profile?.avatar_url ? (
 										<img src={profile.avatar_url} className="h-full w-full object-cover" alt="avatar" />
 									) : (
@@ -287,9 +287,9 @@ const NavBar = () => {
 							</div>
 						)}
 
-						<nav className="flex flex-col gap-1 p-4 flex-1">
+						<nav className="flex flex-col gap-1 p-3 sm:p-4 flex-1">
 							<NavLink to="/about" className={mobileLinkClass} onClick={closeMobile} aria-label="About Us">
-							<FiInfo /> About Us
+							<FiInfo className="text-sm" /> About Us
 						</NavLink>
 							<NavLink to="/rules" className={mobileLinkClass} onClick={closeMobile}>Rules</NavLink>
 							
@@ -364,7 +364,7 @@ const NavBar = () => {
 									<NavLink to="/settings" className={mobileLinkClass} onClick={closeMobile}>Settings</NavLink>
 									<button
 										onClick={handleLogout}
-										className="mt-2 btn btn-black w-full rounded-full text-white"
+										className="mt-2 btn btn-black w-full rounded-full text-white py-3 sm:py-2"
 									>
 										Logout
 									</button>

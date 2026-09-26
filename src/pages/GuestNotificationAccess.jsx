@@ -38,35 +38,35 @@ const GuestNotificationAccess = () => {
 
 	return (
 		<MainLayout noScroll>
-			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-8 sm:px-4 sm:py-12 min-h-0">
-				<div className="mx-auto max-w-2xl h-full flex flex-col min-h-0">
-					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9 flex-1 overflow-y-auto min-h-0">
+			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 sm:px-4 md:px-6 py-6 sm:py-8 lg:py-12 min-h-0">
+				<div className="mx-auto max-w-xl sm:max-w-2xl h-full flex flex-col min-h-0">
+					<div className="rounded-2xl sm:rounded-[2rem] border border-black/5 bg-white/80 p-4 sm:p-6 md:p-8 lg:p-9 shadow-2xl backdrop-blur-xl flex-1 overflow-y-auto min-h-0">
 						<div className="flex items-center gap-3 flex-shrink-0">
-							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-								<FiBell className="text-2xl" />
+							<div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-amber-100 text-amber-700">
+								<FiBell className="text-xl sm:text-2xl" />
 							</div>
 							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">
+								<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50">
 									Guest Access
 								</p>
-								<h1 className="text-3xl font-black tracking-tight text-base-content md:text-4xl">
+								<h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">
 									Check Reservation Notification
 								</h1>
 							</div>
 						</div>
 
-						<p className="mt-4 text-sm leading-6 text-base-content/70">
+						<p className="mt-3 sm:mt-4 text-sm sm:text-base leading-6 text-base-content/70">
 							Enter the same email, phone number, and reservation date used when you booked.
 						</p>
 
-						<form onSubmit={handleSubmit} className="mt-8 space-y-5 flex-1 min-h-0">
+						<form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-4 sm:space-y-5 flex-1 min-h-0">
 							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Email Address</span>
 								<div className="relative">
-									<FiMail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
+									<FiMail className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
 									<input
 										type="email"
-										className="input input-bordered w-full rounded-2xl pl-11"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={email}
 										onChange={(event) => setEmail(event.target.value)}
 										placeholder="you@example.com"
@@ -78,10 +78,10 @@ const GuestNotificationAccess = () => {
 							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Phone Number</span>
 								<div className="relative">
-									<FiPhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
+									<FiPhone className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
 									<input
 										type="tel"
-										className="input input-bordered w-full rounded-2xl pl-11"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={phone}
 										onChange={(event) => setPhone(event.target.value)}
 										placeholder="09XX XXX XXXX"
@@ -94,10 +94,10 @@ const GuestNotificationAccess = () => {
 							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Reservation Date</span>
 								<div className="relative">
-									<FiCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
+									<FiCalendar className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
 									<input
 										type="date"
-										className="input input-bordered w-full rounded-2xl pl-11"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={checkIn}
 										onChange={(event) => setCheckIn(event.target.value)}
 										required
@@ -105,8 +105,8 @@ const GuestNotificationAccess = () => {
 								</div>
 							</label>
 
-							<button type="submit" className="btn btn-black w-full rounded-2xl flex-shrink-0" disabled={loading}>
-								{loading ? <span className="loading loading-spinner"></span> : <FiBell />}
+							<button type="submit" className="btn btn-black w-full rounded-xl sm:rounded-2xl flex-shrink-0 py-3" disabled={loading}>
+								{loading ? <span className="loading loading-spinner"></span> : <FiBell className="w-4 h-4" />}
 								{loading ? "Checking..." : "View Notification"}
 							</button>
 						</form>
