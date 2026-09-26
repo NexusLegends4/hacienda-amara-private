@@ -228,7 +228,7 @@ const Reservations = () => {
 						<form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1fr_0.8fr]">
 							<div className="space-y-6">
 								<div className="grid gap-4 sm:grid-cols-2">
-									<div className="form-control sm:col-span-2">
+									<div className="form-control sm:col-span-2 mb-4">
 										<label className="label-text font-bold mb-2">Full Name</label>
 										<input type="text" className="input input-bordered rounded-2xl px-4" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
 									</div>
