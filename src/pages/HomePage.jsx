@@ -28,11 +28,6 @@ const HomePage = () => {
           {/* LEFT CARD */}
           <div className="bg-white rounded-3xl p-10 md:p-12 shadow-sm">
 
-            {/* Badge */}
-            <span className="inline-block border border-gray-300 text-gray-700 text-sm px-4 py-1 rounded-full mb-6">
-              Hacienda Amara
-            </span>
-
             {/* Heading */}
             <h1 className="text-5xl md:text-6xl font-extrabold text-black leading-tight mb-5">
               Hello Ka-Amara
