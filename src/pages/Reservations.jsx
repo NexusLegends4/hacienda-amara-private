@@ -337,15 +337,23 @@ const Reservations = () => {
 							</div>
 						</div>
 						<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4">
-							<label className="flex flex-col gap-2 text-sm font-semibold text-rose-950">
-								<span>Reservation date</span>
+							<div className="form-control">
+								<label className="label-text font-semibold text-rose-950">Reservation date</label>
 								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light]" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
-							</label>
-							<input type="email" className="input input-bordered rounded-2xl bg-white" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
-							<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
-							<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white">
-								{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
-							</button>
+							</div>
+							<div className="form-control">
+								<label className="label-text font-semibold text-rose-950">Booking email</label>
+								<input type="email" className="input input-bordered rounded-2xl bg-white" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
+							</div>
+							<div className="form-control">
+								<label className="label-text font-semibold text-rose-950">Booking phone</label>
+								<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+							</div>
+							<div className="form-control md:col-span-4">
+								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white w-full md:w-auto">
+									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
+								</button>
+							</div>
 						</form>
 					</div>
 			</div>
