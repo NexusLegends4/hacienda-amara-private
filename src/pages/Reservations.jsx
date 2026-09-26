@@ -242,16 +242,18 @@ const Reservations = () => {
 										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
 									</div>
 								</div>
-								<div className="form-control">
-									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
-									<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
-									{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
-									{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
-									{date && (
-										<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
-											{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies (including February 25)"}
-										</p>
-									)}
+								<div className="pt-4">
+									<div className="form-control">
+										<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
+										<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
+										{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
+										{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
+										{date && (
+											<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
+												{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies (including February 25)"}
+											</p>
+										)}
+									</div>
 								</div>
 
 								<div className="form-control">
@@ -349,7 +351,7 @@ const Reservations = () => {
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
 								<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
-							<div className="md:col-start-4 md:row-span-3 self-end pt-6">
+							<div className="md:col-start-4 md:row-span-3 self-end pt-10">
 								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full md:w-auto">
 									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
 								</button>
