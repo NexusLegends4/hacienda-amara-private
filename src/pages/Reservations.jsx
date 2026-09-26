@@ -300,7 +300,7 @@ const Reservations = () => {
 								</div>
 							</div>
 
-							<div className="flex flex-col justify-between rounded-3xl bg-black/5 p-6 border border-black/5">
+							<div className="flex flex-col justify-between rounded-2xl bg-black/5 p-6 border border-black/5">
 								<div className="space-y-3">
 									<h2 className="text-lg font-bold flex items-center gap-2"><FiInfo /> Summary</h2>
 									<div className="flex justify-between text-sm opacity-70"><span>Package</span><span className="text-right max-w-[140px]">{roomType}</span></div>
