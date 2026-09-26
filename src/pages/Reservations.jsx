@@ -349,8 +349,8 @@ const Reservations = () => {
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
 								<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
-							<div className="md:col-start-4 md:row-span-3 self-end">
-								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-full min-h-[48px] w-full md:w-auto">
+							<div className="md:col-start-4 md:row-span-3 self-end pt-6">
+								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full md:w-auto">
 									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
 								</button>
 							</div>
