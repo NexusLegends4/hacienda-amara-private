@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 
-const Input = ({ label, type, placeholder, name, defaultValue }) => {
+const Input = ({ label, type, placeholder, name, defaultValue, error }) => {
 	const [showPassword, setShowPassword] = useState(false);
 	const isPasswordInput = type === "password";
 	const inputType = isPasswordInput && showPassword ? "text" : type;
@@ -37,6 +37,7 @@ const Input = ({ label, type, placeholder, name, defaultValue }) => {
 					</button>
 				)}
 			</div>
+			{error && <p className="text-red-500 text-sm mt-1">{error}</p>}
 		</fieldset>
 	);
 };

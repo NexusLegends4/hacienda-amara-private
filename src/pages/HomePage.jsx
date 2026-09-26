@@ -13,11 +13,12 @@ const HomePage = () => {
       : "/events"
     : "/events";
 
+ 
   const images = [
-    "https://scontent.fmnl17-6.fna.fbcdn.net/v/t39.30808-6/494369075_122128145408749963_4990497671908646009_n.jpg?stp=dst-jpegr_tt6&cstp=mx2048x1153&ctp=s2048x1153&_nc_cat=110&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeF1nSsOdjuDLwrEDI_9kXRx-VCDRKTPXQf5UINEpM9dBzyOAMF84d2qECgvqklmE7ch8Mi4hhwbTHXVC1xuQACn&_nc_ohc=pNhtZ87XqUgQ7kNvwGAbYbk&_nc_oc=AdotZcTVtMQeempVuiIF882mIec2USr1NvcjwRuv2cVCPIkd9ukOcVD7IQVKU7pRIe0&_nc_zt=23&se=-1&_nc_ht=scontent.fmnl17-6.fna&_nc_gid=kTYcOYbcxlP4C5ww51SkIQ&_nc_ss=7b2a8&oh=00_AQJbWsIqYNQDIudHRqUb7KHPvYbkjAFkWPqteqKaZU3VwA&oe=6AB68815",
-    "https://scontent.fmnl17-4.fna.fbcdn.net/v/t39.30808-6/495211844_122128145354749963_2190067951936702202_n.jpg?stp=dst-jpegr_tt6&cstp=mx2048x1153&ctp=s2048x1153&_nc_cat=104&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeFU3vqsxmru-_0Jrs9vCcomZDihfd0nmxRkOKF93SebFJBT9iKC_nuXu66Q7USFQtFw03VuyKudesbU9YT4LOkM&_nc_ohc=-50ftlCkyowQ7kNvwEv-z1M&_nc_oc=Adqh2M2_GQDOMqCtdpJoO7uU_EZYHinPzO9fPkZu29TC0oyvZ06kxKKPw5AmtYrpQqU&_nc_zt=23&se=-1&_nc_ht=scontent.fmnl17-4.fna&_nc_gid=zI6lFi4uDK4i9AJ8vto7Fw&_nc_ss=7b2a8&oh=00_AQIVCna-KKHr2T8zSAkb79nivEcyHGvxh_oownXJ7zld0w&oe=6AB685B2",
-    "https://scontent.fmnl17-2.fna.fbcdn.net/v/t39.30808-6/481303337_122113740890749963_5078274125687890241_n.jpg?stp=dst-jpg_tt6&cstp=mx2048x1536&ctp=s2048x1536&_nc_cat=109&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=833d8c&_nc_eui2=AeFAXuMHXRsgvWku23naV4RL6iRisONI3WnqJGKw40jdaQBqKfLQnjz-oLA5B3k9YuScSHfRPyCpcWEvGViDeBZq&_nc_ohc=6uztvYhv_7MQ7kNvwFqJgCx&_nc_oc=AdqwlUQtvoU5R0VHasCwhRx6Vg3oqHFrCW1m5Jykza-VHZ2-8g861l90lVSoDDSmhwA&_nc_zt=23&_nc_ht=scontent.fmnl17-2.fna&_nc_gid=DM0eTZLBsvhmp82z6TIgdA&_nc_ss=7b2a8&oh=00_AQI_ubMJ7c21V4b4pVWeET1qxgJMUQ52rrSxmNZa1ffIYQ&oe=6AB67C1E",
-  ];
+  "/images/hacienda-amara-1.jpg",
+  "/images/hacienda-amara-2.jpg",
+  "/images/hacienda-amara-3.jpg",
+];
 
   return (
     <MainLayout>

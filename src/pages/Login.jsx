@@ -8,13 +8,11 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 
-const PROFILE_BACKGROUND_IMAGE =
-	"https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=3fUFjvEWuogQ7kNvwGcc91D&_nc_oc=AdqW5AtIaFMzg06ui5Ap82t7gnoS1cVIpqdK9kLYl26gtnBuR1eF_lBVnI676gapmrw&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=V7ltjqr7MS5-BehPpo8N3w&_nc_ss=7a3a8&oh=00_Af0M5UyjzO6ZNJ52ZYpiN649-3b-MYBsd5wWJjFB-CaBrA&oe=69DE7687";
-
 const Login = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [loginError, setLoginError] = useState('');
 
 	useEffect(() => {
 		if (!profile) {
@@ -28,6 +26,7 @@ const Login = () => {
 		event.preventDefault();
 		const formData = new FormData(event.target);
 		setIsSubmitting(true);
+		setLoginError('');
 
 		const loginForm = {
 			email: formData.get("email"),
@@ -40,7 +39,24 @@ const Login = () => {
 		});
 
 		if (error) {
-			alert(error.message || error);
+			let errorMessage = error.message;
+			
+			// Supabase error codes for invalid credentials
+			if (error.code === 'invalid_credentials' || 
+				error.message.includes('Invalid login credentials') || 
+				error.message.includes('Invalid email or password') || 
+				error.message.includes('User not found') || 
+				error.message.includes('Wrong password') || 
+				error.message.includes('Invalid credentials') ||
+				error.message.includes('AuthApiError')) {
+				errorMessage = 'Incorrect email or password. Please try again.';
+			} else if (error.message.includes('Email not confirmed')) {
+				errorMessage = 'Please verify your email address before logging in.';
+			} else if (error.message.includes('Too many requests')) {
+				errorMessage = 'Too many login attempts. Please try again later.';
+			}
+			
+			setLoginError(errorMessage);
 			setIsSubmitting(false);
 			return;
 		}
@@ -80,13 +96,6 @@ const Login = () => {
 	return (
 		<MainLayout>
 			<div className="relative left-1/2 right-1/2 -mx-[50vw] min-h-screen w-screen overflow-hidden px-4 py-12">
-				<div
-					className="absolute inset-0 scale-110 bg-cover bg-center bg-no-repeat blur-2xl"
-					style={{
-						backgroundImage: `url("${PROFILE_BACKGROUND_IMAGE}")`,
-						backgroundPosition: "left center",
-					}}
-				/>
 				<div className="absolute inset-0 bg-gradient-to-b from-[#6b4b2a]/35 via-[#9a6a3c]/20 to-[#f8e8d2]/60" />
 
 				<div className="relative mx-auto flex min-h-[75vh] w-full max-w-2xl items-center justify-center">
@@ -110,6 +119,7 @@ const Login = () => {
 								placeholder="Enter your Password"
 								label="Password"
 								type="password"
+								error={loginError}
 							/>
 
 							<button
