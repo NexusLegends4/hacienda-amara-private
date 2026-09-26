@@ -1,5 +1,6 @@
 import React from "react";
 import NavBar from "../components/NavBar";
+import ChatBubble from "../components/ChatBubble";
 
 const MainLayout = ({ children, noScroll = false }) => {
 	return (
@@ -12,6 +13,7 @@ const MainLayout = ({ children, noScroll = false }) => {
 			>
 				{children}
 			</main>
+			<ChatBubble />
 		</div>
 	);
 };

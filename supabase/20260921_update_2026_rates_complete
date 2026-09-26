@@ -1,0 +1,63 @@
+-- Hacienda Amara Private Resort - 2026 Rates Update
+-- Run this script in your Supabase SQL Editor to update package pricing
+
+-- Update Day Time (9 Hours) package
+-- Check In: 9:00 AM | Check Out: 6:00 PM
+-- Monday - Thursday: P6,999 for 20 pax
+-- Friday - Sunday & Holiday: P7,999 for 20 pax
+UPDATE public.packages 
+SET 
+    base_price = 6999,
+    min_price = 6999,
+    max_price = 7999,
+    duration_hours = 9,
+    check_in_time = '09:00',
+    check_out_time = '18:00',
+    max_guests = 20,
+    additional_guest_price = 200,
+    features = '{"Check In: 9:00 AM", "Check Out: 6:00 PM", "Good for 20 Pax", "Mon-Thu: ₱6,999", "Fri-Sun & Holiday: ₱7,999"}',
+    updated_at = now()
+WHERE name = 'Day Time (9 Hours)';
+
+-- Update Night Time (9 Hours) package
+-- Check In: 9:00 PM | Check Out: 6:00 AM
+-- Monday - Thursday: P7,999 for 20 pax
+-- Friday - Sunday & Holiday: P8,999 for 20 pax
+UPDATE public.packages 
+SET 
+    base_price = 7999,
+    min_price = 7999,
+    max_price = 8999,
+    duration_hours = 9,
+    check_in_time = '21:00',
+    check_out_time = '06:00',
+    max_guests = 20,
+    additional_guest_price = 200,
+    features = '{"Check In: 9:00 PM", "Check Out: 6:00 AM", "Good for 20 Pax", "Mon-Thu: ₱7,999", "Fri-Sun & Holiday: ₱8,999"}',
+    updated_at = now()
+WHERE name = 'Night Time (9 Hours)';
+
+-- Update Overnight (21 Hours) package
+-- Option 1: Check In: 9:00 AM | Check Out: 6:00 AM
+-- Option 2: Check In: 9:00 PM | Check Out: 6:00 PM
+-- Monday - Thursday: P14,999 for 20 pax
+-- Friday - Sunday & Holiday: P17,999 for 20 pax
+UPDATE public.packages 
+SET 
+    base_price = 14999,
+    min_price = 14999,
+    max_price = 17999,
+    duration_hours = 21,
+    check_in_time = '09:00',
+    check_out_time = '06:00',
+    max_guests = 20,
+    additional_guest_price = 200,
+    features = '{"Option 1: 9 AM - 6 AM", "Option 2: 9 PM - 6 PM", "Good for 20 Pax", "Mon-Thu: ₱14,999", "Fri-Sun & Holiday: ₱17,999"}',
+    updated_at = now()
+WHERE name = 'Overnight (21 Hours)';
+
+-- Verify the updates
+SELECT name, base_price, min_price, max_price, duration_hours, check_in_time, check_out_time, max_guests, additional_guest_price, features
+FROM public.packages
+WHERE is_active = true
+ORDER BY display_order;

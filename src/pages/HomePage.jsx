@@ -7,11 +7,7 @@ import { SessionContext } from "../contexts/SessionContext.jsx";
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
 
-  const getStartedPath = session
-    ? profile?.role === "admin"
-      ? "/manage-events"
-      : "/events"
-    : "/events";
+  const getStartedPath = "/events";
 
  
   const images = [
@@ -57,7 +53,7 @@ const HomePage = () => {
                 className="flex items-center gap-2 bg-black text-white text-sm font-medium px-5 py-3 rounded-full hover:bg-gray-800 transition-colors"
               >
                 <LoginIcon />
-                Get Started
+                Events
               </NavLink>
 
               <NavLink
