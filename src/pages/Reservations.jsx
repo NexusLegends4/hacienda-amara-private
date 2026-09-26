@@ -256,8 +256,10 @@ const Reservations = () => {
 									</div>
 								</div>
 
-								<div className="form-control">
-									<label className="label-text font-bold mb-2">Select Package</label>
+								<div className="pt-4">
+									<div className="form-control">
+										<label className="label-text font-bold mb-2">Select Package</label>
+									</div>
 									{packageLoading ? (
 										<div className="flex h-12 items-center justify-center"><span className="loading loading-spinner loading-sm"></span></div>
 									) : packages.length === 0 ? (
