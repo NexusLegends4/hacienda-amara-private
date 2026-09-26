@@ -230,22 +230,22 @@ const Reservations = () => {
 								<div className="grid gap-4 sm:grid-cols-2">
 									<div className="form-control sm:col-span-2">
 										<label className="label-text font-bold mb-2">Full Name</label>
-										<input type="text" className="input input-bordered rounded-2xl" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
+										<input type="text" className="input input-bordered rounded-2xl px-4" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Email Address</label>
-										<input type="email" className="input input-bordered rounded-2xl" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
+										<input type="email" className="input input-bordered rounded-2xl px-4" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
-										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl" value={guestPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
+										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl px-4" value={guestPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
 										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
 									</div>
 								</div>
 								<div className="pt-4">
 									<div className="form-control">
 										<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
-										<input type="date" className="input input-bordered rounded-2xl" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
+										<input type="date" className="input input-bordered rounded-2xl px-4" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
 										{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
 										{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
 										{date && (
@@ -265,7 +265,7 @@ const Reservations = () => {
 									) : packages.length === 0 ? (
 										<div className="rounded-2xl border border-dashed border-error p-4 text-sm font-semibold text-error">No active packages are available.</div>
 									) : (
-									<select className="select select-bordered rounded-2xl" value={selectedPackageId} onChange={e => setSelectedPackageId(e.target.value)}>
+									<select className="select select-bordered rounded-2xl px-4" value={selectedPackageId} onChange={e => setSelectedPackageId(e.target.value)}>
 										{packages.map((pkg) => (
 											<option key={pkg.id} value={pkg.id}>{pkg.name}</option>
 										))}
@@ -340,21 +340,21 @@ const Reservations = () => {
 								<p className="mt-1 text-sm text-rose-900/70">Enter the same date, email, and phone number used when booking.</p>
 							</div>
 						</div>
-<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4 items-end">
+<form onSubmit={handleCancelReservation} className="mt-5 space-y-4">
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Reservation date</label>
-								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light]" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
+								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light] px-4" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking email</label>
-								<input type="email" className="input input-bordered rounded-2xl bg-white" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
+								<input type="email" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
-								<input type="tel" className="input input-bordered rounded-2xl bg-white" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
-							<div className="md:col-start-4 md:row-span-3 self-end pt-10">
-								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full md:w-auto">
+							<div className="pt-2">
+								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full">
 									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
 								</button>
 							</div>
