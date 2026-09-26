@@ -8,8 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 
-const MAX_ATTEMPTS = 4;
-const LOCKOUT_MINUTES = 15;
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 5;
 const ATTEMPTS_KEY = "hacienda-login-attempts";
 const LOCKOUT_KEY = "hacienda-login-lockout";
 
