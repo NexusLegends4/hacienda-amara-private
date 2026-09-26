@@ -1413,9 +1413,9 @@ return (
 							<div className="flex items-center justify-between gap-3">
 								<div>
 									<p className="text-xs uppercase tracking-[0.25em] text-[#a06f45]">
-										Support Inbox
+										{isAdmin ? "Admin" : "Staff"} Chat
 									</p>
-									<h2 className="text-lg font-semibold text-slate-900">Clients</h2>
+									<h2 className="text-lg font-semibold text-slate-900">Conversations</h2>
 								</div>
 								<button
 									type="button"
@@ -1427,7 +1427,7 @@ return (
 							</div>
 							<p className="mt-2 text-xs text-slate-500">
 								{adminAvailable
-									? "Clients can see you online and reply directly."
+									? "Clients can message you live."
 									: "Clients will see the bot reply while you are offline."}
 							</p>
 						</div>
