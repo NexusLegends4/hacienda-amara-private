@@ -37,11 +37,11 @@ const GuestNotificationAccess = () => {
 	};
 
 	return (
-		<MainLayout>
-			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-8 sm:px-4 sm:py-12">
-				<div className="mx-auto max-w-2xl">
-					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9">
-						<div className="flex items-center gap-3">
+		<MainLayout noScroll>
+			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-8 sm:px-4 sm:py-12 min-h-0">
+				<div className="mx-auto max-w-2xl h-full flex flex-col min-h-0">
+					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9 flex-1 overflow-y-auto min-h-0">
+						<div className="flex items-center gap-3 flex-shrink-0">
 							<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
 								<FiBell className="text-2xl" />
 							</div>
@@ -59,8 +59,8 @@ const GuestNotificationAccess = () => {
 							Enter the same email, phone number, and reservation date used when you booked.
 						</p>
 
-						<form onSubmit={handleSubmit} className="mt-8 space-y-5">
-							<label className="form-control">
+						<form onSubmit={handleSubmit} className="mt-8 space-y-5 flex-1 min-h-0">
+							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Email Address</span>
 								<div className="relative">
 									<FiMail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
@@ -75,7 +75,7 @@ const GuestNotificationAccess = () => {
 								</div>
 							</label>
 
-							<label className="form-control">
+							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Phone Number</span>
 								<div className="relative">
 									<FiPhone className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
@@ -91,7 +91,7 @@ const GuestNotificationAccess = () => {
 								</div>
 							</label>
 
-							<label className="form-control">
+							<label className="form-control flex-shrink-0">
 								<span className="label-text font-semibold">Reservation Date</span>
 								<div className="relative">
 									<FiCalendar className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" />
@@ -105,7 +105,7 @@ const GuestNotificationAccess = () => {
 								</div>
 							</label>
 
-							<button type="submit" className="btn btn-black w-full rounded-2xl" disabled={loading}>
+							<button type="submit" className="btn btn-black w-full rounded-2xl flex-shrink-0" disabled={loading}>
 								{loading ? <span className="loading loading-spinner"></span> : <FiBell />}
 								{loading ? "Checking..." : "View Notification"}
 							</button>

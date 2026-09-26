@@ -83,11 +83,11 @@ const GuestNotifications = () => {
 			: "bg-amber-50 text-amber-800 border-amber-200";
 
 	return (
-		<MainLayout>
-			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-8 sm:px-4 sm:py-12">
-				<div className="mx-auto max-w-2xl">
-					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9">
-						<div className="flex items-start justify-between gap-4">
+		<MainLayout noScroll>
+			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-8 sm:px-4 sm:py-12 min-h-0">
+				<div className="mx-auto max-w-2xl h-full flex flex-col min-h-0">
+					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur-xl sm:p-9 flex-1 flex flex-col min-h-0">
+						<div className="flex items-start justify-between gap-4 flex-shrink-0">
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.24em] text-base-content/50">
 									Private Reservation Update
@@ -109,11 +109,11 @@ const GuestNotifications = () => {
 						</div>
 
 						{loading ? (
-							<div className="mt-10 flex min-h-[240px] items-center justify-center">
+							<div className="mt-10 flex-1 flex items-center justify-center min-h-0">
 								<span className="loading loading-spinner loading-lg"></span>
 							</div>
 						) : !reservation ? (
-							<div className="mt-10 rounded-3xl border-2 border-dashed border-black/10 bg-base-100/40 p-8 text-center">
+							<div className="mt-10 flex-1 rounded-3xl border-2 border-dashed border-black/10 bg-base-100/40 p-8 text-center flex flex-col items-center justify-center min-h-0">
 								<FiBell className="mx-auto text-4xl text-base-content/35" />
 								<h2 className="mt-4 text-xl font-bold">Notification not found</h2>
 								<p className="mt-2 text-sm text-base-content/65">
@@ -124,8 +124,8 @@ const GuestNotifications = () => {
 								</button>
 							</div>
 						) : (
-							<>
-								<div className={`mt-8 flex items-center gap-3 rounded-2xl border p-5 ${statusClasses}`}>
+							<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+								<div className={`mt-8 flex items-center gap-3 rounded-2xl border p-5 ${statusClasses} flex-shrink-0`}>
 									<FiBell className="text-2xl" />
 									<div>
 										<p className="text-xs font-bold uppercase tracking-wider">
@@ -135,7 +135,7 @@ const GuestNotifications = () => {
 									</div>
 								</div>
 
-								<div className="mt-5 grid gap-3 sm:grid-cols-2">
+								<div className="mt-5 grid gap-3 sm:grid-cols-2 flex-shrink-0">
 									<div className="rounded-2xl bg-base-100/60 p-4">
 										<p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/50">
 											<FiUser /> Guest
@@ -151,7 +151,7 @@ const GuestNotifications = () => {
 									</div>
 								</div>
 
-								<div className="mt-6 rounded-2xl bg-black/5 p-4">
+								<div className="mt-6 rounded-2xl bg-black/5 p-4 flex-shrink-0">
 									<p className="text-xs font-semibold uppercase tracking-wider text-base-content/50">
 										Private access link
 									</p>
@@ -171,7 +171,7 @@ const GuestNotifications = () => {
 										Keep this private link secure. Anyone who has it can view this reservation update.
 									</p>
 								</div>
-							</>
+							</div>
 						)}
 					</div>
 				</div>
