@@ -332,15 +332,15 @@ const Reservations = () => {
 					</div>
 				</div>
 
-					<div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/70 p-6 shadow-xl backdrop-blur sm:rounded-[2rem] sm:p-8">
-						<div className="flex items-start gap-3">
-							<FiXCircle className="mt-1 shrink-0 text-rose-600" />
-							<div>
-								<h2 className="text-xl font-bold text-rose-950">Cancel an existing reservation</h2>
-								<p className="mt-1 text-sm text-rose-900/70">Enter the same date, email, and phone number used when booking.</p>
-							</div>
+				<div className="mt-8 rounded-[1.5rem] border border-rose-200 bg-rose-50/70 p-6 shadow-xl backdrop-blur sm:rounded-[2rem] sm:p-8">
+					<div className="flex items-start gap-3">
+						<FiXCircle className="mt-1 shrink-0 text-rose-600" />
+						<div>
+							<h2 className="text-xl font-bold text-rose-950">Cancel an existing reservation</h2>
+							<p className="mt-1 text-sm text-rose-900/70">Enter the same date, email, and phone number used when booking.</p>
 						</div>
-<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-4 items-end">
+					</div>
+<form onSubmit={handleCancelReservation} className="mt-5 grid gap-4 md:grid-cols-3 lg:grid-cols-4 items-end">
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Reservation date</label>
 								<input type="date" className="input input-bordered rounded-2xl bg-white text-base-content [color-scheme:light] px-4" value={cancelDate} onChange={(event) => setCancelDate(event.target.value)} required />
@@ -353,8 +353,8 @@ const Reservations = () => {
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
 								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
-							<div className="md:col-start-4 md:row-span-3 self-end pt-10">
-								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full md:w-auto">
+							<div className="lg:col-start-4 lg:row-span-3 self-end pt-12 md:col-span-3 lg:col-span-1">
+								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full">
 									{cancelling ? <span className="loading loading-spinner" /> : <><FiXCircle /> Cancel reservation</>}
 								</button>
 							</div>
