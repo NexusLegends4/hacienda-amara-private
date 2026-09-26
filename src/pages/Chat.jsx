@@ -8,8 +8,8 @@ import DOMPurify from "dompurify";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
-const GUEST_CONVERSATION_KEY_STORAGE = "hacienda-amara-guest-conversation-key";
-const LEGACY_GUEST_CONVERSATION_KEY = "guest";
+const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
+const LEGACY_CUSTOMER_CONVERSATION_KEY = "customer";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
 const CHAT_MEDIA_BUCKET = import.meta.env.VITE_SUPABASE_CHAT_MEDIA_BUCKET || "chat-media";
@@ -72,24 +72,24 @@ const getConversationProfileId = (messages = []) => {
 
 	const clientMessage = [...threadMessages]
 		.reverse()
-		.find((message) => message?.senderRole === "client" && message.senderId && message.senderId !== "guest");
+		.find((message) => message?.senderRole === "client" && message.senderId && !message.senderId.startsWith("customer-"));
 
 	if (clientMessage?.senderId) return clientMessage.senderId;
 
 	const fallback = [...threadMessages]
 		.reverse()
-		.find((message) => message?.senderId && message.senderId !== "bot" && message.senderId !== "guest");
+		.find((message) => message?.senderId && message.senderId !== "bot" && !message.senderId.startsWith("customer-"));
 
 	return fallback?.senderId || "";
 };
 
 const getDisplayName = (profile) => {
-	if (!profile) return "Guest";
+	if (!profile) return "Customer";
 
 	const fullName = [profile.firstname, profile.lastname].filter(Boolean).join(" ").trim();
 	if (fullName) return fullName;
 
-	return profile.email || "Guest";
+	return profile.email || "Customer";
 };
 
 const getUserLabel = (profile) => {
@@ -111,21 +111,21 @@ const getInitials = (name) => {
 	return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const getGuestConversationKey = () => {
-	if (typeof window === "undefined") return LEGACY_GUEST_CONVERSATION_KEY;
+const getCustomerConversationKey = () => {
+	if (typeof window === "undefined") return LEGACY_CUSTOMER_CONVERSATION_KEY;
 
-	const existingKey = localStorage.getItem(GUEST_CONVERSATION_KEY_STORAGE);
+	const existingKey = localStorage.getItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
 	if (existingKey) return existingKey;
 
 	const randomPart = typeof crypto !== "undefined" && crypto.randomUUID
 		? crypto.randomUUID()
 		: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-	const conversationKey = `guest-${randomPart}`;
-	localStorage.setItem(GUEST_CONVERSATION_KEY_STORAGE, conversationKey);
+	const conversationKey = `customer-${randomPart}`;
+	localStorage.setItem(CUSTOMER_CONVERSATION_KEY_STORAGE, conversationKey);
 	return conversationKey;
 };
 
-const getConversationKey = (profile) => profile?.id || getGuestConversationKey();
+const getConversationKey = (profile) => profile?.id || getCustomerConversationKey();
 
 const getBotReply = (text) => {
 	const lowerText = text.toLowerCase().trim();
@@ -607,7 +607,7 @@ const Chat = () => {
 	const activeMessages = historyByConversation[activeConversationKey] || [];
 	const activeThreadName =
 		activeMessages.slice().reverse().find((message) => message.senderName)?.senderName ||
-		(isAdminOrStaff ? "Client" : displayName);
+		(isAdminOrStaff ? "Customer" : displayName);
 	const activeMessagesProfiles = useMemo(() => {
 		const ids = new Set();
 		for (const message of activeMessages) {
@@ -629,7 +629,7 @@ const Chat = () => {
 		}
 
 		return Object.entries(historyByConversation)
-			.filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY)
+.filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY)
 			.map(([key, messages]) => ({
 				key,
 				lastMessage: messages[messages.length - 1] || null,
@@ -1453,7 +1453,7 @@ return (
 										const conversationDisplayName =
 											getProfileDisplayName(conversationProfile) ||
 											latest?.senderName ||
-											"Client";
+											"Customer";
 										const conversationAvatar = conversationProfile?.avatar_url || "";
 										return (
 											<button
@@ -1615,7 +1615,7 @@ return (
 										<div className="mx-auto flex w-full max-w-4xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 											<div className="max-w-2xl">
 												<p className="text-xs uppercase tracking-[0.28em] text-base-content/55">
-													Client support
+													Customer support
 												</p>
 												<h2 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">
 													Clean, direct support
@@ -1647,7 +1647,7 @@ return (
 									</p>
 									<p className="text-xs text-base-content/55">
 										{isAdminOrStaff
-											? "Pick a client conversation on the left and reply live."
+											? "Pick a customer conversation on the left and reply live."
 											: adminOnline
 												? "Admin/Staff is online and can see your messages."
 												: "If admin/staff is offline, our assistant will answer automatically."}
