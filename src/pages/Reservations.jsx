@@ -230,7 +230,7 @@ const Reservations = () => {
 								<div className="grid gap-4 sm:grid-cols-2">
 									<div className="form-control sm:col-span-2 mb-4">
 										<label className="label-text font-bold mb-4">Full Name</label>
-										<input type="text" className="input input-bordered rounded-2xl px-4" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
+										<input type="text" className="input input-bordered rounded-2xl px-4 py-3" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Email Address</label>
