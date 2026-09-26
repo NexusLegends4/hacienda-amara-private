@@ -618,18 +618,6 @@ const Chat = () => {
 
 		return [...ids];
 	}, [activeMessages]);
-	const sidebarProfiles = useMemo(() => {
-		if (!isAdminOrStaff) return [];
-
-		const ids = new Set();
-		Object.values(historyByConversation).forEach((messages) => {
-			const profileId = getConversationProfileId(messages);
-			if (profileId) ids.add(profileId);
-		});
-
-		return [...ids];
-	}, [historyByConversation, isAdminOrStaff]);
-
 	const conversations = useMemo(() => {
 		if (!isAdminOrStaff) {
 			return [
@@ -652,6 +640,18 @@ const Chat = () => {
 				return bTime - aTime;
 			});
 	}, [activeMessages, conversationKey, historyByConversation, isAdminOrStaff]);
+
+	const sidebarProfiles = useMemo(() => {
+		if (!isAdminOrStaff) return [];
+
+		const ids = new Set();
+		Object.values(historyByConversation).forEach((messages) => {
+			const profileId = getConversationProfileId(messages);
+			if (profileId) ids.add(profileId);
+		});
+
+		return [...ids];
+	}, [historyByConversation, isAdminOrStaff]);
 
 	const adminOnline = presenceOnline;
 	const canReply = !isAdminOrStaff || adminAvailable;
@@ -912,6 +912,7 @@ const Chat = () => {
 			if (!payload?.id || !payload?.conversationKey) return;
 			if (isRefreshingHistoryRef.current) return;
 
+			console.log("📥 Broadcast received:", payload.conversationKey, payload.senderRole, payload.senderName);
 			setHistoryByConversation((current) => {
 				const existing = current[payload.conversationKey] || [];
 				if (existing.some((item) => item.id === payload.id)) {
@@ -937,6 +938,7 @@ const Chat = () => {
 				if (!row?.id || !row?.conversation_key) return;
 				if (isRefreshingHistoryRef.current) return;
 
+				console.log("📥 Postgres INSERT:", row.conversation_key, row.sender_role, row.sender_name);
 				const message = normalizeDbMessage(row);
 				setHistoryByConversation((current) => {
 					const existing = current[message.conversationKey] || [];
