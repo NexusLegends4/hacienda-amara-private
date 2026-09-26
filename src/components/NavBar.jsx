@@ -152,10 +152,10 @@ const NavBar = () => {
 						{!session && (
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
-								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/customer-notifications" className={navLinkClass} aria-label="Customer Notifications">
 									<FiBell className="text-base" />
 								</NavLink>
+								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
 								<NavLink to="/log-in" className={({ isActive }) => [
 								"inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
 								isActive
@@ -298,10 +298,10 @@ const NavBar = () => {
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
-									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/customer-notifications" className={mobileLinkClass} onClick={closeMobile} aria-label="Customer Notifications">
 										<FiBell />
 									</NavLink>
+									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
 									<NavLink to="/log-in" className={({ isActive }) => [
 										"flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
 										isActive

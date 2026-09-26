@@ -629,7 +629,7 @@ const Chat = () => {
 		}
 
 		return Object.entries(historyByConversation)
-.filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY)
+			.filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY)
 			.map(([key, messages]) => ({
 				key,
 				lastMessage: messages[messages.length - 1] || null,
