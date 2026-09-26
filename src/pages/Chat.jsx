@@ -1308,6 +1308,21 @@ const Chat = () => {
 					<span className={`font-semibold ${isRightAligned ? "text-[#9a6a39]" : "text-[#8b5e34]"}`}>
 						{senderDisplayName}
 					</span>
+					{message.senderRole === "bot" && (
+						<span className="ml-1.5 text-[0.55rem] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-800 font-medium">
+							Bot
+						</span>
+					)}
+					{message.senderRole === "admin" && !isRightAligned && (
+						<span className="ml-1.5 text-[0.55rem] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
+							Admin
+						</span>
+					)}
+					{message.senderRole === "staff" && !isRightAligned && (
+						<span className="ml-1.5 text-[0.55rem] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+							Staff
+						</span>
+					)}
 					{time && (
 						<time className="text-xs normal-case tracking-normal opacity-50">
 							{time}
