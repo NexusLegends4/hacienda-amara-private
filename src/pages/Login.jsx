@@ -8,22 +8,76 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { recordAuthNotification } from "../utils/auth-service";
 
+const MAX_ATTEMPTS = 4;
+const LOCKOUT_MINUTES = 15;
+const ATTEMPTS_KEY = "hacienda-login-attempts";
+const LOCKOUT_KEY = "hacienda-login-lockout";
+
 const Login = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [loginError, setLoginError] = useState('');
+	const [attempts, setAttempts] = useState(0);
+	const [lockoutUntil, setLockoutUntil] = useState(null);
+
+	// Initialize attempts/lockout from localStorage
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const storedAttempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || "0", 10);
+		const storedLockout = localStorage.getItem(LOCKOUT_KEY);
+		const now = Date.now();
+		
+		if (storedLockout && storedLockout > now) {
+			setLockoutUntil(storedLockout);
+			setAttempts(storedAttempts);
+		} else if (storedLockout && storedLockout <= now) {
+			// Lockout expired, clear it
+			localStorage.removeItem(LOCKOUT_KEY);
+			localStorage.removeItem(ATTEMPTS_KEY);
+			setAttempts(0);
+			setLockoutUntil(null);
+		} else {
+			setAttempts(storedAttempts);
+		}
+	}, []);
+
+	// Countdown timer for lockout
+	useEffect(() => {
+		if (!lockoutUntil) return;
+		const interval = setInterval(() => {
+			const remaining = lockoutUntil - Date.now();
+			if (remaining <= 0) {
+				setLockoutUntil(null);
+				setAttempts(0);
+				localStorage.removeItem(LOCKOUT_KEY);
+				localStorage.removeItem(ATTEMPTS_KEY);
+			}
+		}, 1000);
+		return () => clearInterval(interval);
+	}, [lockoutUntil]);
+
+	const formatLockoutTime = (ms) => {
+		const minutes = Math.ceil(ms / 60000);
+		return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+	};
 
 	useEffect(() => {
 		if (!profile) {
 			return;
 		}
-
 		navigate("/");
 	}, [profile, navigate]);
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
+		
+		// Check lockout
+		if (lockoutUntil && lockoutUntil > Date.now()) {
+			setLoginError(`Too many attempts. Try again in ${formatLockoutTime(lockoutUntil - Date.now())}.`);
+			return;
+		}
+
 		const formData = new FormData(event.target);
 		setIsSubmitting(true);
 		setLoginError('');
@@ -49,7 +103,20 @@ const Login = () => {
 				error.message.includes('Wrong password') || 
 				error.message.includes('Invalid credentials') ||
 				error.message.includes('AuthApiError')) {
-				errorMessage = 'Incorrect email or password. Please try again.';
+				
+				// Increment failed attempts
+				const newAttempts = attempts + 1;
+				setAttempts(newAttempts);
+				localStorage.setItem(ATTEMPTS_KEY, String(newAttempts));
+				
+				if (newAttempts >= MAX_ATTEMPTS) {
+					const until = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+					setLockoutUntil(until);
+					localStorage.setItem(LOCKOUT_KEY, String(until));
+					errorMessage = `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`;
+				} else {
+					errorMessage = 'Incorrect email or password. Please try again.';
+				}
 			} else if (error.message.includes('Email not confirmed')) {
 				errorMessage = 'Please verify your email address before logging in.';
 			} else if (error.message.includes('Too many requests')) {
@@ -60,6 +127,12 @@ const Login = () => {
 			setIsSubmitting(false);
 			return;
 		}
+
+		// Success - reset attempts
+		localStorage.removeItem(ATTEMPTS_KEY);
+		localStorage.removeItem(LOCKOUT_KEY);
+		setAttempts(0);
+		setLockoutUntil(null);
 
 		if (data?.user) {
 			const { data: profileData, error: profileError } = await supabase
@@ -122,8 +195,14 @@ const Login = () => {
 								error={loginError}
 							/>
 
+							{lockoutUntil && lockoutUntil > Date.now() && (
+								<div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+									⏳ Account locked. Try again in <strong id="lockout-timer">{formatLockoutTime(lockoutUntil - Date.now())}</strong>.
+								</div>
+							)}
+
 							<button
-								disabled={isSubmitting}
+								disabled={isSubmitting || (lockoutUntil && lockoutUntil > Date.now())}
 								className="btn btn-black mt-4 sm:mt-6 h-12 min-h-12 w-full rounded-full px-4 sm:px-6 text-sm sm:text-base"
 							>
 								{isSubmitting ? <span className="loading loading-spinner"></span> : <SendIcon className="text-base" />}
