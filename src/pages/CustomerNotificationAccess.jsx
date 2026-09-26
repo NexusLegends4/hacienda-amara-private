@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiBell, FiCalendar, FiMail, FiPhone } from "react-icons/fi";
 
-const GuestNotificationAccess = () => {
+const CustomerNotificationAccess = () => {
 	const navigate = useNavigate();
 	const [email, setEmail] = useState("");
 	const [phone, setPhone] = useState("");
@@ -33,7 +33,7 @@ const GuestNotificationAccess = () => {
 			return;
 		}
 
-		navigate(`/guest-notifications/${data[0].reservation_token}`);
+		navigate(`/customer-notifications/${data[0].reservation_token}`);
 	};
 
 	return (
@@ -47,7 +47,7 @@ const GuestNotificationAccess = () => {
 							</div>
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50">
-									Guest Access
+									Customer Access
 								</p>
 								<h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">
 									Check Reservation Notification
@@ -117,4 +117,4 @@ const GuestNotificationAccess = () => {
 	);
 };
 
-export default GuestNotificationAccess;
+export default CustomerNotificationAccess;

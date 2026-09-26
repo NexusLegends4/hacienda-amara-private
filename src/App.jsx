@@ -30,8 +30,8 @@ import ClientNotifications from "./components/ClientNotifications";
 import Reviews from "./pages/Reviews";
 import PostReview from "./pages/PostReview";
 import Rules from "./pages/Rules";
-import GuestNotifications from "./pages/GuestNotifications";
-import GuestNotificationAccess from "./pages/GuestNotificationAccess";
+import CustomerNotifications from "./pages/CustomerNotifications";
+import CustomerNotificationAccess from "./pages/CustomerNotificationAccess";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
@@ -225,8 +225,8 @@ function App() {
 				<Route path="/manage-reservations" element={<ManageReservations />} />
 				<Route path="/admin-notifications" element={<AdminNotifications />} />
 				<Route path="/client-notifications" element={<ClientNotifications />} />
-			<Route path="/guest-notifications" element={<GuestNotificationAccess />} />
-			<Route path="/guest-notifications/:reservationToken" element={<GuestNotifications />} />
+			<Route path="/customer-notifications" element={<CustomerNotificationAccess />} />
+			<Route path="/customer-notifications/:reservationToken" element={<CustomerNotifications />} />
 			<Route path="/add-event" element={<AddEvent />} />
 				<Route path="/edit-event/:eventId" element={<EditEvent />} />
 				<Route path="/edit-package" element={<EditPackage />} />

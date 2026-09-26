@@ -159,7 +159,7 @@ const Reservations = () => {
 		} else {
 			setReservationConflict(false);
 			alert("Reservation submitted! Resort staff will contact you for confirmation.");
-			navigate(`/guest-notifications/${reservationId}`);
+			navigate(`/customer-notifications/${reservationId}`);
 		}
 		setLoading(false);
 	};

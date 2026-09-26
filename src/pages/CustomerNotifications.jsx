@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiBell, FiCalendar, FiCopy, FiRefreshCw, FiUser } from "react-icons/fi";
 
-const GuestNotifications = () => {
+const CustomerNotifications = () => {
 	const { reservationToken } = useParams();
 	const navigate = useNavigate();
 	const [reservation, setReservation] = useState(null);
@@ -59,7 +59,7 @@ const GuestNotifications = () => {
 	}, [loadNotification, reservationToken]);
 
 	const copyNotificationLink = async () => {
-		const notificationUrl = `${window.location.origin}/guest-notifications/${reservationToken}`;
+		const notificationUrl = `${window.location.origin}/customer-notifications/${reservationToken}`;
 
 		try {
 			await navigator.clipboard.writeText(notificationUrl);
@@ -138,7 +138,7 @@ const GuestNotifications = () => {
 								<div className="mt-4 sm:mt-5 grid gap-3 sm:grid-cols-2 flex-shrink-0">
 									<div className="rounded-xl sm:rounded-2xl bg-base-100/60 p-3 sm:p-4">
 										<p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/50">
-											<FiUser /> Guest
+											<FiUser /> Customer
 										</p>
 										<p className="mt-1 sm:mt-2 font-semibold text-sm sm:text-base">{reservation.guest_name}</p>
 									</div>
@@ -180,4 +180,4 @@ const GuestNotifications = () => {
 	);
 };
 
-export default GuestNotifications;
+export default CustomerNotifications;

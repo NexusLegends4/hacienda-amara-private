@@ -153,7 +153,7 @@ const NavBar = () => {
 							<>
 								<NavLink to="/events" className={navLinkClass}>Events</NavLink>
 								<NavLink to="/rooms" className={navLinkClass}>Book Now</NavLink>
-								<NavLink to="/guest-notifications" className={navLinkClass} aria-label="Guest Notifications">
+								<NavLink to="/customer-notifications" className={navLinkClass} aria-label="Customer Notifications">
 									<FiBell className="text-base" />
 								</NavLink>
 								<NavLink to="/log-in" className={({ isActive }) => [
@@ -299,7 +299,7 @@ const NavBar = () => {
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/events" className={mobileLinkClass} onClick={closeMobile}>Events</NavLink>
 									<NavLink to="/rooms" className={mobileLinkClass} onClick={closeMobile}>Book Now</NavLink>
-									<NavLink to="/guest-notifications" className={mobileLinkClass} onClick={closeMobile} aria-label="Guest Notifications">
+									<NavLink to="/customer-notifications" className={mobileLinkClass} onClick={closeMobile} aria-label="Customer Notifications">
 										<FiBell />
 									</NavLink>
 									<NavLink to="/log-in" className={({ isActive }) => [
