@@ -302,14 +302,14 @@ const Reservations = () => {
 
 							<div className="flex flex-col justify-between rounded-2xl bg-black/5 p-6 border border-black/5">
 								<div className="space-y-3">
-									<h2 className="text-lg font-bold flex items-center gap-2"><FiInfo /> Summary</h2>
-									<div className="flex justify-between text-sm opacity-70"><span>Package</span><span className="text-right max-w-[140px]">{roomType}</span></div>
-									<div className="flex justify-between text-sm opacity-70"><span>Date</span><span>{date || "—"}</span></div>
-									<div className="flex justify-between text-sm opacity-70"><span>Rate Type</span><span>{date ? (isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday (Mon-Thu)") : "—"}</span></div>
-									<div className="flex justify-between text-sm opacity-70"><span>Check-out</span><span>{checkOutDate || "—"}</span></div>
-									<div className="flex justify-between text-sm opacity-70"><span>Guests</span><span>{guests}</span></div>
+									<h2 className="text-xl font-bold flex items-center gap-2"><FiInfo /> Summary</h2>
+									<div className="flex justify-between text-base opacity-70"><span>Package</span><span className="text-right max-w-[140px]">{roomType}</span></div>
+									<div className="flex justify-between text-base opacity-70"><span>Date</span><span>{date || "—"}</span></div>
+									<div className="flex justify-between text-base opacity-70"><span>Rate Type</span><span>{date ? (isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday (Mon-Thu)") : "—"}</span></div>
+									<div className="flex justify-between text-base opacity-70"><span>Check-out</span><span>{checkOutDate || "—"}</span></div>
+									<div className="flex justify-between text-base opacity-70"><span>Guests</span><span>{guests}</span></div>
 									{date && selectedPackage && (
-										<div className="bg-amber-50 border border-amber-100 rounded-lg p-2 text-xs">
+										<div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-sm">
 											<div className="flex justify-between"><span>Base Rate ({isWeekendOrHoliday(date) ? "Weekend/Holiday" : "Weekday"})</span><span>₱{Number(isWeekendOrHoliday(date) ? selectedPackage.max_price : selectedPackage.base_price).toLocaleString()}</span></div>
 											{(selectedPackage && guests > Number(selectedPackage.max_guests || 20)) && (
 												<div className="flex justify-between text-amber-700">
@@ -320,11 +320,11 @@ const Reservations = () => {
 										</div>
 									)}
 									<div className="border-t border-black/10 pt-3 flex justify-between items-end">
-										<span className="font-bold">Total Amount</span>
-										<span className="text-2xl font-black">{pricing > 0 ? `₱${pricing.toLocaleString()}` : "—"}</span>
+										<span className="font-bold text-lg">Total Amount</span>
+										<span className="text-3xl font-black">{pricing > 0 ? `₱${pricing.toLocaleString()}` : "—"}</span>
 									</div>
 								</div>
-								<button disabled={loading || pricing === 0 || isDateReserved} className="btn btn-black w-full rounded-full h-12 mt-6">
+								<button disabled={loading || pricing === 0 || isDateReserved} className="btn btn-black w-full rounded-full h-14 mt-6">
 									{loading ? <span className="loading loading-spinner"></span> : <><FiCheckCircle /> Confirm Reservation</>}
 								</button>
 							</div>
