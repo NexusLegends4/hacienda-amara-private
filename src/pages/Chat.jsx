@@ -569,12 +569,14 @@ const Chat = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const isAdmin = profile?.role === "admin";
+	const isStaff = profile?.role === "staff";
+	const isAdminOrStaff = isAdmin || isStaff;
 	const conversationKey = getConversationKey(profile);
 	const displayName = getDisplayName(profile);
 	const display = getUserLabel(profile);
 
 	const [adminAvailable, setAdminAvailable] = useState(() => {
-		if (typeof window === "undefined" || !isAdmin) return false;
+		if (typeof window === "undefined" || !isAdminOrStaff) return false;
 
 		const saved = localStorage.getItem(ADMIN_AVAILABILITY_KEY);
 		return saved ? saved === "true" : true;
@@ -605,7 +607,7 @@ const Chat = () => {
 	const activeMessages = historyByConversation[activeConversationKey] || [];
 	const activeThreadName =
 		activeMessages.slice().reverse().find((message) => message.senderName)?.senderName ||
-		(isAdmin ? "Client" : displayName);
+		(isAdminOrStaff ? "Client" : displayName);
 	const activeMessagesProfiles = useMemo(() => {
 		const ids = new Set();
 		for (const message of activeMessages) {
@@ -617,7 +619,7 @@ const Chat = () => {
 		return [...ids];
 	}, [activeMessages]);
 	const sidebarProfiles = useMemo(() => {
-		if (!isAdmin) return [];
+		if (!isAdminOrStaff) return [];
 
 		const ids = new Set();
 		Object.values(historyByConversation).forEach((messages) => {
@@ -626,10 +628,10 @@ const Chat = () => {
 		});
 
 		return [...ids];
-	}, [historyByConversation, isAdmin]);
+	}, [historyByConversation, isAdminOrStaff]);
 
 	const conversations = useMemo(() => {
-		if (!isAdmin) {
+		if (!isAdminOrStaff) {
 			return [
 				{
 					key: conversationKey,
@@ -649,10 +651,10 @@ const Chat = () => {
 				const bTime = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
 				return bTime - aTime;
 			});
-	}, [activeMessages, conversationKey, historyByConversation, isAdmin]);
+	}, [activeMessages, conversationKey, historyByConversation, isAdminOrStaff]);
 
 	const adminOnline = presenceOnline;
-	const canReply = !isAdmin || adminAvailable;
+	const canReply = !isAdminOrStaff || adminAvailable;
 
 	const scrollMessagesToBottom = (behavior = "smooth") => {
 		const container = messageListRef.current;
@@ -709,7 +711,7 @@ const Chat = () => {
 
 		try {
 			let query = supabase.from("chat_messages").select("*").order("created_at", { ascending: true });
-			if (!isAdmin) {
+			if (!isAdminOrStaff) {
 				query = query.eq("conversation_key", conversationKey);
 			}
 
@@ -733,7 +735,7 @@ const Chat = () => {
 				}
 			});
 
-			const nextSnapshot = isAdmin
+			const nextSnapshot = isAdminOrStaff
 				? Object.fromEntries(
 					Object.entries(grouped).filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY),
 				  )
@@ -800,7 +802,7 @@ const Chat = () => {
 			if (!confirmed) return;
 		}
 
-		const targetConversationKey = isAdmin ? activeConversationKey : conversationKey;
+		const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
 
 		setHistoryByConversation((current) => {
 			const next = { ...current };
@@ -836,7 +838,7 @@ const Chat = () => {
 				setHistoryByConversation(readHistory());
 			}
 
-			if (!isAdmin) {
+			if (!isAdminOrStaff) {
 				setActiveConversationKey(conversationKey);
 			} else {
 				const keys = Object.keys(readHistory());
@@ -847,7 +849,7 @@ const Chat = () => {
 		};
 
 		initialize();
-	}, [conversationKey, isAdmin, profile]);
+	}, [conversationKey, isAdminOrStaff, profile]);
 
 	useEffect(() => {
 		pendingScrollToBottomRef.current = true;
@@ -855,14 +857,14 @@ const Chat = () => {
 	}, [activeConversationKey]);
 
 	useEffect(() => {
-		if (!isAdmin) return;
+		if (!isAdminOrStaff) return;
 
 		const keys = Object.keys(historyByConversation);
 		if (keys.length === 0) return;
 		if (historyByConversation[activeConversationKey]) return;
 
 		setActiveConversationKey(keys[0]);
-	}, [activeConversationKey, historyByConversation, isAdmin]);
+	}, [activeConversationKey, historyByConversation, isAdminOrStaff]);
 
 	useEffect(() => {
 		if (!profile) return undefined;
@@ -874,7 +876,7 @@ const Chat = () => {
 		return () => {
 			window.clearInterval(interval);
 		};
-	}, [conversationKey, isAdmin, profile]);
+	}, [conversationKey, isAdminOrStaff, profile]);
 
 	useEffect(() => {
 		if (!profile || typeof window === "undefined") return undefined;
@@ -902,8 +904,8 @@ const Chat = () => {
 
 		const applyPresence = () => {
 			const state = channel.presenceState();
-			const admins = Object.values(state).flat().filter((entry) => entry.role === "admin" && entry.available);
-			setPresenceOnline(admins.length > 0);
+			const staffOnline = Object.values(state).flat().some((entry) => (entry.role === "admin" || entry.role === "staff") && entry.available);
+			setPresenceOnline(staffOnline);
 		};
 
 		channel.on("broadcast", { event: "message" }, ({ payload }) => {
@@ -919,7 +921,7 @@ const Chat = () => {
 				return upsertConversationHistory(current, payload);
 			});
 
-			if (!isAdmin && payload.conversationKey === conversationKey) {
+			if (!isAdminOrStaff && payload.conversationKey === conversationKey) {
 				setActiveConversationKey(conversationKey);
 			}
 		});
@@ -945,7 +947,7 @@ const Chat = () => {
 					return upsertConversationHistory(current, message);
 				});
 
-				if (!isAdmin && message.conversationKey === conversationKey) {
+				if (!isAdminOrStaff && message.conversationKey === conversationKey) {
 					setActiveConversationKey(conversationKey);
 				}
 			},
@@ -967,7 +969,7 @@ const Chat = () => {
 					return removeMessageFromHistory(current, messageId, targetConversationKey);
 				});
 
-				if (!isAdmin && targetConversationKey === conversationKey) {
+				if (!isAdminOrStaff && targetConversationKey === conversationKey) {
 					setActiveConversationKey(conversationKey);
 				}
 			},
@@ -1005,10 +1007,10 @@ const Chat = () => {
 		channel.subscribe(async (status) => {
 			if (status !== "SUBSCRIBED") return;
 
-			if (isAdmin) {
+			if (isAdminOrStaff) {
 				if (adminAvailable) {
 					await channel.track({
-						role: "admin",
+						role: isAdmin ? "admin" : "staff",
 						available: true,
 						name: displayName,
 						profileId: profile.id,
@@ -1029,10 +1031,10 @@ const Chat = () => {
 			channel.unsubscribe();
 			channelRef.current = null;
 		};
-	}, [adminAvailable, conversationKey, displayName, isAdmin, profile]);
+	}, [adminAvailable, conversationKey, displayName, isAdminOrStaff, profile]);
 
 	useEffect(() => {
-		if (!isAdmin) return;
+		if (!isAdminOrStaff) return;
 
 		if (typeof window !== "undefined") {
 			localStorage.setItem(ADMIN_AVAILABILITY_KEY, String(adminAvailable));
@@ -1045,7 +1047,7 @@ const Chat = () => {
 			try {
 				if (adminAvailable) {
 					await channel.track({
-						role: "admin",
+						role: isAdmin ? "admin" : "staff",
 						available: true,
 						name: displayName,
 						profileId: profile.id,
@@ -1058,7 +1060,7 @@ const Chat = () => {
 				// The chat still works even if presence tracking is temporarily unavailable.
 			}
 		})();
-	}, [adminAvailable, displayName, isAdmin, profile]);
+	}, [adminAvailable, displayName, isAdminOrStaff, profile]);
 
 	useEffect(() => {
 		if (loading) return;
@@ -1074,7 +1076,7 @@ const Chat = () => {
 
 	const sendMessage = async (
 		content,
-		senderRole = isAdmin ? "admin" : "client",
+		senderRole = isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client",
 		attachments = draftAttachments,
 	) => {
 		const messageId = getMessageId();
@@ -1119,7 +1121,7 @@ const Chat = () => {
 
 		const message = {
 			id: messageId,
-			conversationKey: isAdmin ? activeConversationKey : conversationKey,
+			conversationKey: isAdminOrStaff ? activeConversationKey : conversationKey,
 			senderId: profile?.id || "guest",
 			senderRole,
 			senderName: displayName,
@@ -1183,7 +1185,7 @@ const Chat = () => {
 		const trimmed = DOMPurify.sanitize(prompt.trim());
 		if (!trimmed && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
-		if (isAdmin && !canReply) return;
+		if (isAdminOrStaff && !canReply) return;
 
 		setError("");
 		setIsSending(true);
@@ -1191,19 +1193,19 @@ const Chat = () => {
 		shouldStickToBottomRef.current = true;
 
 		try {
-			const outgoing = await sendMessage(trimmed, isAdmin ? "admin" : "client", draftAttachments);
+			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
 			if (draftAttachments.length > 0) {
 				clearDraftAttachment();
 			}
 			setPrompt("");
 
-			// Trigger bot if admin is offline OR if it's a location-related query 
-			// (allowing admin to also trigger the QR code for the client)
+			// Trigger bot if admin/staff is offline OR if it's a location-related query 
+			// (allowing admin/staff to also trigger the QR code for the client)
 			const isLocationQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location"].some(k => trimmed.toLowerCase().includes(k));
 			const isAboutQuery = ["about", "about us", "amenities", "details", "facilities", "features", "ano ang", "tungkol", "about page details"].some(k => trimmed.toLowerCase().includes(k));
 			const isRulesQuery = ["rules", "policy", "policies", "guidelines", "house rules", "mga rules", "bawal"].some(k => trimmed.toLowerCase().includes(k));
 			const isPaymentQuery = ["pay", "bayad", "payment", "magbabayad", "saan magbabayad", "saan ako mag babayad", "mode of payment", "payment details"].some(k => trimmed.toLowerCase().includes(k));
-			if ((!isAdmin && !adminOnline) || isLocationQuery || isAboutQuery || isRulesQuery || isPaymentQuery || trimmed.toLowerCase().includes("qr")) {
+			if ((!isAdminOrStaff && !adminOnline) || isLocationQuery || isAboutQuery || isRulesQuery || isPaymentQuery || trimmed.toLowerCase().includes("qr")) {
 				const hasVideo = draftAttachments.some((item) => item.kind === "video");
 				const hasPhoto = draftAttachments.some((item) => item.kind === "image");
 				const botReply = draftAttachments.length
@@ -1380,106 +1382,106 @@ const Chat = () => {
 		);
 	};
 
-	const currentThreadMessages = isAdmin ? activeMessages : historyByConversation[conversationKey] || [];
+const currentThreadMessages = isAdminOrStaff ? activeMessages : historyByConversation[conversationKey] || [];
 
-	return (
-		<MainLayout>
-			<div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6">
-				<div className="mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6">
-					<div className="relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]">
-					<div className="relative flex min-h-[calc(100dvh-8rem)] min-h-0 flex-col overflow-hidden lg:flex-row">
-					{isAdmin && (
-						<aside className="flex h-64 lg:h-auto min-h-0 flex-col border-b border-[#ead9c2] bg-white lg:w-84 lg:border-b-0 lg:border-r">
-							<div className="border-b border-[#ead9c2] bg-white px-4 py-4">
-								<div className="flex items-center justify-between gap-3">
-									<div>
-										<p className="text-xs uppercase tracking-[0.25em] text-[#a06f45]">
-											Support Inbox
-										</p>
-										<h2 className="text-lg font-semibold text-slate-900">Clients</h2>
-									</div>
-									<button
-										type="button"
-										onClick={() => setAdminAvailable((current) => !current)}
-										className="btn btn-xs rounded-full border border-[#ead9c2] bg-white px-3 text-slate-900 hover:bg-[#fff8ef]"
-									>
-										{adminAvailable ? "Go offline" : "Go online"}
-									</button>
+return (
+	<MainLayout>
+		<div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6">
+			<div className="mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6">
+				<div className="relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]">
+				<div className="relative flex min-h-[calc(100dvh-8rem)] min-h-0 flex-col overflow-hidden lg:flex-row">
+				{isAdminOrStaff && (
+					<aside className="flex h-64 lg:h-auto min-h-0 flex-col border-b border-[#ead9c2] bg-white lg:w-84 lg:border-b-0 lg:border-r">
+						<div className="border-b border-[#ead9c2] bg-white px-4 py-4">
+							<div className="flex items-center justify-between gap-3">
+								<div>
+									<p className="text-xs uppercase tracking-[0.25em] text-[#a06f45]">
+										Support Inbox
+									</p>
+									<h2 className="text-lg font-semibold text-slate-900">Clients</h2>
 								</div>
-								<p className="mt-2 text-xs text-slate-500">
-									{adminAvailable
-										? "Clients can see you online and reply directly."
-										: "Clients will see the bot reply while you are offline."}
-								</p>
+								<button
+									type="button"
+									onClick={() => setAdminAvailable((current) => !current)}
+									className="btn btn-xs rounded-full border border-[#ead9c2] bg-white px-3 text-slate-900 hover:bg-[#fff8ef]"
+								>
+									{adminAvailable ? "Go offline" : "Go online"}
+								</button>
 							</div>
+							<p className="mt-2 text-xs text-slate-500">
+								{adminAvailable
+									? "Clients can see you online and reply directly."
+									: "Clients will see the bot reply while you are offline."}
+							</p>
+						</div>
 
-							<div className="min-h-0 flex-1 overflow-y-auto p-3">
-								{conversations.length === 0 ? (
-									<div className="rounded-2xl border border-dashed border-[#ead9c2] bg-[#fffaf3] p-4 text-sm text-slate-500">
-										No client chats yet.
-									</div>
-								) : (
-									<div className="space-y-2">
-										{conversations.map((conversation) => {
-											const latest = conversation.lastMessage;
-											const isActive = conversation.key === activeConversationKey;
-											const latestAttachments = Array.isArray(latest?.attachments) ? latest.attachments : [];
-											const latestPreview = latestAttachments.length > 0
-												? `${getAttachmentSummary(latestAttachments)}${latest?.content ? ` • ${latest.content}` : ""}`
+						<div className="min-h-0 flex-1 overflow-y-auto p-3">
+							{conversations.length === 0 ? (
+								<div className="rounded-2xl border border-dashed border-[#ead9c2] bg-[#fffaf3] p-4 text-sm text-slate-500">
+									No client chats yet.
+								</div>
+							) : (
+								<div className="space-y-2">
+									{conversations.map((conversation) => {
+										const latest = conversation.lastMessage;
+										const isActive = conversation.key === activeConversationKey;
+										const latestAttachments = Array.isArray(latest?.attachments) ? latest.attachments : [];
+										const latestPreview = latestAttachments.length > 0
+											? `${getAttachmentSummary(latestAttachments)}${latest?.content ? ` • ${latest.content}` : ""}`
 											: latest?.content || "No messages yet.";
-											const conversationProfileId = getConversationProfileId(
-												historyByConversation[conversation.key] || [],
-											);
-											const conversationProfile = conversationProfileId ? profilesById[conversationProfileId] : null;
-											const conversationDisplayName =
-												getProfileDisplayName(conversationProfile) ||
-												latest?.senderName ||
-												"Client";
-											const conversationAvatar = conversationProfile?.avatar_url || "";
-											return (
-												<button
-												key={conversation.key}
-												type="button"
-												onClick={() => setActiveConversationKey(conversation.key)}
-													className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-														isActive
-															? "border-[#8b5e34] bg-[#fff8ef] shadow-sm"
-															: "border-[#ead9c2] bg-white hover:border-[#d7c0a3]"
-													}`}
-												>
-													<div className="flex items-start gap-3">
-														<div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#f4e0c6] text-xs font-bold text-[#8b5e34] shadow-sm">
-															{conversationAvatar ? (
-																<img
-																	src={conversationAvatar}
-																	alt={conversationDisplayName}
-																	className="h-full w-full object-cover"
-																/>
-															) : (
-																getAvatarInitials(conversationDisplayName)
-															)}
-														</div>
-														<div className="min-w-0 flex-1">
-															<p className="truncate text-sm font-semibold text-slate-900">
-																{conversationDisplayName}
-															</p>
-															<p className="mt-1 line-clamp-2 text-xs text-slate-500">
-																{latestPreview}
-															</p>
-														</div>
-														{latest?.createdAt && (
-															<span className="text-[0.7rem] text-slate-400">
-																{formatTime(latest.createdAt)}
-															</span>
+										const conversationProfileId = getConversationProfileId(
+											historyByConversation[conversation.key] || [],
+										);
+										const conversationProfile = conversationProfileId ? profilesById[conversationProfileId] : null;
+										const conversationDisplayName =
+											getProfileDisplayName(conversationProfile) ||
+											latest?.senderName ||
+											"Client";
+										const conversationAvatar = conversationProfile?.avatar_url || "";
+										return (
+											<button
+											key={conversation.key}
+											type="button"
+											onClick={() => setActiveConversationKey(conversation.key)}
+												className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+													isActive
+														? "border-[#8b5e34] bg-[#fff8ef] shadow-sm"
+														: "border-[#ead9c2] bg-white hover:border-[#d7c0a3]"
+												}`}
+											>
+												<div className="flex items-start gap-3">
+													<div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#f4e0c6] text-xs font-bold text-[#8b5e34] shadow-sm">
+														{conversationAvatar ? (
+															<img
+																src={conversationAvatar}
+																alt={conversationDisplayName}
+																className="h-full w-full object-cover"
+															/>
+														) : (
+															getAvatarInitials(conversationDisplayName)
 														)}
 													</div>
-												</button>
-											);
-										})}
-									</div>
-								)}
-							</div>
-						</aside>
+													<div className="min-w-0 flex-1">
+														<p className="truncate text-sm font-semibold text-slate-900">
+															{conversationDisplayName}
+														</p>
+														<p className="mt-1 line-clamp-2 text-xs text-slate-500">
+															{latestPreview}
+														</p>
+													</div>
+													{latest?.createdAt && (
+														<span className="text-[0.7rem] text-slate-400">
+															{formatTime(latest.createdAt)}
+														</span>
+													)}
+												</div>
+											</button>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					</aside>
 					)}
 
 						<div className="flex min-w-0 min-h-0 flex-1 flex-col">
@@ -1511,12 +1513,16 @@ const Chat = () => {
 											Hacienda Amara Chat
 										</h1>
 										<p className="text-xs text-slate-600 sm:text-sm">
-											{isAdmin
+											{isAdminOrStaff
 												? adminAvailable
-													? "Admin online"
-													: "Admin offline"
+													? isAdmin
+														? "Admin online"
+														: "Staff online"
+													: isAdmin
+														? "Admin offline"
+														: "Staff offline"
 												: adminOnline
-													? "Admin online"
+													? "Admin/Staff online"
 													: "Assistant ready"}
 										</p>
 										<p className="truncate text-[0.7rem] text-slate-700 sm:text-xs">
@@ -1529,15 +1535,15 @@ const Chat = () => {
 							<div className="flex flex-wrap items-center gap-2 lg:justify-end">
 								<div className="text-left sm:text-right">
 									<p className="text-xs text-slate-600">
-										{isAdmin ? "Admin mode" : "Client chat"}
+										{isAdminOrStaff ? (isAdmin ? "Admin mode" : "Staff mode") : "Client chat"}
 									</p>
 									<p className="text-[0.7rem] text-slate-500">
-										{isAdmin
+										{isAdminOrStaff
 											? adminAvailable
 												? "Clients can message you live"
 												: "Turn online to reply"
 											: adminOnline
-												? "Admin is available"
+												? "Admin/Staff is available"
 												: "Assistant will answer"}
 									</p>
 								</div>
@@ -1564,7 +1570,7 @@ const Chat = () => {
 									Clear
 								</button>
 
-								{isAdmin ? (
+								{isAdminOrStaff ? (
 									<button
 										type="button"
 										onClick={() => setAdminAvailable((current) => !current)}
@@ -1574,7 +1580,7 @@ const Chat = () => {
 									</button>
 								) : (
 									<span className="shrink-0 rounded-full border border-black/5 bg-white px-3 py-2 text-xs font-semibold text-base-content">
-										{adminOnline ? "Admin online" : "Assistant ready"}
+										{adminOnline ? "Admin/Staff online" : "Assistant ready"}
 									</span>
 								)}
 							</div>
@@ -1587,7 +1593,7 @@ const Chat = () => {
 									backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,245,230,0.5))",
 								}}
 							>
-								{!isAdmin && (
+								{!isAdminOrStaff && (
 									<div className="border-b border-black/5 bg-white/75 px-4 py-4 backdrop-blur sm:px-5">
 										<div className="mx-auto flex w-full max-w-4xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 											<div className="max-w-2xl">
@@ -1598,7 +1604,7 @@ const Chat = () => {
 													Clean, direct support
 												</h2>
 												<p className="mt-2 max-w-xl text-sm leading-6 text-base-content/75">
-													Ask about rates, inclusions, availability, location, events, or policies. The assistant replies automatically when the admin is offline.
+													Ask about rates, inclusions, availability, location, events, or policies. The assistant replies automatically when admin/staff is offline.
 												</p>
 											</div>
 
@@ -1618,16 +1624,16 @@ const Chat = () => {
 
 								<div className="border-b border-black/5 bg-white/75 px-4 py-3 backdrop-blur sm:px-5">
 									<p className="text-sm font-medium text-slate-900">
-										{isAdmin
+										{isAdminOrStaff
 											? `Review and reply to ${activeThreadName}`
 											: `Chat with Hacienda Amara support as ${displayName}`}
 									</p>
 									<p className="text-xs text-base-content/55">
-										{isAdmin
+										{isAdminOrStaff
 											? "Pick a client conversation on the left and reply live."
 											: adminOnline
-												? "The admin is online and can see your messages."
-												: "If the admin is offline, our assistant will answer automatically."}
+												? "Admin/Staff is online and can see your messages."
+												: "If admin/staff is offline, our assistant will answer automatically."}
 									</p>
 								</div>
 
