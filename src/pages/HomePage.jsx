@@ -9,109 +9,392 @@ const HomePage = () => {
 
   const getStartedPath = "/events";
 
- 
   const images = [
-  "/images/hacienda-amara-1.jpg",
-  "/images/hacienda-amara-2.jpg",
-  "/images/hacienda-amara-3.jpg",
-];
+    "/images/hacienda-amara-1.jpg",
+    "/images/hacienda-amara-2.jpg",
+    "/images/hacienda-amara-3.jpg",
+  ];
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-[#f5f0e8] flex items-center px-4 sm:px-6 md:px-10 lg:px-16 xl:px-20 py-8 sm:py-12 lg:py-16">
-        <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-6 lg:gap-10 items-start">
+      {/* ================================
+          HOMEPAGE CONTAINER
+          No scrolling on tablet / desktop
+      ================================= */}
+      <div
+        className="
+          h-[calc(100vh-92px)]
+          overflow-hidden
+          bg-[#f5f0e8]
+          flex
+          items-center
+          px-4
+          sm:px-6
+          md:px-8
+          lg:px-10
+          xl:px-16
+          2xl:px-20
+        "
+      >
+        {/* ================================
+            MAIN CONTENT
+        ================================= */}
+        <div
+          className="
+            w-full
+            max-w-[1500px]
+            mx-auto
+            grid
+            md:grid-cols-2
+            gap-5
+            md:gap-6
+            lg:gap-8
+            xl:gap-10
+            items-center
+          "
+        >
 
-          {/* LEFT CARD */}
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-sm">
+          {/* =================================
+              LEFT WHITE CARD
+          ================================== */}
+          <div
+            className="
+              bg-white
+              rounded-2xl
+              sm:rounded-3xl
+              p-5
+              sm:p-7
+              md:p-7
+              lg:p-8
+              xl:p-10
+              2xl:p-12
+              shadow-sm
+            "
+          >
 
-            {/* Heading */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-black leading-tight mb-4 sm:mb-5">
+            {/* HEADING */}
+            <h1
+              className="
+                text-3xl
+                sm:text-4xl
+                md:text-4xl
+                lg:text-5xl
+                xl:text-6xl
+                font-extrabold
+                text-black
+                leading-tight
+                mb-3
+                sm:mb-4
+              "
+            >
               Hello Ka-Amara
             </h1>
 
-            {/* Subtext */}
-            <p className="text-gray-500 text-sm sm:text-base md:text-lg mb-5 sm:mb-7 leading-relaxed">
-              Escape the ordinary. Embrace the exclusive. Welcome to Hacienda Amara Private Resort and Events Place.
+            {/* DESCRIPTION */}
+            <p
+              className="
+                text-gray-500
+                text-sm
+                sm:text-base
+                md:text-sm
+                lg:text-base
+                xl:text-lg
+                mb-4
+                sm:mb-6
+                leading-relaxed
+              "
+            >
+              Escape the ordinary. Embrace the exclusive. Welcome to Hacienda
+              Amara Private Resort and Events Place.
             </p>
 
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2 mb-6 sm:mb-8">
-              {["Weddings", "Private Events", "Relaxing Stay", "Scenic Views"].map((tag) => (
+            {/* =================================
+                TAGS
+            ================================== */}
+            <div
+              className="
+                flex
+                flex-wrap
+                gap-2
+                mb-5
+                sm:mb-7
+              "
+            >
+              {[
+                "Weddings",
+                "Private Events",
+                "Relaxing Stay",
+                "Scenic Views",
+              ].map((tag) => (
                 <span
                   key={tag}
-                  className="border border-gray-300 text-gray-700 text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full"
+                  className="
+                    border
+                    border-gray-300
+                    text-gray-700
+                    text-xs
+                    sm:text-sm
+                    px-3
+                    sm:px-4
+                    py-1.5
+                    sm:py-2
+                    rounded-full
+                  "
                 >
                   {tag}
                 </span>
               ))}
             </div>
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4 sm:mb-5">
+            {/* =================================
+                BUTTONS
+            ================================== */}
+            <div
+              className="
+                flex
+                flex-wrap
+                gap-3
+                mb-4
+              "
+            >
+              {/* EVENTS */}
               <NavLink
                 to={getStartedPath}
-                className="flex items-center justify-center gap-2 bg-black text-white text-sm sm:text-base font-medium px-4 sm:px-5 py-3 rounded-full hover:bg-gray-800 transition-colors"
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  bg-black
+                  text-white
+                  text-sm
+                  sm:text-base
+                  font-medium
+                  px-4
+                  sm:px-5
+                  py-3
+                  rounded-full
+                  hover:bg-gray-800
+                  transition-colors
+                "
               >
                 <LoginIcon />
                 Events
               </NavLink>
 
+              {/* GUEST REVIEWS */}
               <NavLink
                 to="/reviews"
-                className="flex items-center justify-center border border-gray-300 text-gray-800 text-sm sm:text-base font-medium px-4 sm:px-5 py-3 rounded-full hover:bg-gray-50 transition-colors"
+                className="
+                  flex
+                  items-center
+                  justify-center
+                  border
+                  border-gray-300
+                  text-gray-800
+                  text-sm
+                  sm:text-base
+                  font-medium
+                  px-4
+                  sm:px-5
+                  py-3
+                  rounded-full
+                  hover:bg-gray-50
+                  transition-colors
+                "
               >
                 Guest Reviews
               </NavLink>
             </div>
 
-            {/* Footer note */}
-            <p className="text-xs sm:text-sm text-gray-400">
+            {/* FOOTER TEXT */}
+            <p
+              className="
+                text-xs
+                sm:text-sm
+                text-gray-400
+              "
+            >
               Explore our services and jump straight into your dashboard.
             </p>
           </div>
 
-          {/* RIGHT IMAGE GRID */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 hidden lg:block">
 
-            {/* Big top image — spans full width */}
-            <div className="col-span-2 rounded-2xl sm:rounded-3xl overflow-hidden h-[220px] sm:h-[280px] md:h-[320px] lg:h-[360px]">
+          {/* =================================
+              RIGHT SIDE IMAGE GRID
+              TABLET / IPAD / LAPTOP / PC
+          ================================== */}
+          <div
+            className="
+              hidden
+              md:grid
+              grid-cols-2
+              gap-3
+              sm:gap-4
+            "
+          >
+
+            {/* =================================
+                BIG TOP IMAGE
+            ================================== */}
+            <div
+              className="
+                col-span-2
+                rounded-2xl
+                sm:rounded-3xl
+                overflow-hidden
+
+                h-[220px]
+                sm:h-[260px]
+                md:h-[250px]
+                lg:h-[280px]
+                xl:h-[330px]
+                2xl:h-[380px]
+              "
+            >
               <img
                 src={images[0]}
                 alt="Hacienda Amara interior"
-                className="w-full h-full object-cover"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
               />
             </div>
 
-            {/* Bottom left */}
-            <div className="rounded-2xl sm:rounded-3xl overflow-hidden h-[160px] sm:h-[200px] md:h-[220px]">
+
+            {/* =================================
+                BOTTOM LEFT IMAGE
+            ================================== */}
+            <div
+              className="
+                rounded-2xl
+                sm:rounded-3xl
+                overflow-hidden
+
+                h-[140px]
+                sm:h-[170px]
+                md:h-[150px]
+                lg:h-[180px]
+                xl:h-[210px]
+                2xl:h-[240px]
+              "
+            >
               <img
                 src={images[1]}
-                alt="Hacienda Amara pool"
-                className="w-full h-full object-cover"
+                alt="Hacienda Amara interior"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
               />
             </div>
 
-            {/* Bottom right */}
-            <div className="rounded-2xl sm:rounded-3xl overflow-hidden h-[160px] sm:h-[200px] md:h-[220px]">
+
+            {/* =================================
+                BOTTOM RIGHT IMAGE
+            ================================== */}
+            <div
+              className="
+                rounded-2xl
+                sm:rounded-3xl
+                overflow-hidden
+
+                h-[140px]
+                sm:h-[170px]
+                md:h-[150px]
+                lg:h-[180px]
+                xl:h-[210px]
+                2xl:h-[240px]
+              "
+            >
               <img
                 src={images[2]}
-                alt="Hacienda Amara exterior night"
-                className="w-full h-full object-cover"
+                alt="Hacienda Amara exterior at night"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
               />
             </div>
+
           </div>
 
-          {/* Mobile hero image - single stack for smaller screens */}
-          <div className="lg:hidden space-y-3">
-            <div className="rounded-2xl overflow-hidden h-[220px] sm:h-[280px]">
-              <img src={images[0]} alt="Hacienda Amara interior" className="w-full h-full object-cover" />
+
+          {/* =================================
+              MOBILE IMAGE VERSION
+              BELOW md
+          ================================== */}
+          <div
+            className="
+              md:hidden
+              space-y-3
+            "
+          >
+
+            {/* IMAGE 1 */}
+            <div
+              className="
+                rounded-2xl
+                overflow-hidden
+                h-[180px]
+                sm:h-[240px]
+              "
+            >
+              <img
+                src={images[0]}
+                alt="Hacienda Amara interior"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
+              />
             </div>
-            <div className="rounded-2xl overflow-hidden h-[180px] sm:h-[220px]">
-              <img src={images[1]} alt="Hacienda Amara pool" className="w-full h-full object-cover" />
+
+            {/* IMAGE 2 */}
+            <div
+              className="
+                rounded-2xl
+                overflow-hidden
+                h-[150px]
+                sm:h-[190px]
+              "
+            >
+              <img
+                src={images[1]}
+                alt="Hacienda Amara interior"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
+              />
             </div>
-            <div className="rounded-2xl overflow-hidden h-[180px] sm:h-[220px]">
-              <img src={images[2]} alt="Hacienda Amara exterior night" className="w-full h-full object-cover" />
+
+            {/* IMAGE 3 */}
+            <div
+              className="
+                rounded-2xl
+                overflow-hidden
+                h-[150px]
+                sm:h-[190px]
+              "
+            >
+              <img
+                src={images[2]}
+                alt="Hacienda Amara exterior at night"
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                "
+              />
             </div>
+
           </div>
 
         </div>
