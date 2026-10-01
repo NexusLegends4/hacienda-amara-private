@@ -295,7 +295,7 @@ const Reservations = () => {
 
 								<div className="form-control">
 									<label className="label-text font-bold mb-2 flex items-center gap-2"><FiUsers /> Number of Guests</label>
-									<input type="number" className="input input-bordered rounded-2xl" value={guests} onChange={e => setGuests(Number(e.target.value))} min="1" max="70" required />
+										<input type="number" className="input input-bordered rounded-2xl" value={guests} onChange={e => setGuests(Math.max(1, Math.min(999, Number(e.target.value) || 1)))} min="1" max="999" step="1" required />
 									<p className="label-text-alt mt-1">Base rate covers {selectedPackage?.max_guests || 20} pax. ₱{Number(selectedPackage?.additional_guest_price || 0).toLocaleString()} added per extra guest. Kids 8 & below are free.</p>
 								</div>
 							</div>
