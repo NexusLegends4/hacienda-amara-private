@@ -5,6 +5,7 @@ import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
+import { FiSend } from "react-icons/fi";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
@@ -13,6 +14,7 @@ const LEGACY_CUSTOMER_CONVERSATION_KEY = "customer";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
 const CHAT_MEDIA_BUCKET = import.meta.env.VITE_SUPABASE_CHAT_MEDIA_BUCKET || "chat-media";
+const CHAT_BACKEND_CONFIGURED = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 const HACIENDA_AMARA_ADDRESS =
 	"B30 L12 Itneg Street Phase 3 Amityville Bgry. San Jose, Rodriguez, Rizal, Philippines, 1860";
 const HACIENDA_AMARA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -565,9 +567,10 @@ const toDbPayload = (message) => ({
 	created_at: message.createdAt,
 });
 
-const Chat = () => {
+const Chat = ({ presentation = "page", onClose }) => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
+	const isBubble = presentation === "bubble";
 	const isAdmin = profile?.role === "admin";
 	const isStaff = profile?.role === "staff";
 	const isAdminOrStaff = isAdmin || isStaff;
@@ -593,6 +596,7 @@ const Chat = () => {
 	const [isSending, setIsSending] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [refreshedAt, setRefreshedAt] = useState(null);
 	const [error, setError] = useState("");
 	const [profilesById, setProfilesById] = useState({});
 	const messageListRef = useRef(null);
@@ -629,7 +633,7 @@ const Chat = () => {
 		}
 
 		return Object.entries(historyByConversation)
-			.filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY)
+			.filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY)
 			.map(([key, messages]) => ({
 				key,
 				lastMessage: messages[messages.length - 1] || null,
@@ -687,7 +691,7 @@ const Chat = () => {
 	};
 
 	const persistMessage = async (message) => {
-		if (!dbAvailableRef.current) return;
+		if (!CHAT_BACKEND_CONFIGURED || !dbAvailableRef.current) return;
 
 		try {
 			const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
@@ -706,6 +710,7 @@ const Chat = () => {
 	};
 
 	const refreshFromDb = async () => {
+		if (!CHAT_BACKEND_CONFIGURED) return false;
 		if (!dbAvailableRef.current) return false;
 		isRefreshingHistoryRef.current = true;
 
@@ -737,7 +742,7 @@ const Chat = () => {
 
 			const nextSnapshot = isAdminOrStaff
 				? Object.fromEntries(
-					Object.entries(grouped).filter(([key]) => key !== LEGACY_GUEST_CONVERSATION_KEY),
+					Object.entries(grouped).filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY),
 				  )
 				: {
 						[conversationKey]: grouped[conversationKey] || [],
@@ -789,8 +794,35 @@ const Chat = () => {
 
 	const refreshMessages = async () => {
 		setIsRefreshing(true);
+
 		try {
-			await refreshFromDb();
+			let loaded = null;
+
+			if (CHAT_BACKEND_CONFIGURED) {
+				dbAvailableRef.current = true;
+				loaded = await refreshFromDb();
+			}
+
+			if (!loaded) {
+				const stored = readHistory();
+
+				setHistoryByConversation(
+					isAdminOrStaff ? stored : { [conversationKey]: stored[conversationKey] || [] },
+				);
+			}
+
+			setError("");
+			setRefreshedAt(Date.now());
+			pendingScrollToBottomRef.current = true;
+			shouldStickToBottomRef.current = true;
+
+			requestAnimationFrame(() => {
+				const container = messageListRef.current;
+
+				if (container) {
+					container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+				}
+			});
 		} finally {
 			setIsRefreshing(false);
 		}
@@ -1291,15 +1323,15 @@ const Chat = () => {
 				className={`chat ${isRightAligned ? "chat-end" : "chat-start"} ${isRightAligned ? "justify-end" : "justify-start"}`}
 			>
 				<div className="chat-image avatar">
-					<div className="w-10 overflow-hidden rounded-full border border-[#ead9c2] bg-[#9a6a39] text-xs font-bold text-white shadow-sm">
+					<div className="w-8 overflow-hidden rounded-full border border-[#ead9c2] bg-[#9a6a39] text-[0.65rem] font-bold text-white shadow-sm">
 						{avatarUrl ? (
 							<img
 								src={avatarUrl}
 								alt={senderDisplayName}
-								className="h-10 w-10 object-cover"
+								className="h-8 w-8 object-cover"
 							/>
 						) : (
-							<div className="flex h-10 w-10 items-center justify-center">
+							<div className="flex h-8 w-8 items-center justify-center">
 								{avatarLabel}
 							</div>
 						)}
@@ -1332,7 +1364,7 @@ const Chat = () => {
 					)}
 				</div>
 
-				<div className={`chat-bubble ${bubbleToneClassName} max-w-[82%] text-sm leading-6 ${messageToneClassName}`}>
+				<div className={`chat-bubble ${bubbleToneClassName} max-w-[88%] px-3 py-2 text-sm leading-5 ${messageToneClassName}`}>
 					{getMessageText(message).trim() && (
 						<p className="whitespace-pre-wrap">{renderTextWithLinks(getMessageText(message))}</p>
 					)}
@@ -1401,13 +1433,13 @@ const Chat = () => {
 
 const currentThreadMessages = isAdminOrStaff ? activeMessages : historyByConversation[conversationKey] || [];
 
-return (
-	<MainLayout>
-		<div className="min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6">
-			<div className="mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6">
-				<div className="relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]">
-				<div className="relative flex min-h-[calc(100dvh-8rem)] min-h-0 flex-col overflow-hidden lg:flex-row">
-				{isAdminOrStaff && (
+const chatContent = (
+	<>
+		<div className={isBubble ? "flex h-full min-h-0 flex-col bg-white" : "min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6"}>
+			<div className={isBubble ? "h-full min-h-0 max-w-none px-0 pb-0" : "mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6"}>
+				<div className={isBubble ? "relative flex h-full min-h-0 flex-col overflow-hidden bg-white" : "relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]"}>
+				<div className={`relative flex min-h-0 flex-col overflow-hidden ${isBubble ? "h-full" : "min-h-[calc(100dvh-8rem)]"} ${isAdminOrStaff && !isBubble ? "lg:flex-row" : ""}`}>
+				{isAdminOrStaff && !isBubble && (
 					<aside className="flex h-64 lg:h-auto min-h-0 flex-col border-b border-[#ead9c2] bg-white lg:w-84 lg:border-b-0 lg:border-r">
 						<div className="border-b border-[#ead9c2] bg-white px-4 py-4">
 							<div className="flex items-center justify-between gap-3">
@@ -1502,19 +1534,19 @@ return (
 					)}
 
 						<div className="flex min-w-0 min-h-0 flex-1 flex-col">
-						<div className="flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+						<div className={isBubble ? "z-10 flex shrink-0 flex-col gap-2 border-b border-black/5 bg-white px-3 py-2" : "flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between"}>
 							<div className="flex min-w-0 items-center gap-3">
 								<button
 									type="button"
-									onClick={() => navigate(-1)}
-									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"
-									aria-label="Go back"
+									onClick={() => isBubble ? onClose?.() : navigate(-1)}
+									className={isBubble ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-base font-semibold text-slate-900 transition hover:bg-[#f3dfc6]" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"}
+									aria-label={isBubble ? "Close chat" : "Go back"}
 								>
-									{"<"}
+									{isBubble ? "×" : "<"}
 								</button>
 
-								<div className="flex min-w-0 items-center gap-3">
-									<div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#8b5e34] text-sm font-bold text-white shadow-sm">
+<div className="flex min-w-0 items-center gap-2.5">
+									{!isBubble && <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#8b5e34] text-sm font-bold text-white shadow-sm">
 										{profile?.avatar_url ? (
 											<img
 												src={profile.avatar_url}
@@ -1524,12 +1556,12 @@ return (
 										) : (
 											<span>{display.initials}</span>
 										)}
-									</div>
+									</div>}
 									<div className="min-w-0">
-										<h1 className="text-base font-semibold leading-tight text-slate-900 sm:text-lg">
-											Hacienda Amara Chat
+										<h1 className={isBubble ? "truncate text-sm font-semibold leading-tight text-slate-900" : "text-base font-semibold leading-tight text-slate-900 sm:text-lg"}>
+											{isBubble && isAdminOrStaff ? activeThreadName : "Hacienda Amara Chat"}
 										</h1>
-										<p className="text-xs text-slate-600 sm:text-sm">
+										<p className={isBubble ? "truncate text-[0.7rem] text-slate-600" : "text-xs text-slate-600 sm:text-sm"}>
 											{isAdminOrStaff
 												? adminAvailable
 													? isAdmin
@@ -1542,15 +1574,28 @@ return (
 													? "Admin/Staff online"
 													: "Assistant ready"}
 										</p>
-										<p className="truncate text-[0.7rem] text-slate-700 sm:text-xs">
+										{!isBubble && <p className="truncate text-[0.7rem] text-slate-700 sm:text-xs">
 											{profile ? `Signed in as ${displayName}` : "Continue as Guest"}
-										</p>
+										</p>}
 									</div>
 								</div>
 							</div>
 
-							<div className="flex flex-wrap items-center gap-2 lg:justify-end">
-								<div className="text-left sm:text-right">
+							<div className={isBubble ? "flex shrink-0 flex-wrap items-center gap-1.5 lg:justify-end" : "flex flex-wrap items-center gap-2 lg:justify-end"}>
+								{isBubble && isAdminOrStaff && conversations.length > 1 && (
+									<select
+									aria-label="Select customer conversation"
+									className="max-w-32 rounded-lg border border-[#ead9c2] bg-white px-2 py-1 text-xs"
+									value={activeConversationKey}
+									onChange={(event) => setActiveConversationKey(event.target.value)}
+								>
+									{conversations.map(({ key }) => {
+										const latestClientMessage = (historyByConversation[key] || []).slice().reverse().find((message) => message.senderRole === "client");
+										return <option key={key} value={key}>{latestClientMessage?.senderName || "Customer"}</option>;
+									})}
+								</select>
+								)}
+								{!isBubble && <div className="text-left sm:text-right">
 									<p className="text-xs text-slate-600">
 										{isAdminOrStaff ? (isAdmin ? "Admin mode" : "Staff mode") : "Client chat"}
 									</p>
@@ -1563,20 +1608,20 @@ return (
 												? "Admin/Staff is available"
 												: "Assistant will answer"}
 									</p>
-								</div>
+								</div>}
 
 								<button
 									type="button"
 									onClick={refreshMessages}
 									disabled={loading || isRefreshing}
-									className="btn btn-black btn-xs shrink-0 rounded-full px-3"
-									aria-label="Refresh chat messages"
-									title="Refresh chat messages"
-								>
-									{isRefreshing ? "Refreshing..." : "Refresh"}
+className="btn btn-black btn-xs shrink-0 rounded-full px-3"
+							aria-label="Refresh chat messages"
+							title="Refresh chat messages"
+						>
+							{isRefreshing ? "Refreshing..." : refreshedAt ? "Refreshed" : "Refresh"}
 								</button>
 
-								<button
+								{!isBubble && <button
 									type="button"
 									onClick={clearCurrentChat}
 									disabled={loading}
@@ -1585,7 +1630,7 @@ return (
 									title="Clear current chat"
 								>
 									Clear
-								</button>
+								</button>}
 
 								{isAdminOrStaff ? (
 									<button
@@ -1593,13 +1638,13 @@ return (
 										onClick={() => setAdminAvailable((current) => !current)}
 										className="btn btn-black btn-xs shrink-0 rounded-full px-3"
 									>
-										{adminAvailable ? "Go offline" : "Go online"}
+										{isBubble ? (adminAvailable ? "Offline" : "Online") : (adminAvailable ? "Go offline" : "Go online")}
 									</button>
-								) : (
+								) : !isBubble ? (
 									<span className="shrink-0 rounded-full border border-black/5 bg-white px-3 py-2 text-xs font-semibold text-base-content">
 										{adminOnline ? "Admin/Staff online" : "Assistant ready"}
 									</span>
-								)}
+								) : null}
 							</div>
 						</div>
 
@@ -1610,7 +1655,7 @@ return (
 									backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,245,230,0.5))",
 								}}
 							>
-								{!isAdminOrStaff && (
+								{!isAdminOrStaff && !isBubble && (
 									<div className="border-b border-black/5 bg-white/75 px-4 py-4 backdrop-blur sm:px-5">
 										<div className="mx-auto flex w-full max-w-4xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 											<div className="max-w-2xl">
@@ -1639,7 +1684,7 @@ return (
 									</div>
 								)}
 
-								<div className="border-b border-black/5 bg-white/75 px-4 py-3 backdrop-blur sm:px-5">
+								{!isBubble && <div className="border-b border-black/5 bg-white/75 px-4 py-3 backdrop-blur sm:px-5">
 									<p className="text-sm font-medium text-slate-900">
 										{isAdminOrStaff
 											? `Review and reply to ${activeThreadName}`
@@ -1652,7 +1697,7 @@ return (
 												? "Admin/Staff is online and can see your messages."
 												: "If admin/staff is offline, our assistant will answer automatically."}
 									</p>
-								</div>
+								</div>}
 
 								<div
 									ref={messageListRef}
@@ -1697,8 +1742,8 @@ return (
 									</div>
 								</div>
 
-								<div className="border-t border-black/5 bg-white/75 px-3 py-3 backdrop-blur sm:px-5">
-									<div className="mx-auto mb-3 w-full max-w-4xl rounded-[1.25rem] border border-black/5 bg-white px-3 py-3 shadow-sm">
+								<div className={isBubble ? "shrink-0 border-t border-black/5 bg-white px-3 py-2" : "border-t border-black/5 bg-white/75 px-3 py-3 backdrop-blur sm:px-5"}>
+									{!isBubble && <div className="mx-auto mb-3 w-full max-w-4xl rounded-[1.25rem] border border-black/5 bg-white px-3 py-3 shadow-sm">
 										<div className="mb-3 flex items-center justify-between gap-3 px-1">
 											<p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-base-content/55">
 												Quick questions
@@ -1719,7 +1764,7 @@ return (
 												</button>
 											))}
 										</div>
-									</div>
+									</div>}
 
 									{error && (
 										<div className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1727,13 +1772,13 @@ return (
 										</div>
 									)}
 
-									<p className="mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500">
+									<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
 										Press Enter to send. Shift + Enter for a new line.
 									</p>
 
 									<form
 										onSubmit={handleSubmit}
-										className="mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-end"
+										className={isBubble ? "mx-auto flex w-full flex-col gap-2" : "mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-end"}
 									>
 										<input
 											ref={photoInputRef}
@@ -1751,12 +1796,12 @@ return (
 											onChange={(event) => handleAttachmentSelection(event, "video")}
 										/>
 
-										<div className="flex w-full gap-2 sm:w-auto sm:flex-col md:flex-row">
+										<div className={isBubble ? "flex w-full gap-2" : "flex w-full gap-2 sm:w-auto sm:flex-col md:flex-row"}>
 											<button
 												type="button"
 												onClick={() => photoInputRef.current?.click()}
 												disabled={loading || isSending || (isAdmin && !adminAvailable)}
-												className="btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"
+												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Photo
 											</button>
@@ -1764,13 +1809,14 @@ return (
 												type="button"
 												onClick={() => videoInputRef.current?.click()}
 												disabled={loading || isSending || (isAdmin && !adminAvailable)}
-												className="btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"
+												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Video
 											</button>
 										</div>
 
-										<div className="w-full flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-4 py-2 shadow-sm sm:rounded-full">
+										<div className={isBubble ? "flex min-w-0 flex-1 items-end gap-2" : "contents"}>
+										<div className={isBubble ? "min-w-0 flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-3 py-2 shadow-sm" : "w-full flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-4 py-2 shadow-sm sm:rounded-full"}>
 											{draftAttachments.length > 0 && (
 												<div className="mb-2 space-y-2">
 													{draftAttachments.map((attachment) => (
@@ -1820,17 +1866,20 @@ return (
 												}
 												rows={1}
 												disabled={isSending || (isAdmin && !adminAvailable)}
-												className="max-h-28 w-full resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"
+												className={isBubble ? "min-h-11 max-h-24 w-full resize-none bg-transparent text-[0.8125rem] leading-5 text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed" : "max-h-28 w-full resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"}
 											/>
 										</div>
 
 										<button
 											type="submit"
 											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || isSending || (isAdmin && !adminAvailable)}
-											className="btn btn-black rounded-full px-5 sm:w-auto"
+											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
+											aria-label="Send message"
+											title={isBubble ? "Send message" : undefined}
 										>
-											{isSending ? "Sending..." : "Send"}
+											{isSending ? <span className="loading loading-spinner loading-xs" /> : isBubble ? <FiSend className="h-4 w-4" /> : "Send"}
 										</button>
+										</div>
 									</form>
 								</div>
 							</div>
@@ -1888,8 +1937,10 @@ return (
 					</div>
 				</div>
 			)}
-		</MainLayout>
+		</>
 	);
+
+	return isBubble ? <div className="h-full min-h-0">{chatContent}</div> : <MainLayout>{chatContent}</MainLayout>;
 };
 
 export default Chat;
