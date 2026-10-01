@@ -9,6 +9,11 @@ import { FiStar } from "react-icons/fi";
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
   const [recentReviews, setRecentReviews] = useState([]);
+  const primaryAction = profile?.role === "admin"
+    ? { to: "/admin-reservations", label: "Calendar" }
+    : profile?.role === "staff"
+      ? { to: "/manage-reservations", label: "Reservations" }
+      : { to: "/rooms", label: "Book Now" };
 
   useEffect(() => {
     const fetchRecentReviews = async () => {
@@ -167,10 +172,10 @@ const HomePage = () => {
             ================================== */}
             <div className="mb-4 flex flex-wrap gap-3">
               <NavLink
-                to="/rooms"
+                to={primaryAction.to}
                 className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
               >
-                Book Now
+                {primaryAction.label}
               </NavLink>
 
               <NavLink
