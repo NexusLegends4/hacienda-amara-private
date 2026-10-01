@@ -1,11 +1,28 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import LoginIcon from "../components/icons/LoginIcon";
 import { SessionContext } from "../contexts/SessionContext.jsx";
+import { supabase } from "../utils/supabase";
+import { FiStar } from "react-icons/fi";
 
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
+  const [recentReviews, setRecentReviews] = useState([]);
+
+  useEffect(() => {
+    const fetchRecentReviews = async () => {
+      const { data } = await supabase
+        .from("reviews")
+        .select("id, reviewer_name, rating, comment, profiles(firstname, lastname)")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (data) setRecentReviews(data);
+    };
+
+    fetchRecentReviews();
+  }, []);
 
   const getStartedPath = "/events";
 
@@ -19,15 +36,14 @@ const HomePage = () => {
     <MainLayout>
       {/* ================================
           HOMEPAGE CONTAINER
-          No scrolling on tablet / desktop
       ================================= */}
       <div
         className="
-          h-[calc(100vh-92px)]
-          overflow-hidden
+          min-h-[calc(100vh-92px)]
           bg-[#f5f0e8]
           flex
           items-center
+          py-6
           px-4
           sm:px-6
           md:px-8
@@ -149,61 +165,20 @@ const HomePage = () => {
             {/* =================================
                 BUTTONS
             ================================== */}
-            <div
-              className="
-                flex
-                flex-wrap
-                gap-3
-                mb-4
-              "
-            >
-              {/* EVENTS */}
+            <div className="mb-4 flex flex-wrap gap-3">
+              <NavLink
+                to="/rooms"
+                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+              >
+                Book Now
+              </NavLink>
+
               <NavLink
                 to={getStartedPath}
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  bg-black
-                  text-white
-                  text-sm
-                  sm:text-base
-                  font-medium
-                  px-4
-                  sm:px-5
-                  py-3
-                  rounded-full
-                  hover:bg-gray-800
-                  transition-colors
-                "
+                className="flex items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50 sm:px-5 sm:text-base"
               >
                 <LoginIcon />
                 Events
-              </NavLink>
-
-              {/* GUEST REVIEWS */}
-              <NavLink
-                to="/reviews"
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  border
-                  border-gray-300
-                  text-gray-800
-                  text-sm
-                  sm:text-base
-                  font-medium
-                  px-4
-                  sm:px-5
-                  py-3
-                  rounded-full
-                  hover:bg-gray-50
-                  transition-colors
-                "
-              >
-                Guest Reviews
               </NavLink>
             </div>
 
@@ -399,6 +374,46 @@ const HomePage = () => {
 
         </div>
       </div>
+
+      <section className="bg-[#fffaf0] px-4 py-12 sm:px-6 md:px-8 lg:px-10 xl:px-16 2xl:px-20">
+        <div className="mx-auto w-full max-w-[1500px]">
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">Guest experiences</p>
+              <h2 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl">Guest Reviews</h2>
+            </div>
+            <NavLink to="/reviews" className="text-sm font-semibold text-amber-900 underline underline-offset-4 hover:text-amber-700">
+              See all reviews
+            </NavLink>
+          </div>
+
+          {recentReviews.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              {recentReviews.map((review) => {
+                const reviewerName = review.reviewer_name ||
+                  `${review.profiles?.firstname || ""} ${review.profiles?.lastname || ""}`.trim() ||
+                  "Guest";
+
+                return (
+                  <article key={review.id} className="flex min-h-44 flex-col rounded-xl border border-black/5 bg-white p-5 shadow-sm">
+                    <div className="flex gap-1 text-amber-500" aria-label={`${review.rating} out of 5 stars`}>
+                      {[...Array(5)].map((_, index) => (
+                        <FiStar key={index} className={index < review.rating ? "fill-current" : ""} />
+                      ))}
+                    </div>
+                    <p className="mt-4 flex-1 text-sm leading-6 text-gray-700">“{review.comment}”</p>
+                    <p className="mt-4 text-sm font-semibold text-gray-900">{reviewerName}</p>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-black/15 bg-white/60 p-6 text-sm text-gray-600">
+              Guest reviews will appear here.
+            </p>
+          )}
+        </div>
+      </section>
     </MainLayout>
   );
 };
