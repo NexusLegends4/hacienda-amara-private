@@ -740,17 +740,30 @@ const Chat = ({ presentation = "page", onClose }) => {
 				}
 			});
 
-			const nextSnapshot = isAdminOrStaff
-				? Object.fromEntries(
+const nextSnapshot = isAdminOrStaff
+			? Object.fromEntries(
 					Object.entries(grouped).filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY),
-				  )
-				: {
-						[conversationKey]: grouped[conversationKey] || [],
-				  };
+			  )
+			: {
+					[conversationKey]: grouped[conversationKey] || [],
+			  };
 
-			setHistoryByConversation(nextSnapshot);
+		const nextIsEmpty = isAdminOrStaff
+			? Object.keys(nextSnapshot).length === 0
+			: (nextSnapshot[conversationKey] || []).length === 0;
 
-			return nextSnapshot;
+		if (nextIsEmpty) {
+			const stored = readHistory();
+			const storedIsEmpty = isAdminOrStaff
+				? Object.keys(stored).length === 0
+				: (stored[conversationKey] || []).length === 0;
+
+			if (!storedIsEmpty) return stored;
+		}
+
+		setHistoryByConversation(nextSnapshot);
+
+		return nextSnapshot;
 		} catch {
 			return false;
 		} finally {
@@ -796,19 +809,21 @@ const Chat = ({ presentation = "page", onClose }) => {
 		setIsRefreshing(true);
 
 		try {
-			let loaded = null;
+			let refreshed = null;
 
 			if (CHAT_BACKEND_CONFIGURED) {
 				dbAvailableRef.current = true;
-				loaded = await refreshFromDb();
+				refreshed = await refreshFromDb();
 			}
 
-			if (!loaded) {
+			if (!refreshed) {
 				const stored = readHistory();
 
 				setHistoryByConversation(
 					isAdminOrStaff ? stored : { [conversationKey]: stored[conversationKey] || [] },
 				);
+			} else {
+				setHistoryByConversation(refreshed);
 			}
 
 			setError("");
