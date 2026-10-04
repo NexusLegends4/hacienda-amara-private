@@ -7,40 +7,58 @@ const amenities = [
 	{
 		title: "Outdoor Pool Area",
 		icon: <FiSun className="text-amber-500" />,
-		items: ["4ft Depth", "Jacuzzi/Kiddie Pool (Free 2hrs)", "Heated pool (₱1,000/hr)", "2 Lounger Seats", "2 Picnic Tables", "BBQ Grill", "Cooler"],
+		items: ["4 feet depth", "Jacuzzi/kiddie pool (free for 2 hours)", "Heated pool: ₱1,000/hour", "2 lounger seats", "2 picnic tables", "BBQ grill", "Cooler"],
 	},
 	{
 		title: "Room",
 		icon: <FiHome className="text-blue-500" />,
-		items: ["Fully Airconditioned Barkada/Family Room (2 Queen Beds and 3 Bunk Beds)", "2 Sofa Beds", "55 inches Smart TV"],
+		items: ["Fully air-conditioned", "1 barkada room with 2 queen beds and 3 bunk beds"],
 	},
 	{
-		title: "Living & Dining Area",
+		title: "Living Area / Dining Area",
 		icon: <FiTv className="text-purple-500" />,
-		items: ["75 inches Smart TV", "JBL Partybox Ultimate speaker with 2 wireless microphones", "8-seater Dining Table"],
+		items: ["JBL PartyBox Ultimate speaker with 2 wireless microphones", "12-seater dining table; additional seats available"],
 	},
 	{
 		title: "Kitchen Area",
 		icon: <FiCoffee className="text-emerald-500" />,
 		items: [
-			"Gas Stove (Additional ₱300.00)",
+			"Gas stove: ₱300 for 9 hours or ₱400 for 21 hours",
+			"Mineral water: 1 gallon free, then ₱50 per gallon",
 			"Refrigerator",
-			"Hot & Cold Water Dispenser (Free 1 Gallon Purified Water, additional ₱30 per gallon)",
-			"Rice Cooker & Microwave",
+			"Hot and cold water dispenser",
+			"Rice cooker",
+			"Microwave",
 			"Cookware and Kitchen Tools",
-			"30+ sets Tableware (Plates / Utensils)",
+			"30 sets of tableware (plates and utensils); charges may apply for missing resort items",
 		],
 	},
 	{
-		title: "T&B & Parking",
+		title: "T&B",
 		icon: <FiMapPin className="text-rose-500" />,
-		items: ["2 Bathroom with heater", "Front Gate Parking"],
+		items: ["2 bathrooms with heaters"],
+	},
+	{
+		title: "Parking",
+		icon: <FiMapPin className="text-rose-500" />,
+		items: ["Front gate parking", "Side parking"],
 	},
 	{
 		title: "Other amenities",
 		icon: <FiBox className="text-slate-500" />,
-		items: ["Games: Bingo, Scrabble, Chess, Deck Cards, Comfort Cards, Rubik's Cube", "WIFI (PLDT)"],
+		items: ["Games: Bingo, Rubik's Cube, Scrabble, Chess, deck cards, and comfort cards", "WiFi: Converge and PointLink"],
 	},
+	{
+		title: "Other Charges",
+		icon: <FiBox className="text-orange-500" />,
+		items: ["2nd floor additional rooms: 1 master bedroom and 2 family rooms", "Catering", "Sound system", "Photo booth"],
+	},
+];
+
+const packageInclusions = [
+	"Free 2 hours of jacuzzi for 9-hour packages",
+	"Free 4 hours of jacuzzi for 21-hour packages",
+	"1 barkada room, sleeping capacity up to 25 people",
 ];
 
 const About = () => {
@@ -106,6 +124,17 @@ const About = () => {
 					<div className="text-center mb-16">
 						<h2 className="text-3xl md:text-5xl font-black text-slate-900 uppercase tracking-tight">Our Amenities</h2>
 						<div className="h-1.5 w-24 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+					</div>
+					<div className="mx-4 mb-10 rounded-[2rem] border border-[#8b5e34]/20 bg-[#fff8ef] p-6 shadow-sm md:p-8">
+						<h3 className="mb-5 text-center text-2xl font-black text-slate-900">Your Package Includes</h3>
+						<ul className="grid gap-3 text-sm font-semibold text-slate-700 md:grid-cols-3">
+							{packageInclusions.map((item) => (
+								<li key={item} className="flex items-start gap-2">
+									<FiCheck className="mt-0.5 shrink-0 text-emerald-600" />
+									<span>{item}</span>
+								</li>
+							))}
+						</ul>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
