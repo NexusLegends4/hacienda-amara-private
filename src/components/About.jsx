@@ -2,21 +2,8 @@ import React, { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { FiCheck, FiStar, FiTarget, FiSun, FiHome, FiTv, FiCoffee, FiMapPin, FiBox, FiX } from "react-icons/fi";
 
-// Palagay ang mga picture sa: src/assets/amenities/
-import poolNight from "../assets/amenities/pool-night.png";
-import jacuzzi from "../assets/amenities/jacuzzi.jpg";
-import barkadaRoom from "../assets/amenities/barkada-room.jpg";
-import livingDining from "../assets/amenities/living-dining.jpg";
-import kitchen1 from "../assets/amenities/kitchen-1.jpg";
-import kitchen2 from "../assets/amenities/kitchen-2.jpg";
-import frontParking from "../assets/amenities/front-parking.jpg";
-import gameRoom from "../assets/amenities/game-room.jpg";
-import bedroom1 from "../assets/amenities/bedroom-1.jpg";
-import bedroom2 from "../assets/amenities/bedroom-2.jpg";
-import bedroom3 from "../assets/amenities/bedroom-3.jpg";
-import restroomDoors from "../assets/amenities/restroom-doors.jpg";
-import restroom from "../assets/amenities/restroom.jpg";
 
+// Ang mga picture ay nasa: public/amenities/ (nilo-load bilang /amenities/<file>)
 // `photos` = ipinapakita ang buong picture (hindi crop)
 // `description` = maikling paliwanag (kasama ang rates, WiFi, atbp.)
 const amenities = [
@@ -25,8 +12,8 @@ const amenities = [
     title: "Outdoor Pool Area",
     icon: <FiSun className="text-amber-500" />,
     photos: [
-      { src: poolNight, alt: "Swimming pool at night", caption: "Pool, 4 feet deep" },
-      { src: jacuzzi, alt: "Jacuzzi", caption: "Jacuzzi / kiddie pool" },
+      { src: "/amenities/pool-night.png", alt: "Swimming pool at night", caption: "Pool, 4 feet deep" },
+      { src: "/amenities/jacuzzi.jpg", alt: "Jacuzzi", caption: "Jacuzzi / kiddie pool" },
     ],
     description:
       "Enjoy a 4-foot-deep pool with an attached jacuzzi/kiddie pool, free for 2 hours. A heated pool is also available at ₱1,000 per hour. The area comes with 2 lounger seats, 2 picnic tables, a BBQ grill, and a cooler.",
@@ -35,7 +22,7 @@ const amenities = [
     id: "room",
     title: "Room",
     icon: <FiHome className="text-blue-500" />,
-    photos: [{ src: barkadaRoom, alt: "Barkada room with queen bed and bunk beds", caption: "Air-conditioned barkada room" }],
+    photos: [{ src: "/amenities/barkada-room.jpg", alt: "Barkada room with queen bed and bunk beds", caption: "Air-conditioned barkada room" }],
     description:
       "A fully air-conditioned barkada room with 2 queen beds and 3 bunk beds, with a sleeping capacity of up to 25 people.",
   },
@@ -43,7 +30,7 @@ const amenities = [
     id: "living",
     title: "Living / Dining Area",
     icon: <FiTv className="text-purple-500" />,
-    photos: [{ src: livingDining, alt: "Living and dining area", caption: "Living and dining area" }],
+    photos: [{ src: "/amenities/living-dining.jpg", alt: "Living and dining area", caption: "Living and dining area" }],
     description:
       "Gather in the living area with a JBL PartyBox Ultimate speaker and 2 wireless microphones. The 12-seater dining table has additional seats available for bigger groups.",
   },
@@ -52,8 +39,8 @@ const amenities = [
     title: "Kitchen Area",
     icon: <FiCoffee className="text-emerald-500" />,
     photos: [
-      { src: kitchen1, alt: "Kitchen counter with sink and gas stove", caption: "Sink and gas stove" },
-      { src: kitchen2, alt: "Refrigerator, water dispenser, and tableware", caption: "Refrigerator, dispenser and tableware" },
+      { src: "/amenities/kitchen-1.jpg", alt: "Kitchen counter with sink and gas stove", caption: "Sink and gas stove" },
+      { src: "/amenities/kitchen-2.jpg", alt: "Refrigerator, water dispenser, and tableware", caption: "Refrigerator, dispenser and tableware" },
     ],
     description:
       "Cook and eat together with a refrigerator, hot and cold water dispenser, rice cooker, microwave, cookware, and kitchen tools. 30 sets of tableware (plates and utensils) are provided; charges may apply for missing resort items. The gas stove is ₱300 for 9 hours or ₱400 for 21 hours, and 1 gallon of mineral water is free, then ₱50 per gallon.",
@@ -63,8 +50,8 @@ const amenities = [
     title: "T&B",
     icon: <FiMapPin className="text-rose-500" />,
     photos: [
-      { src: restroomDoors, alt: "Two restrooms", caption: "2 bathrooms" },
-      { src: restroom, alt: "Bathroom with shower and heater", caption: "Shower with heater" },
+      { src: "/amenities/restroom-doors.jpg", alt: "Two restrooms", caption: "2 bathrooms" },
+      { src: "/amenities/restroom.jpg", alt: "Bathroom with shower and heater", caption: "Shower with heater" },
     ],
     description:
       "Two bathrooms, both equipped with heaters.",
@@ -73,7 +60,7 @@ const amenities = [
     id: "parking",
     title: "Parking",
     icon: <FiMapPin className="text-rose-500" />,
-    photos: [{ src: frontParking, alt: "Front of the resort with parked vehicle", caption: "Front gate parking" }],
+    photos: [{ src: "/amenities/front-parking.jpg", alt: "Front of the resort with parked vehicle", caption: "Front gate parking" }],
     description:
       "Guests may park at the front gate or at the side parking.",
   },
@@ -81,7 +68,7 @@ const amenities = [
     id: "other",
     title: "Other Amenities",
     icon: <FiBox className="text-slate-500" />,
-    photos: [{ src: gameRoom, alt: "Billiards and darts game area", caption: "Billiards and darts" }],
+    photos: [{ src: "/amenities/game-room.jpg", alt: "Billiards and darts game area", caption: "Billiards and darts" }],
     description:
       "Games available are Bingo, Rubik's Cube, Scrabble, Chess, deck cards, and comfort cards. WiFi is available through Converge and PointLink.",
   },
@@ -90,9 +77,9 @@ const amenities = [
     title: "Other Charges",
     icon: <FiBox className="text-orange-500" />,
     photos: [
-      { src: bedroom1, alt: "2nd floor master bedroom", caption: "2nd floor master bedroom" },
-      { src: bedroom2, alt: "2nd floor room", caption: "2nd floor room" },
-      { src: bedroom3, alt: "2nd floor family room with two beds", caption: "2nd floor family room" },
+      { src: "/amenities/bedroom-1.jpg", alt: "2nd floor master bedroom", caption: "2nd floor master bedroom" },
+      { src: "/amenities/bedroom-2.jpg", alt: "2nd floor room", caption: "2nd floor room" },
+      { src: "/amenities/bedroom-3.jpg", alt: "2nd floor family room with two beds", caption: "2nd floor family room" },
     ],
     description:
       "Additional rooms on the 2nd floor include 1 master bedroom and 2 family rooms. Catering, sound system, and photo booth are also available at extra charge.",
@@ -183,7 +170,7 @@ const About = () => {
           {/* Cover photo, buong picture (walang crop) */}
           <figure className="mx-auto w-full max-w-xl">
             <img
-              src={poolNight}
+              src="/amenities/pool-night.png"
               alt="Hacienda Amara pool at night"
               className="block h-auto w-full rounded-[2rem] shadow-2xl"
             />
