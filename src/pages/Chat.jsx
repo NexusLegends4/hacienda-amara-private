@@ -141,8 +141,12 @@ const getBotReply = (text) => {
 		return "Hi! How can I help you with Hacienda Amara today, whether you're nearby or booking from anywhere in the country?";
 	}
 
-	if (includesAny(["what is hacienda amara", "about us", "about hacienda amara", "hacienda amara", "ano ang hacienda amara", "tungkol sa hacienda amara", "amenities", "facilities", "features", "details", "capacity", "guests allowed", "about page details"])) {
-		return "Hacienda Amara Private Resort and Events Place, located in Amityville, Brgy. San Jose, Rodriguez, Rizal, is a private, events-focused venue featuring an infinity pool, heated jacuzzi, and air-conditioned living spaces. It accommodates up to 70 guests (20-22 overnight) with full amenities for private parties, staycations, and group retreats. You can view more here: [About Us](/about)";
+	if (includesAny(["amenities", "facilities", "inclusions", "what's included", "what is included", "what are included"])) {
+		return "Our amenities include a 4-foot outdoor pool, jacuzzi/kiddie pool (2 free hours), air-conditioned barkada room with 2 queen beds and 3 bunk beds, JBL PartyBox Ultimate speaker with 2 wireless microphones, 12-seat dining table, and kitchen with refrigerator, hot/cold water dispenser, rice cooker, microwave, cookware, and 30 tableware sets. We also have 2 bathrooms with heaters, front gate and side parking, games, and WiFi (Converge and PointLink). Packages include 2 free jacuzzi hours for 9-hour stays or 4 hours for 21-hour stays. Heated pool is ₱1,000/hour. Gas stove is ₱300 for 9 hours or ₱400 for 21 hours; mineral water is 1 free gallon, then ₱50/gallon. More details: [About Us](/about)";
+	}
+
+	if (includesAny(["what is hacienda amara", "about us", "about hacienda amara", "hacienda amara", "ano ang hacienda amara", "tungkol sa hacienda amara", "features", "details", "capacity", "guests allowed", "about page details"])) {
+		return "Hacienda Amara is a private resort and events place in Amityville, Brgy. San Jose, Rodriguez, Rizal, with an outdoor pool, jacuzzi/kiddie pool, air-conditioned barkada room, and event facilities. The barkada room sleeps up to 25 people. You can view our current amenities here: [About Us](/about)";
 	}
 
 	if (includesAny(["rules", "house rules", "mga rules", "policy", "policies", "guidelines", "bawal", "limitasyon", "pamantayan"])) {
@@ -196,7 +200,7 @@ const getBotReply = (text) => {
 	}
 
 	if (includesAny(["wi-fi", "wifi", "internet"])) {
-		return "Availability of Wi-Fi depends on the package or request.";
+		return "WiFi is available through Converge and PointLink.";
 	}
 
 	if (includesAny(["pets allowed", "pet friendly", "pet-friendly", "pets"])) {
@@ -204,7 +208,7 @@ const getBotReply = (text) => {
 	}
 
 	if (includesAny(["parking space", "parking", "park"])) {
-		return "Parking availability is provided depending on the number of guests and event size.";
+		return "Parking is available at the front gate and on the side.";
 	}
 
 	if (includesAny(["bring our own food", "bring our own drinks", "food and drinks", "bring food", "bring drinks"])) {
@@ -286,8 +290,8 @@ const getBotReply = (text) => {
 		return "2026 Rates for 20 pax: Day Time (₱6,999-₱7,999), Night Time (₱7,999-₱8,999), Overnight (₱14,999-₱17,999). Extra guests: ₱200/head. Kids 8 & below are FREE!";
 	}
 
-	if (includesAny(["inclusion", "inclusions", "amenities", "facilities", "pool", "room", "room po", "air-conditioned", "ac room", "wifi", "videoke", "sound system", "kitchen", "utensil", "generator", "tv", "netflix", "ref", "freezer"])) {
-		return "Our team can share the current inclusions and amenities like pool, rooms, WiFi, videoke, and more. Please message your preferred date so we can send the exact details.";
+	if (includesAny(["pool", "room", "room po", "air-conditioned", "ac room", "videoke", "sound system", "kitchen", "utensil", "generator", "tv", "netflix", "ref", "freezer"])) {
+		return "Our pool is 4 feet deep, with a jacuzzi/kiddie pool (2 free hours); heated pool use is ₱1,000/hour. The air-conditioned barkada room has 2 queen beds and 3 bunk beds. The kitchen has a refrigerator, hot/cold water dispenser, rice cooker, microwave, cookware, and 30 tableware sets. See the full list at [About Us](/about).";
 	}
 
 	if (includesAny(["event setup", "birthday", "wedding", "debut", "tables", "chairs", "decorations", "stylist", "lights and sound", "stage", "coordinator", "fireworks", "overnight after event"])) {
@@ -1311,8 +1315,8 @@ const nextSnapshot = isAdminOrStaff
 	};
 
 	const renderMessage = (message) => {
-		const isOutgoing = isAdmin
-			? message.senderRole === "admin"
+		const isOutgoing = isAdminOrStaff
+			? message.senderRole === (isAdmin ? "admin" : "staff")
 			: message.senderRole === "client";
 		const isRightAligned = isOutgoing;
 		const isBotMessage = message.senderRole === "bot";
@@ -1362,12 +1366,12 @@ const nextSnapshot = isAdminOrStaff
 							Bot
 						</span>
 					)}
-					{message.senderRole === "admin" && !isRightAligned && (
+					{message.senderRole === "admin" && (
 						<span className="ml-1.5 text-[0.55rem] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
 							Admin
 						</span>
 					)}
-					{message.senderRole === "staff" && !isRightAligned && (
+					{message.senderRole === "staff" && (
 						<span className="ml-1.5 text-[0.55rem] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
 							Staff
 						</span>
@@ -1815,7 +1819,7 @@ className="btn btn-black btn-xs shrink-0 rounded-full px-3"
 											<button
 												type="button"
 												onClick={() => photoInputRef.current?.click()}
-												disabled={loading || isSending || (isAdmin && !adminAvailable)}
+												disabled={loading || isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Photo
@@ -1823,7 +1827,7 @@ className="btn btn-black btn-xs shrink-0 rounded-full px-3"
 											<button
 												type="button"
 												onClick={() => videoInputRef.current?.click()}
-												disabled={loading || isSending || (isAdmin && !adminAvailable)}
+												disabled={loading || isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Video
@@ -1875,19 +1879,19 @@ className="btn btn-black btn-xs shrink-0 rounded-full px-3"
 												onChange={(event) => setPrompt(event.target.value)}
 												onKeyDown={handleKeyDown}
 												placeholder={
-													isAdmin && !adminAvailable
+													isAdminOrStaff && !adminAvailable
 														? "Go online to reply..."
 														: "Write a message..."
 												}
 												rows={1}
-												disabled={isSending || (isAdmin && !adminAvailable)}
+												disabled={isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "min-h-11 max-h-24 w-full resize-none bg-transparent text-[0.8125rem] leading-5 text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed" : "max-h-28 w-full resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"}
 											/>
 										</div>
 
 										<button
 											type="submit"
-											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || isSending || (isAdmin && !adminAvailable)}
+											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || isSending || (isAdminOrStaff && !adminAvailable)}
 											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
 											aria-label="Send message"
 											title={isBubble ? "Send message" : undefined}
