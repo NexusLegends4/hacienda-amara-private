@@ -12,7 +12,7 @@ const amenities = [
     title: "Outdoor Pool Area",
     icon: <FiSun className="text-amber-500" />,
     photos: [
-      { src: "/amenities/pool-night.png", alt: "Swimming pool at night", caption: "Pool, 4 feet deep" },
+      { src: "/amenities/pool-night.jpg", alt: "Swimming pool at night", caption: "Pool, 4 feet deep" },
       { src: "/amenities/jacuzzi.jpg", alt: "Jacuzzi", caption: "Jacuzzi / kiddie pool" },
     ],
     description:
@@ -170,7 +170,7 @@ const About = () => {
           {/* Cover photo, buong picture (walang crop) */}
           <figure className="mx-auto w-full max-w-xl">
             <img
-              src="/amenities/pool-night.png"
+              src="/amenities/pool-night.jpg"
               alt="Hacienda Amara pool at night"
               className="block h-auto w-full rounded-[2rem] shadow-2xl"
             />
