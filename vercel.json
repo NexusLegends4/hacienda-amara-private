@@ -12,7 +12,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self'; frame-ancestors 'none'; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://sbdohxwwvhajqwvwfpnk.supabase.co https://th.bing.com blob:; font-src 'self' data:; connect-src 'self' https://sbdohxwwvhajqwvwfpnk.supabase.co wss://sbdohxwwvhajqwvwfpnk.supabase.co; frame-src 'self'; frame-ancestors 'none'; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self'"
         },
         {
           "key": "X-Frame-Options",
