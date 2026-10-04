@@ -38,6 +38,18 @@
         {
           "key": "Cache-Control",
           "value": "no-store, no-cache, must-revalidate, private"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://hacienda-amara-private.vercel.app"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
         }
       ]
     },
