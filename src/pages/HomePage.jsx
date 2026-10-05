@@ -15,7 +15,7 @@ const HomePage = () => {
       ? { to: "/manage-reservations", label: "Reservations", icon: FiBookOpen }
       : { to: "/rooms", label: "Book Now", icon: FiStar };
 
-  const isGuest = !profile;
+  const isGuest = !profile || profile.role === "client";
 
   const features = [
     {
