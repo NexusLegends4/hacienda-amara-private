@@ -196,14 +196,12 @@ const HomePage = () => {
                 BUTTONS
             ================================== */}
             <div className="mb-4 flex flex-wrap gap-3">
-              {primaryAction && (
-                <NavLink
-                  to={primaryAction.to}
-                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
-                >
-                  {primaryAction.label}
-                </NavLink>
-              )}
+              <NavLink
+                to="/rooms"
+                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+              >
+                Book Now
+              </NavLink>
 
               <NavLink
                 to={getStartedPath}
@@ -213,12 +211,14 @@ const HomePage = () => {
                 Events
               </NavLink>
 
-              <NavLink
-                to="/rooms"
-                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
-              >
-                Book Now
-              </NavLink>
+              {primaryAction && (
+                <NavLink
+                  to={primaryAction.to}
+                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+                >
+                  {primaryAction.label}
+                </NavLink>
+              )}
             </div>
 
             {/* FOOTER TEXT */}
