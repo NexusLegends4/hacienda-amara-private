@@ -1,12 +1,12 @@
-import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
-import BookingQr from "./pages/BookingQr.jsx";
-import { Routes, Route } from "react-router-dom";
-import HomePage from "./pages/HomePage";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
 import { SessionContext } from "./contexts/SessionContext.jsx";
+
+import BookingQr from "./pages/BookingQr.jsx";
+import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
@@ -37,16 +37,70 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 
-
 const THEME_STORAGE_KEY = "theme";
 
-function App() {
- 	const [session, setSession] = useState(null);
- 	const [profile, setProfile] = useState(null);
-	const navigate = useNavigate();
+// Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
+function PageTransition({ children }) {
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 20 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -20 }}
+			transition={{ duration: 0.3, ease: "easeOut" }}
+		>
+			{children}
+		</motion.div>
+	);
+}
 
- 	useEffect(() => {
- 		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+// Listahan ng routes: path + component
+const routes = [
+	{ path: "/", element: <HomePage /> },
+	{ path: "/log-in", element: <Login /> },
+	{ path: "/forgot-password", element: <ForgotPassword /> },
+	{ path: "/reset-password", element: <ResetPassword /> },
+	{ path: "/auth/callback", element: <AuthCallback /> },
+	{ path: "/profile", element: <Profile /> },
+	{ path: "/edit-profile", element: <EditProfile /> },
+	{ path: "/manage-events", element: <ManageEvents /> },
+	{ path: "/manage-packages", element: <ManagePackages /> },
+	{ path: "/manage-clients", element: <ManageClients /> },
+	{ path: "/admin-reservations", element: <AdminReservations /> },
+	{ path: "/reviews", element: <Reviews /> },
+	{ path: "/post-review", element: <PostReview /> },
+	{ path: "/manage-reviews", element: <ManageReviews /> },
+	{ path: "/about", element: <About /> },
+	{ path: "/rules", element: <Rules /> },
+	{ path: "/manage-reservations", element: <ManageReservations /> },
+	{ path: "/admin-notifications", element: <AdminNotifications /> },
+	{ path: "/client-notifications", element: <ClientNotifications /> },
+	{ path: "/customer-notifications", element: <CustomerNotificationAccess /> },
+	{
+		path: "/customer-notifications/:reservationToken",
+		element: <CustomerNotifications />,
+	},
+	{ path: "/add-event", element: <AddEvent /> },
+	{ path: "/edit-event/:eventId", element: <EditEvent /> },
+	{ path: "/edit-package", element: <EditPackage /> },
+	{ path: "/edit-package/:packageId", element: <EditPackage /> },
+	{ path: "/view-event/:eventId", element: <ViewEvent /> },
+	{ path: "/scan-qr", element: <ScanQr /> },
+	{ path: "/chat", element: <Chat /> },
+	{ path: "/settings", element: <Settings /> },
+	{ path: "/events", element: <Events /> },
+	{ path: "/rooms", element: <Reservations /> },
+	{ path: "/booking-qr", element: <BookingQr /> },
+];
+
+function App() {
+	const [session, setSession] = useState(null);
+	const [profile, setProfile] = useState(null);
+	const navigate = useNavigate();
+	const location = useLocation();
+
+	// Theme
+	useEffect(() => {
+		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 		const applyTheme = () => {
 			const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "light";
@@ -89,6 +143,7 @@ function App() {
 		};
 	}, []);
 
+	// Auth state
 	useEffect(() => {
 		const {
 			data: { subscription },
@@ -113,7 +168,10 @@ function App() {
 		};
 	}, [navigate]);
 
+	// Profile
 	useEffect(() => {
+		if (!session) return;
+
 		const fetchProfile = async () => {
 			const { data, error } = await supabase
 				.from("profiles")
@@ -121,10 +179,12 @@ function App() {
 				.eq("id", session.user.id)
 				.single();
 
-			if (error) alert(error);
+			if (error) alert(error.message);
 			if (data) {
 				if (data.deleted_at) {
-					alert("This account has been deleted. Please contact the administrator.");
+					alert(
+						"This account has been deleted. Please contact the administrator.",
+					);
 					await supabase.auth.signOut();
 					return;
 				}
@@ -133,380 +193,91 @@ function App() {
 			}
 		};
 
-		if (session) {
-			fetchProfile();
+		fetchProfile();
 
-			const profileChannel = supabase
-				.channel(`self-profile-${session.user.id}`)
-				.on(
-					"postgres_changes",
-					{
-						event: "UPDATE",
-						schema: "public",
-						table: "profiles",
-						filter: `id=eq.${session.user.id}`,
-					},
-					(payload) => {
-						console.log("Profile updated live:", payload.new);
-						setProfile(payload.new);
-					},
-				)
-				.subscribe();
+		const profileChannel = supabase
+			.channel(`self-profile-${session.user.id}`)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "profiles",
+					filter: `id=eq.${session.user.id}`,
+				},
+				(payload) => {
+					console.log("Profile updated live:", payload.new);
+					setProfile(payload.new);
+				},
+			)
+			.subscribe();
 
-			return () => {
-				supabase.removeChannel(profileChannel);
-			};
-		}
-	}, [session, setProfile, navigate]);
+		return () => {
+			supabase.removeChannel(profileChannel);
+		};
+	}, [session]);
 
+	// Notifications
 	useEffect(() => {
-		if (session && profile) {
-			const channel = supabase
-				.channel(`user-notifs-${session.user.id}`)
+		if (!session || !profile) return;
+
+		const channel = supabase
+			.channel(`user-notifs-${session.user.id}`)
+			.on(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "notifications",
+					filter: `profile_id=eq.${session.user.id}`,
+				},
+				(payload) => {
+					alert(`Notification: ${payload.new.message}`);
+				},
+			)
+			.subscribe();
+
+		let adminChannel = null;
+		if (["admin", "staff"].includes(profile?.role)) {
+			adminChannel = supabase
+				.channel("admin-global-activity")
 				.on(
 					"postgres_changes",
 					{
 						event: "INSERT",
 						schema: "public",
-						table: "notifications",
-						filter: `profile_id=eq.${session.user.id}`,
+						table: "auth_notifications",
 					},
 					(payload) => {
-						alert(`Notification: ${payload.new.message}`);
+						if (payload.new.event_type === "booking") {
+							alert(
+								`New booking: ${payload.new.actor_name || payload.new.actor_email || "A client"} submitted a reservation.`,
+							);
+						}
 					},
 				)
 				.subscribe();
-
-			let adminChannel = null;
-			if (["admin", "staff"].includes(profile?.role)) {
-				adminChannel = supabase
-					.channel("admin-global-activity")
-					.on(
-						"postgres_changes",
-						{
-							event: "INSERT",
-							schema: "public",
-							table: "auth_notifications",
-						},
-						(payload) => {
-							if (payload.new.event_type === "booking") {
-								alert(
-									`New booking: ${payload.new.actor_name || payload.new.actor_email || "A client"} submitted a reservation.`,
-								);
-							}
-						},
-					)
-					.subscribe();
-			}
-
-			return () => {
-				supabase.removeChannel(channel);
-				if (adminChannel) supabase.removeChannel(adminChannel);
-			};
 		}
+
+		return () => {
+			supabase.removeChannel(channel);
+			if (adminChannel) supabase.removeChannel(adminChannel);
+		};
 	}, [session, profile]);
 
-return (
-		<SessionContext.Provider value={{ session, profile, setSession, setProfile }}>
+	return (
+		<SessionContext.Provider
+			value={{ session, profile, setSession, setProfile }}
+		>
 			<AnimatePresence mode="wait">
-				<Routes>
-					<Route path="/" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						>
-							<HomePage />
-						</motion.div>
-					} />
-					<Route path="/log-in" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						>
-							<Login />
-						</motion.div>
-					} />
-					<Route path="/forgot-password" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						>
-							<ForgotPassword />
-						</motion.div>
-					} />
-					<Route path="/reset-password" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}>
-							<ResetPassword />
-						</motion.div>
-					} />
-					<Route path="/auth/callback" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}>
-							<AuthCallback />
-						</motion.div>
-					} />
-							<AuthCallback />
-						</motion.div>
-					} />
-					<Route path="/profile" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						>
-							<Profile />
-						</motion.div>
-					} />
-					<Route path="/edit-profile" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <EditProfile /> </motion.div>
-					} />
-					<Route path="/manage-events" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ManageEvents /> </motion.div>
-					} />
-					<Route path="/manage-packages" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ManagePackages /> </motion.div>
-					} />
-					<Route path="/manage-clients" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ManageClients /> </motion.div>
-					} />
-					<Route path="/admin-reservations" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <AdminReservations /> </motion.div>
-					} />
-					<Route path="/reviews" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Reviews /> </motion.div>
-					} />
-					<Route path="/post-review" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <PostReview /> </motion.div>
-					} />
-					<Route path="/manage-reviews" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ManageReviews /> </motion.div>
-					} />
-					<Route path="/about" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <About /> </motion.div>
-					} />
-					<Route path="/rules" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Rules /> </motion.div>
-					} />
-					<Route path="/manage-reservations" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ManageReservations /> </motion.div>
-					} />
-					<Route path="/admin-notifications" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <AdminNotifications /> </motion.div>
-					} />
-					<Route path="/client-notifications" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ClientNotifications /> </motion.div>
-					} />
-					<Route path="/customer-notifications" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <CustomerNotificationAccess /> </motion.div>
-					} />
-					<Route path="/customer-notifications/:reservationToken" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <CustomerNotifications /> </motion.div>
-					} />
-					<Route path="/add-event" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <AddEvent /> </motion.div>
-					} />
-					<Route path="/edit-event/:eventId" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <EditEvent /> </motion.div>
-					} />
-					<Route path="/edit-package" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <EditPackage /> </motion.div>
-					} />
-					<Route path="/edit-package/:packageId" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <EditPackage /> </motion.div>
-					} />
-					<Route path="/view-event/:eventId" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ViewEvent /> </motion.div>
-					} />
-					<Route path="/scan-qr" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <ScanQr /> </motion.div>
-					} />
-					<Route path="/chat" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Chat /> </motion.div>
-					} />
-					<Route path="/settings" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Settings /> </motion.div>
-					} />
-					<Route path="/events" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Events /> </motion.div>
-					} />
-					<Route path="/rooms" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <Reservations /> </motion.div>
-					} />
-					<Route path="/booking-qr" element={
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -20 }}
-							transition={{ duration: 0.3, ease: "easeOut" }}
-						}
-						> <BookingQr /> </motion.div>
-					} />
+				<Routes location={location} key={location.pathname}>
+					{routes.map(({ path, element }) => (
+						<Route
+							key={path}
+							path={path}
+							element={<PageTransition>{element}</PageTransition>}
+						/>
+					))}
 				</Routes>
 			</AnimatePresence>
 		</SessionContext.Provider>
