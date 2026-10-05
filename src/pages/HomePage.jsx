@@ -15,7 +15,7 @@ const HomePage = () => {
       ? { to: "/manage-reservations", label: "Reservations", icon: FiBookOpen }
       : { to: "/rooms", label: "Book Now", icon: FiStar };
 
-  const showBookNow = true;
+  const isGuest = !profile;
 
   const features = [
     {
@@ -196,12 +196,14 @@ const HomePage = () => {
                 BUTTONS
             ================================== */}
             <div className="mb-4 flex flex-wrap gap-3">
-              <NavLink
-                to="/rooms"
-                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
-              >
-                Book Now
-              </NavLink>
+              {isGuest && (
+                <NavLink
+                  to="/rooms"
+                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+                >
+                  Book Now
+                </NavLink>
+              )}
 
               <NavLink
                 to={getStartedPath}
