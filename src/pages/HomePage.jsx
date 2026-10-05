@@ -4,16 +4,16 @@ import MainLayout from "../layouts/MainLayout";
 import LoginIcon from "../components/icons/LoginIcon";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
-import { FiStar, FiHeart, FiCoffee, FiMapPin } from "react-icons/fi";
+import { FiStar, FiHeart, FiCoffee, FiMapPin, FiCalendar, FiUsers, FiMapPin as FiLocation } from "react-icons/fi";
 
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
   const [recentReviews, setRecentReviews] = useState([]);
   const primaryAction = profile?.role === "admin"
-    ? { to: "/admin-reservations", label: "Calendar", icon: FiStar }
+    ? { to: "/admin-reservations", label: "Calendar" }
     : profile?.role === "staff"
-      ? { to: "/manage-reservations", label: "Reservations", icon: FiStar }
-      : { to: "/rooms", label: "Book Now", icon: FiStar };
+      ? { to: "/manage-reservations", label: "Reservations" }
+      : null;
 
   const showBookNow = true;
 
@@ -28,7 +28,7 @@ const HomePage = () => {
     {
       title: "Private Events",
       description: "Birthdays, reunions, corporate retreats — fully exclusive use of the resort.",
-      icon: FiStar,
+      icon: FiUsers,
       color: "text-amber-600",
       bgColor: "bg-amber-50 border-amber-100",
     },
@@ -40,9 +40,9 @@ const HomePage = () => {
       bgColor: "bg-emerald-50 border-emerald-100",
     },
     {
-      title: "Scenic Views",
+      title: "Scenic Location",
       description: "Nestled in Rodriguez, Rizal — mountain vistas, infinity pool, and lush landscapes.",
-      icon: FiMapPin,
+      icon: FiLocation,
       color: "text-blue-600",
       bgColor: "bg-blue-50 border-blue-100",
     },
