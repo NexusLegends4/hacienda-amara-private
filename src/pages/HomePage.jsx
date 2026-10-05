@@ -4,16 +4,49 @@ import MainLayout from "../layouts/MainLayout";
 import LoginIcon from "../components/icons/LoginIcon";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
-import { FiStar } from "react-icons/fi";
+import { FiStar, FiHeart, FiCoffee, FiMountain, FiSparkles } from "react-icons/fi";
 
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
   const [recentReviews, setRecentReviews] = useState([]);
   const primaryAction = profile?.role === "admin"
-    ? { to: "/admin-reservations", label: "Calendar" }
+    ? { to: "/admin-reservations", label: "Calendar", icon: FiStar }
     : profile?.role === "staff"
-      ? { to: "/manage-reservations", label: "Reservations" }
-      : { to: "/rooms", label: "Book Now" };
+      ? { to: "/manage-reservations", label: "Reservations", icon: FiStar }
+      : null;
+
+  const showBookNow = !!session;
+
+  const features = [
+    {
+      title: "Weddings & Celebrations",
+      description: "Elegant venue for your special day with poolside ceremonies and starlit receptions.",
+      icon: FiHeart,
+      color: "text-rose-600",
+      bgColor: "bg-rose-50 border-rose-100",
+    },
+    {
+      title: "Private Events",
+      description: "Birthdays, reunions, corporate retreats — fully exclusive use of the resort.",
+      icon: FiSparkles,
+      color: "text-amber-600",
+      bgColor: "bg-amber-50 border-amber-100",
+    },
+    {
+      title: "Relaxing Staycations",
+      description: "Overnight packages with jacuzzi, air-conditioned rooms, and full amenities access.",
+      icon: FiCoffee,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-50 border-emerald-100",
+    },
+    {
+      title: "Scenic Views",
+      description: "Nestled in Rodriguez, Rizal — mountain vistas, infinity pool, and lush landscapes.",
+      icon: FiMountain,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50 border-blue-100",
+    },
+  ];
 
   useEffect(() => {
     const fetchRecentReviews = async () => {
@@ -141,28 +174,20 @@ const HomePage = () => {
                 sm:mb-7
               "
             >
-              {[
-                "Weddings",
-                "Private Events",
-                "Relaxing Stay",
-                "Scenic Views",
-              ].map((tag) => (
+              {features.map((feature) => (
                 <span
-                  key={tag}
+                  key={feature.title}
                   className="
-                    border
-                    border-gray-300
-                    text-gray-700
-                    text-xs
-                    sm:text-sm
-                    px-3
-                    sm:px-4
-                    py-1.5
-                    sm:py-2
+                    flex items-center gap-1.5
+                    px-3 sm:px-4 py-1.5 sm:py-2
                     rounded-full
+                    text-xs sm:text-sm font-medium
+                    border
+                    ${feature.bgColor} ${feature.color}
                   "
                 >
-                  {tag}
+                  <feature.icon className="w-3.5 h-3.5" />
+                  {feature.title}
                 </span>
               ))}
             </div>
@@ -171,12 +196,14 @@ const HomePage = () => {
                 BUTTONS
             ================================== */}
             <div className="mb-4 flex flex-wrap gap-3">
-              <NavLink
-                to={primaryAction.to}
-                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
-              >
-                {primaryAction.label}
-              </NavLink>
+              {primaryAction && (
+                <NavLink
+                  to={primaryAction.to}
+                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+                >
+                  {primaryAction.label}
+                </NavLink>
+              )}
 
               <NavLink
                 to={getStartedPath}
@@ -185,6 +212,15 @@ const HomePage = () => {
                 <LoginIcon />
                 Events
               </NavLink>
+
+              {showBookNow && (
+                <NavLink
+                  to="/rooms"
+                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+                >
+                  Book Now
+                </NavLink>
+              )}
             </div>
 
             {/* FOOTER TEXT */}
