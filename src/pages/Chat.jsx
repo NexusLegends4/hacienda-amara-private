@@ -1659,18 +1659,20 @@ const chatContent = (
                                   )}
                                 </button>
 
-								{!isBubble && <button
-									type="button"
-									onClick={clearCurrentChat}
-									disabled={loading}
-									className="btn btn-black btn-xs shrink-0 rounded-full px-3"
-									aria-label="Clear current chat"
-									title="Clear current chat"
-								>
-									Clear
-								</button>}
+                                <button
+                                  type="button"
+                                  onClick={clearCurrentChat}
+                                  disabled={loading}
+                                  className="btn btn-ghost btn-xs shrink-0 rounded-full px-3"
+                                  aria-label="Clear current chat"
+                                  title="Clear current chat"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
 
-								{isAdminOrStaff ? (
+                                {isAdminOrStaff ? (
 									<button
 										type="button"
 										onClick={() => setAdminAvailable((current) => !current)}
