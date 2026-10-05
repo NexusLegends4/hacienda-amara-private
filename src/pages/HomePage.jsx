@@ -13,9 +13,9 @@ const HomePage = () => {
     ? { to: "/admin-reservations", label: "Calendar", icon: FiStar }
     : profile?.role === "staff"
       ? { to: "/manage-reservations", label: "Reservations", icon: FiStar }
-      : null;
+      : { to: "/rooms", label: "Book Now", icon: FiStar };
 
-  const showBookNow = !!session;
+  const showBookNow = true;
 
   const features = [
     {
@@ -213,14 +213,12 @@ const HomePage = () => {
                 Events
               </NavLink>
 
-              {showBookNow && (
-                <NavLink
-                  to="/rooms"
-                  className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
-                >
-                  Book Now
-                </NavLink>
-              )}
+              <NavLink
+                to="/rooms"
+                className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
+              >
+                Book Now
+              </NavLink>
             </div>
 
             {/* FOOTER TEXT */}
