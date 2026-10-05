@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion";
 import "./App.css";
 import BookingQr from "./pages/BookingQr.jsx";
 import { Routes, Route } from "react-router-dom";
@@ -205,42 +206,309 @@ function App() {
 		}
 	}, [session, profile]);
 
-	return (
+return (
 		<SessionContext.Provider value={{ session, profile, setSession, setProfile }}>
-			<Routes>
-				<Route path="/" element={<HomePage />} />
-			<Route path="/log-in" element={<Login />} />
-<Route path="/forgot-password" element={<ForgotPassword />} />
-<Route path="/reset-password" element={<ResetPassword />} />
-<Route path="/auth/callback" element={<AuthCallback />} />
-			<Route path="/profile" element={<Profile />} />
-				<Route path="/edit-profile" element={<EditProfile />} />
-<Route path="/manage-events" element={<ManageEvents />} />
-<Route path="/manage-packages" element={<ManagePackages />} />
-<Route path="/manage-clients" element={<ManageClients />} />
-				<Route path="/admin-reservations" element={<AdminReservations />} />
-				<Route path="/reviews" element={<Reviews />} />
-				<Route path="/post-review" element={<PostReview />} />
-				<Route path="/manage-reviews" element={<ManageReviews />} />
-				<Route path="/about" element={<About />} />
-				<Route path="/rules" element={<Rules />} />
-				<Route path="/manage-reservations" element={<ManageReservations />} />
-				<Route path="/admin-notifications" element={<AdminNotifications />} />
-				<Route path="/client-notifications" element={<ClientNotifications />} />
-			<Route path="/customer-notifications" element={<CustomerNotificationAccess />} />
-			<Route path="/customer-notifications/:reservationToken" element={<CustomerNotifications />} />
-			<Route path="/add-event" element={<AddEvent />} />
-				<Route path="/edit-event/:eventId" element={<EditEvent />} />
-				<Route path="/edit-package" element={<EditPackage />} />
-				<Route path="/edit-package/:packageId" element={<EditPackage />} />
-				<Route path="/view-event/:eventId" element={<ViewEvent />} />
-				<Route path="/scan-qr" element={<ScanQr />} />
-				<Route path="/chat" element={<Chat />} />
-				<Route path="/settings" element={<Settings />} />
-				<Route path="/events" element={<Events />} />
-				<Route path="/rooms" element={<Reservations />} />
-				<Route path="/booking-qr" element={<BookingQr />} />
-			</Routes>
+			<AnimatePresence mode="wait">
+				<Routes>
+					<Route path="/" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						>
+							<HomePage />
+						</motion.div>
+					} />
+					<Route path="/log-in" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						>
+							<Login />
+						</motion.div>
+					} />
+					<Route path="/forgot-password" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						>
+							<ForgotPassword />
+						</motion.div>
+					} />
+					<Route path="/reset-password" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}>
+							<ResetPassword />
+						</motion.div>
+					} />
+					<Route path="/auth/callback" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}>
+							<AuthCallback />
+						</motion.div>
+					} />
+							<AuthCallback />
+						</motion.div>
+					} />
+					<Route path="/profile" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						>
+							<Profile />
+						</motion.div>
+					} />
+					<Route path="/edit-profile" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <EditProfile /> </motion.div>
+					} />
+					<Route path="/manage-events" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ManageEvents /> </motion.div>
+					} />
+					<Route path="/manage-packages" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ManagePackages /> </motion.div>
+					} />
+					<Route path="/manage-clients" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ManageClients /> </motion.div>
+					} />
+					<Route path="/admin-reservations" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <AdminReservations /> </motion.div>
+					} />
+					<Route path="/reviews" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Reviews /> </motion.div>
+					} />
+					<Route path="/post-review" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <PostReview /> </motion.div>
+					} />
+					<Route path="/manage-reviews" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ManageReviews /> </motion.div>
+					} />
+					<Route path="/about" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <About /> </motion.div>
+					} />
+					<Route path="/rules" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Rules /> </motion.div>
+					} />
+					<Route path="/manage-reservations" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ManageReservations /> </motion.div>
+					} />
+					<Route path="/admin-notifications" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <AdminNotifications /> </motion.div>
+					} />
+					<Route path="/client-notifications" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ClientNotifications /> </motion.div>
+					} />
+					<Route path="/customer-notifications" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <CustomerNotificationAccess /> </motion.div>
+					} />
+					<Route path="/customer-notifications/:reservationToken" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <CustomerNotifications /> </motion.div>
+					} />
+					<Route path="/add-event" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <AddEvent /> </motion.div>
+					} />
+					<Route path="/edit-event/:eventId" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <EditEvent /> </motion.div>
+					} />
+					<Route path="/edit-package" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <EditPackage /> </motion.div>
+					} />
+					<Route path="/edit-package/:packageId" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <EditPackage /> </motion.div>
+					} />
+					<Route path="/view-event/:eventId" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ViewEvent /> </motion.div>
+					} />
+					<Route path="/scan-qr" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <ScanQr /> </motion.div>
+					} />
+					<Route path="/chat" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Chat /> </motion.div>
+					} />
+					<Route path="/settings" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Settings /> </motion.div>
+					} />
+					<Route path="/events" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Events /> </motion.div>
+					} />
+					<Route path="/rooms" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <Reservations /> </motion.div>
+					} />
+					<Route path="/booking-qr" element={
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							transition={{ duration: 0.3, ease: "easeOut" }}
+						}
+						> <BookingQr /> </motion.div>
+					} />
+				</Routes>
+			</AnimatePresence>
 		</SessionContext.Provider>
 	);
 }
