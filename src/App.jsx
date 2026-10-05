@@ -34,6 +34,7 @@ import CustomerNotifications from "./pages/CustomerNotifications";
 import CustomerNotificationAccess from "./pages/CustomerNotificationAccess";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AuthCallback from "./pages/AuthCallback";
 
 
 const THEME_STORAGE_KEY = "theme";
@@ -209,8 +210,9 @@ function App() {
 			<Routes>
 				<Route path="/" element={<HomePage />} />
 			<Route path="/log-in" element={<Login />} />
-			<Route path="/forgot-password" element={<ForgotPassword />} />
-			<Route path="/reset-password" element={<ResetPassword />} />
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password" element={<ResetPassword />} />
+<Route path="/auth/callback" element={<AuthCallback />} />
 			<Route path="/profile" element={<Profile />} />
 				<Route path="/edit-profile" element={<EditProfile />} />
 <Route path="/manage-events" element={<ManageEvents />} />
