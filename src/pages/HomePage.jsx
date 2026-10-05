@@ -4,15 +4,15 @@ import MainLayout from "../layouts/MainLayout";
 import LoginIcon from "../components/icons/LoginIcon";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
-import { FiStar, FiHeart, FiCoffee, FiMapPin, FiCalendar, FiUsers, FiMapPin as FiLocation } from "react-icons/fi";
+import { FiStar, FiHeart, FiCoffee, FiMapPin, FiCalendar, FiUsers, FiMapPin as FiLocation, FiBookOpen } from "react-icons/fi";
 
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
   const [recentReviews, setRecentReviews] = useState([]);
   const primaryAction = profile?.role === "admin"
-    ? { to: "/admin-reservations", label: "Calendar" }
+    ? { to: "/admin-reservations", label: "Calendar", icon: FiCalendar }
     : profile?.role === "staff"
-      ? { to: "/manage-reservations", label: "Reservations" }
+      ? { to: "/manage-reservations", label: "Reservations", icon: FiBookOpen }
       : null;
 
   const showBookNow = true;
@@ -207,7 +207,7 @@ const HomePage = () => {
                 to={getStartedPath}
                 className="flex items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50 sm:px-5 sm:text-base"
               >
-                <LoginIcon />
+                <FiCalendar className="w-4 h-4" />
                 Events
               </NavLink>
 
@@ -216,6 +216,7 @@ const HomePage = () => {
                   to={primaryAction.to}
                   className="flex items-center justify-center gap-2 rounded-full border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 sm:px-5 sm:text-base"
                 >
+                  <primaryAction.icon className="w-4 h-4" />
                   {primaryAction.label}
                 </NavLink>
               )}
