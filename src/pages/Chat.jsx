@@ -603,6 +603,7 @@ const [isSending, setIsSending] = useState(false);
   const [refreshedAt, setRefreshedAt] = useState(null);
   const [error, setError] = useState("");
   const [showRefreshToast, setShowRefreshToast] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [profilesById, setProfilesById] = useState({});
 	const messageListRef = useRef(null);
 	const shouldStickToBottomRef = useRef(true);
@@ -850,31 +851,36 @@ const nextSnapshot = isAdminOrStaff
         }
     };
 
-	const clearCurrentChat = async () => {
-		if (typeof window !== "undefined") {
-			const confirmed = window.confirm("Clear this chat conversation?");
-			if (!confirmed) return;
-		}
+const clearCurrentChat = async () => {
+    setShowClearConfirm(true);
+  };
 
-		const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
+  const confirmClearChat = async () => {
+    setShowClearConfirm(false);
 
-		setHistoryByConversation((current) => {
-			const next = { ...current };
-			delete next[targetConversationKey];
-			return next;
-		});
+    const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
 
-		setPrompt("");
-		clearDraftAttachment();
+    setHistoryByConversation((current) => {
+      const next = { ...current };
+      delete next[targetConversationKey];
+      return next;
+    });
 
-		if (dbAvailableRef.current) {
-			try {
-				await supabase.from("chat_messages").delete().eq("conversation_key", targetConversationKey);
-			} catch {
-				// If delete fails, the local view still clears immediately.
-			}
-		}
-	};
+    setPrompt("");
+    clearDraftAttachment();
+
+    if (dbAvailableRef.current) {
+      try {
+        await supabase.from("chat_messages").delete().eq("conversation_key", targetConversationKey);
+      } catch {
+        // If delete fails, the local view still clears immediately.
+      }
+    }
+  };
+
+  const cancelClearChat = () => {
+    setShowClearConfirm(false);
+  };
 
 	useEffect(() => {
 		setLoading(true);
@@ -1458,12 +1464,45 @@ const currentThreadMessages = isAdminOrStaff ? activeMessages : historyByConvers
 const chatContent = (
 	<>
 	  {showRefreshToast && (
-	    <div className="fixed top-4 right-4 z-50 animate-slide-down">
+	    <div className="fixed top-4 right-4 z-50">
 	      <div className="btn btn-success btn-sm gap-2 px-4 py-2 shadow-lg">
 	        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 	          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 	        </svg>
 	        Messages refreshed
+	      </div>
+	    </div>
+	  )}
+	  {showClearConfirm && (
+	    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+	      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
+	        <div className="flex items-center gap-3 mb-4">
+	          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+	            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+	            </svg>
+	          </div>
+	          <div>
+	            <h3 className="text-lg font-semibold text-slate-900">Clear Chat?</h3>
+	            <p className="text-sm text-slate-500">This will permanently delete this conversation. This action cannot be undone.</p>
+	          </div>
+	        </div>
+	        <div className="flex gap-3 justify-end">
+	          <button
+	            type="button"
+	            onClick={cancelClearChat}
+	            className="btn btn-ghost btn-sm px-4"
+	          >
+	            Cancel
+	          </button>
+	          <button
+	            type="button"
+	            onClick={confirmClearChat}
+	            className="btn btn-rose btn-sm px-4"
+	          >
+	            Clear Chat
+	          </button>
+	        </div>
 	      </div>
 	    </div>
 	  )}
