@@ -13,7 +13,7 @@ const HomePage = () => {
     ? { to: "/admin-reservations", label: "Calendar", icon: FiCalendar }
     : profile?.role === "staff"
       ? { to: "/manage-reservations", label: "Reservations", icon: FiBookOpen }
-      : null;
+      : { to: "/rooms", label: "Book Now", icon: FiStar };
 
   const showBookNow = true;
 
