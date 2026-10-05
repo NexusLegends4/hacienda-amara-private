@@ -597,12 +597,13 @@ const Chat = ({ presentation = "page", onClose }) => {
 	const [prompt, setPrompt] = useState("");
 	const [draftAttachments, setDraftAttachments] = useState([]);
 	const [selectedMedia, setSelectedMedia] = useState(null);
-	const [isSending, setIsSending] = useState(false);
-	const [loading, setLoading] = useState(true);
-	const [isRefreshing, setIsRefreshing] = useState(false);
-	const [refreshedAt, setRefreshedAt] = useState(null);
-	const [error, setError] = useState("");
-	const [profilesById, setProfilesById] = useState({});
+const [isSending, setIsSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState(null);
+  const [error, setError] = useState("");
+  const [showRefreshToast, setShowRefreshToast] = useState(false);
+  const [profilesById, setProfilesById] = useState({});
 	const messageListRef = useRef(null);
 	const shouldStickToBottomRef = useRef(true);
 	const pendingScrollToBottomRef = useRef(true);
@@ -842,10 +843,12 @@ const nextSnapshot = isAdminOrStaff
 					container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
 				}
 			});
-		} finally {
-			setIsRefreshing(false);
-		}
-	};
+} finally {
+            setIsRefreshing(false);
+            setShowRefreshToast(true);
+            setTimeout(() => setShowRefreshToast(false), 2000);
+        }
+    };
 
 	const clearCurrentChat = async () => {
 		if (typeof window !== "undefined") {
@@ -1454,7 +1457,17 @@ const currentThreadMessages = isAdminOrStaff ? activeMessages : historyByConvers
 
 const chatContent = (
 	<>
-		<div className={isBubble ? "flex h-full min-h-0 flex-col bg-white" : "min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6"}>
+	  {showRefreshToast && (
+	    <div className="fixed top-4 right-4 z-50 animate-slide-down">
+	      <div className="btn btn-success btn-sm gap-2 px-4 py-2 shadow-lg">
+	        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+	        </svg>
+	        Messages refreshed
+	      </div>
+	    </div>
+	  )}
+	  <div className={isBubble ? "flex h-full min-h-0 flex-col bg-white" : "min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6"}>
 			<div className={isBubble ? "h-full min-h-0 max-w-none px-0 pb-0" : "mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6"}>
 				<div className={isBubble ? "relative flex h-full min-h-0 flex-col overflow-hidden bg-white" : "relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]"}>
 				<div className={`relative flex min-h-0 flex-col overflow-hidden ${isBubble ? "h-full" : "min-h-[calc(100dvh-8rem)]"} ${isAdminOrStaff && !isBubble ? "lg:flex-row" : ""}`}>
@@ -1629,16 +1642,22 @@ const chatContent = (
 									</p>
 								</div>}
 
-								<button
-									type="button"
-									onClick={refreshMessages}
-									disabled={loading || isRefreshing}
-className="btn btn-black btn-xs shrink-0 rounded-full px-3"
-							aria-label="Refresh chat messages"
-							title="Refresh chat messages"
-						>
-							{isRefreshing ? "Refreshing..." : refreshedAt ? "Refreshed" : "Refresh"}
-								</button>
+<button
+                                  type="button"
+                                  onClick={refreshMessages}
+                                  disabled={loading || isRefreshing}
+                                  className="btn btn-black btn-xs shrink-0 rounded-full px-3"
+                                  aria-label="Refresh chat messages"
+                                  title={isRefreshing ? "Refreshing..." : "Refresh messages"}
+                                >
+                                  {isRefreshing ? (
+                                    <span className="loading loading-spinner loading-xs" />
+                                  ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                  )}
+                                </button>
 
 								{!isBubble && <button
 									type="button"
