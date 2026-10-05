@@ -4,7 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import LoginIcon from "../components/icons/LoginIcon";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
-import { FiStar, FiHeart, FiCoffee, FiMountain, FiSparkles } from "react-icons/fi";
+import { FiStar, FiHeart, FiCoffee, FiMapPin } from "react-icons/fi";
 
 const HomePage = () => {
   const { session, profile } = useContext(SessionContext);
@@ -28,7 +28,7 @@ const HomePage = () => {
     {
       title: "Private Events",
       description: "Birthdays, reunions, corporate retreats — fully exclusive use of the resort.",
-      icon: FiSparkles,
+      icon: FiStar,
       color: "text-amber-600",
       bgColor: "bg-amber-50 border-amber-100",
     },
@@ -42,7 +42,7 @@ const HomePage = () => {
     {
       title: "Scenic Views",
       description: "Nestled in Rodriguez, Rizal — mountain vistas, infinity pool, and lush landscapes.",
-      icon: FiMountain,
+      icon: FiMapPin,
       color: "text-blue-600",
       bgColor: "bg-blue-50 border-blue-100",
     },
