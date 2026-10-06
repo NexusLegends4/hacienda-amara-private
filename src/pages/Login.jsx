@@ -5,7 +5,6 @@ import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate, Link } from "react-router-dom";
-import { recordAuthNotification } from "../utils/auth-service";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 5;
@@ -23,14 +22,12 @@ const Login = () => {
   const [attempts, setAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState(null);
 
-  // OTP
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
-  // Load saved login attempts
   useEffect(() => {
     const storedAttempts = parseInt(
       localStorage.getItem(ATTEMPTS_KEY) || "0",
@@ -54,7 +51,6 @@ const Login = () => {
     }
   }, []);
 
-  // Lockout countdown
   useEffect(() => {
     if (!lockoutUntil) {
       return;
@@ -75,7 +71,6 @@ const Login = () => {
     return () => clearInterval(interval);
   }, [lockoutUntil]);
 
-  // OTP resend countdown
   useEffect(() => {
     if (resendCountdown <= 0) {
       return;
@@ -94,67 +89,119 @@ const Login = () => {
     return () => clearInterval(interval);
   }, [resendCountdown]);
 
-  // Redirect only when not waiting for OTP
   useEffect(() => {
-    if (profile && !showOtp) {
+    if (profile && !showOtp && !isSubmitting) {
       navigate("/");
     }
-  }, [profile, showOtp, navigate]);
+  }, [
+    profile,
+    showOtp,
+    isSubmitting,
+    navigate,
+  ]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);
 
-    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    return `${minutes} minute${
+      minutes !== 1 ? "s" : ""
+    }`;
   };
 
-  // Google login
   const handleOAuthLogin = async (provider) => {
     setLoginError("");
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    const { error } =
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
     if (error) {
       setLoginError(error.message);
     }
   };
 
-  // Send OTP
+  /*
+   * CREATE AND SEND OTP
+   *
+   * The Edge Function:
+   * 1. Gets the currently authenticated user.
+   * 2. Generates a 6-digit OTP.
+   * 3. Saves the hashed OTP to login_otps.
+   * 4. Sends the actual OTP through Brevo.
+   */
   const sendLoginOTP = async () => {
     try {
       setOtpLoading(true);
       setOtpError("");
 
-      const { data, error } = await supabase.functions.invoke(
-        "create-login-otp"
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      const accessToken =
+        sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(
+          "Your login session could not be found."
+        );
+      }
+
+      const {
+        data,
+        error,
+      } = await supabase.functions.invoke(
+        "create-login-otp",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       if (error) {
-        console.error("Create OTP error:", error);
+        console.error(
+          "Create OTP error:",
+          error
+        );
+
         throw new Error(
-          error.message || "Failed to send verification code."
+          error.message ||
+            "Failed to send verification code."
         );
       }
 
       if (!data?.success) {
         throw new Error(
-          data?.error || "Failed to send verification code."
+          data?.error ||
+            "Failed to send verification code."
         );
       }
 
       setOtp("");
-      setResendCountdown(OTP_RESEND_SECONDS);
+      setResendCountdown(
+        OTP_RESEND_SECONDS
+      );
 
       return true;
     } catch (error) {
-      console.error("OTP sending error:", error);
+      console.error(
+        "OTP sending error:",
+        error
+      );
 
       setOtpError(
-        error.message || "Unable to send verification code."
+        error?.message ||
+          "Unable to send verification code."
       );
 
       return false;
@@ -163,12 +210,13 @@ const Login = () => {
     }
   };
 
-  // Verify OTP
   const handleVerifyOTP = async (event) => {
     event.preventDefault();
 
     if (!/^\d{6}$/.test(otp)) {
-      setOtpError("Please enter the 6-digit verification code.");
+      setOtpError(
+        "Please enter the 6-digit verification code."
+      );
       return;
     }
 
@@ -176,9 +224,33 @@ const Login = () => {
       setOtpLoading(true);
       setOtpError("");
 
-      const { data, error } = await supabase.functions.invoke(
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      const accessToken =
+        sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error(
+          "Your login session has expired. Please log in again."
+        );
+      }
+
+      const {
+        data,
+        error,
+      } = await supabase.functions.invoke(
         "verify-login-otp",
         {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: {
             otp,
           },
@@ -186,20 +258,24 @@ const Login = () => {
       );
 
       if (error) {
-        console.error("Verify OTP error:", error);
+        console.error(
+          "Verify OTP error:",
+          error
+        );
 
         throw new Error(
-          error.message || "Failed to verify verification code."
+          error.message ||
+            "Failed to verify verification code."
         );
       }
 
       if (!data?.success) {
         throw new Error(
-          data?.error || "Incorrect verification code."
+          data?.error ||
+            "Incorrect verification code."
         );
       }
 
-      // OTP successful
       setShowOtp(false);
       setOtp("");
       setOtpError("");
@@ -207,28 +283,40 @@ const Login = () => {
 
       navigate("/");
     } catch (error) {
-      console.error("OTP verification error:", error);
+      console.error(
+        "OTP verification error:",
+        error
+      );
 
       setOtpError(
-        error.message || "Incorrect verification code."
+        error?.message ||
+          "Incorrect verification code."
       );
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // Resend OTP
   const handleResendOTP = async () => {
-    if (resendCountdown > 0 || otpLoading) {
+    if (
+      resendCountdown > 0 ||
+      otpLoading
+    ) {
       return;
     }
 
     await sendLoginOTP();
   };
 
-  // Cancel OTP
   const handleCancelOTP = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error(
+        "Sign out error:",
+        error
+      );
+    }
 
     setShowOtp(false);
     setOtp("");
@@ -237,12 +325,13 @@ const Login = () => {
     setLoginError("");
   };
 
-  // Normal login
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Check lockout
-    if (lockoutUntil && lockoutUntil > Date.now()) {
+    if (
+      lockoutUntil &&
+      lockoutUntil > Date.now()
+    ) {
       setLoginError(
         `Too many attempts. Try again in ${formatLockoutTime(
           lockoutUntil - Date.now()
@@ -252,137 +341,208 @@ const Login = () => {
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(
+      event.currentTarget
+    );
 
     const loginForm = {
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email: String(
+        formData.get("email") || ""
+      ).trim(),
+      password: String(
+        formData.get("password") || ""
+      ),
     };
 
     setIsSubmitting(true);
     setLoginError("");
+    setOtpError("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginForm.email,
-      password: loginForm.password,
-    });
+    try {
+      const {
+        data,
+        error,
+      } = await supabase.auth.signInWithPassword({
+        email: loginForm.email,
+        password: loginForm.password,
+      });
 
-    // Login failed
-    if (error) {
-      let errorMessage = error.message;
+      if (error) {
+        let errorMessage =
+          error.message;
 
-      if (
-        error.code === "invalid_credentials" ||
-        error.message.includes("Invalid login credentials") ||
-        error.message.includes("Invalid email or password") ||
-        error.message.includes("User not found") ||
-        error.message.includes("Wrong password") ||
-        error.message.includes("Invalid credentials") ||
-        error.message.includes("AuthApiError")
-      ) {
-        const newAttempts = attempts + 1;
+        if (
+          error.code ===
+            "invalid_credentials" ||
+          error.message.includes(
+            "Invalid login credentials"
+          ) ||
+          error.message.includes(
+            "Invalid email or password"
+          ) ||
+          error.message.includes(
+            "User not found"
+          ) ||
+          error.message.includes(
+            "Wrong password"
+          ) ||
+          error.message.includes(
+            "Invalid credentials"
+          ) ||
+          error.message.includes(
+            "AuthApiError"
+          )
+        ) {
+          const newAttempts =
+            attempts + 1;
 
-        setAttempts(newAttempts);
-
-        localStorage.setItem(
-          ATTEMPTS_KEY,
-          String(newAttempts)
-        );
-
-        if (newAttempts >= MAX_ATTEMPTS) {
-          const until =
-            Date.now() + LOCKOUT_MINUTES * 60 * 1000;
-
-          setLockoutUntil(until);
+          setAttempts(newAttempts);
 
           localStorage.setItem(
-            LOCKOUT_KEY,
-            String(until)
+            ATTEMPTS_KEY,
+            String(newAttempts)
           );
 
+          if (
+            newAttempts >=
+            MAX_ATTEMPTS
+          ) {
+            const until =
+              Date.now() +
+              LOCKOUT_MINUTES *
+                60 *
+                1000;
+
+            setLockoutUntil(until);
+
+            localStorage.setItem(
+              LOCKOUT_KEY,
+              String(until)
+            );
+
+            errorMessage =
+              `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`;
+          } else {
+            errorMessage =
+              "Incorrect email or password. Please try again.";
+          }
+        } else if (
+          error.message.includes(
+            "Email not confirmed"
+          )
+        ) {
           errorMessage =
-            `Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`;
-        } else {
+            "Please verify your email address before logging in.";
+        } else if (
+          error.message.includes(
+            "Too many requests"
+          )
+        ) {
           errorMessage =
-            "Incorrect email or password. Please try again.";
+            "Too many login attempts. Please try again later.";
         }
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage =
-          "Please verify your email address before logging in.";
-      } else if (error.message.includes("Too many requests")) {
-        errorMessage =
-          "Too many login attempts. Please try again later.";
+
+        setLoginError(errorMessage);
+        setIsSubmitting(false);
+
+        return;
       }
 
-      setLoginError(errorMessage);
-      setIsSubmitting(false);
-
-      return;
-    }
-
-    // Password is correct
-    localStorage.removeItem(ATTEMPTS_KEY);
-    localStorage.removeItem(LOCKOUT_KEY);
-
-    setAttempts(0);
-    setLockoutUntil(null);
-
-    if (!data?.user) {
-      setLoginError("Unable to log in. Please try again.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Get profile
-    const {
-      data: profileData,
-      error: profileError,
-    } = await supabase
-      .from("profiles")
-      .select("firstname, lastname, email, role, deleted_at")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError) {
-      await supabase.auth.signOut();
-
-      setLoginError(
-        profileError.message || "Unable to load your profile."
+      localStorage.removeItem(
+        ATTEMPTS_KEY
       );
 
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Check deleted account
-    if (profileData?.deleted_at) {
-      await supabase.auth.signOut();
-
-      setLoginError(
-        "This account has been deleted. Please contact the administrator."
+      localStorage.removeItem(
+        LOCKOUT_KEY
       );
 
-      setIsSubmitting(false);
-      return;
-    }
+      setAttempts(0);
+      setLockoutUntil(null);
 
-    // Send OTP
-    const otpSent = await sendLoginOTP();
+      if (!data?.user) {
+        setLoginError(
+          "Unable to log in. Please try again."
+        );
 
-    if (!otpSent) {
-      await supabase.auth.signOut();
+        setIsSubmitting(false);
+        return;
+      }
 
-      setLoginError(
-        "We could not send the verification code. Please try again."
+      const {
+        data: profileData,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "firstname, lastname, email, role, deleted_at"
+        )
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError) {
+        await supabase.auth.signOut();
+
+        setLoginError(
+          profileError.message ||
+            "Unable to load your profile."
+        );
+
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (profileData?.deleted_at) {
+        await supabase.auth.signOut();
+
+        setLoginError(
+          "This account has been deleted. Please contact the administrator."
+        );
+
+        setIsSubmitting(false);
+        return;
+      }
+
+      /*
+       * PASSWORD IS CORRECT
+       *
+       * Now send the OTP through:
+       *
+       * Login.jsx
+       *     ↓
+       * create-login-otp
+       *     ↓
+       * Brevo
+       *     ↓
+       * User's email
+       */
+      const otpSent =
+        await sendLoginOTP();
+
+      if (!otpSent) {
+        await supabase.auth.signOut();
+
+        setLoginError(
+          "We could not send the verification code. Please try again."
+        );
+
+        setIsSubmitting(false);
+        return;
+      }
+
+      setShowOtp(true);
+    } catch (error) {
+      console.error(
+        "Login error:",
+        error
       );
 
+      setLoginError(
+        error?.message ||
+          "Unable to log in. Please try again."
+      );
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-
-    // Show OTP screen
-    setShowOtp(true);
-    setIsSubmitting(false);
   };
 
   return (
@@ -406,7 +566,6 @@ const Login = () => {
           bg-[#f8e8d2]
         "
       >
-        {/* Background */}
         <div
           className="
             absolute
@@ -453,7 +612,6 @@ const Login = () => {
           >
             {!showOtp ? (
               <>
-                {/* LOGIN */}
                 <h1
                   className="
                     text-2xl
@@ -483,11 +641,14 @@ const Login = () => {
                   </p>
                 </div>
 
-                {/* GOOGLE */}
                 <div className="mt-4 space-y-2">
                   <button
                     type="button"
-                    onClick={() => handleOAuthLogin("google")}
+                    onClick={() =>
+                      handleOAuthLogin(
+                        "google"
+                      )
+                    }
                     disabled={isSubmitting}
                     className="
                       btn btn-outline
@@ -529,7 +690,6 @@ const Login = () => {
                   </button>
                 </div>
 
-                {/* DIVIDER */}
                 <div className="mt-4 flex items-center gap-3 text-sm text-slate-500">
                   <div className="flex-1 border-t border-slate-200" />
 
@@ -538,7 +698,6 @@ const Login = () => {
                   <div className="flex-1 border-t border-slate-200" />
                 </div>
 
-                {/* LOGIN FORM */}
                 <form
                   onSubmit={handleSubmit}
                   className="mt-4 sm:mt-5"
@@ -558,9 +717,9 @@ const Login = () => {
                     error={loginError}
                   />
 
-                  {/* LOCKOUT */}
                   {lockoutUntil &&
-                    lockoutUntil > Date.now() && (
+                    lockoutUntil >
+                      Date.now() && (
                       <div
                         className="
                           mb-3
@@ -576,21 +735,22 @@ const Login = () => {
                         ⏳ Account locked. Try again in{" "}
                         <strong>
                           {formatLockoutTime(
-                            lockoutUntil - Date.now()
+                            lockoutUntil -
+                              Date.now()
                           )}
                         </strong>
                         .
                       </div>
                     )}
 
-                  {/* LOGIN BUTTON */}
                   <button
                     type="submit"
                     disabled={
                       isSubmitting ||
                       Boolean(
                         lockoutUntil &&
-                          lockoutUntil > Date.now()
+                          lockoutUntil >
+                            Date.now()
                       )
                     }
                     className="
@@ -620,7 +780,6 @@ const Login = () => {
                   </button>
                 </form>
 
-                {/* FORGOT PASSWORD */}
                 <Link
                   to="/forgot-password"
                   className="
@@ -639,7 +798,6 @@ const Login = () => {
               </>
             ) : (
               <>
-                {/* OTP */}
                 <div className="text-center">
                   <div className="text-5xl mb-4">
                     📧
@@ -663,7 +821,6 @@ const Login = () => {
                   </p>
                 </div>
 
-                {/* OTP ERROR */}
                 {otpError && (
                   <div
                     className="
@@ -681,7 +838,6 @@ const Login = () => {
                   </div>
                 )}
 
-                {/* OTP FORM */}
                 <form
                   onSubmit={handleVerifyOTP}
                   className="mt-6"
@@ -710,11 +866,16 @@ const Login = () => {
                     placeholder="000000"
                     value={otp}
                     onChange={(event) => {
-                      const value = event.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 6);
+                      const value =
+                        event.target.value
+                          .replace(
+                            /\D/g,
+                            ""
+                          )
+                          .slice(0, 6);
 
                       setOtp(value);
+                      setOtpError("");
                     }}
                     className="
                       input
@@ -735,7 +896,6 @@ const Login = () => {
                     The verification code expires in 5 minutes.
                   </p>
 
-                  {/* VERIFY */}
                   <button
                     type="submit"
                     disabled={
@@ -763,13 +923,15 @@ const Login = () => {
                   </button>
                 </form>
 
-                {/* RESEND */}
                 <div className="text-center mt-5">
                   <button
                     type="button"
-                    onClick={handleResendOTP}
+                    onClick={
+                      handleResendOTP
+                    }
                     disabled={
-                      resendCountdown > 0 ||
+                      resendCountdown >
+                        0 ||
                       otpLoading
                     }
                     className="
@@ -787,11 +949,12 @@ const Login = () => {
                   </button>
                 </div>
 
-                {/* CANCEL */}
                 <div className="text-center mt-4">
                   <button
                     type="button"
-                    onClick={handleCancelOTP}
+                    onClick={
+                      handleCancelOTP
+                    }
                     disabled={otpLoading}
                     className="
                       btn
