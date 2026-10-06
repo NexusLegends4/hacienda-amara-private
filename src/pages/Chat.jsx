@@ -373,8 +373,23 @@ const callAIChat = async (userMessage) => {
 
 		return fullText || "Thanks for your message. How can I help you with Hacienda Amara?";
 	} catch {
-		return "Thanks for your message. How can I help you with Hacienda Amara?";
+		return null;
 	}
+};
+
+const isGenericResponse = (text) => {
+	const generic = [
+		"thanks for your message",
+		"how can i help",
+		"i don't know",
+		"i'm not sure",
+		"i cannot",
+		"unable to",
+		"as an ai",
+		"i am an ai",
+	];
+	const lower = text.toLowerCase();
+	return generic.some(g => lower.includes(g));
 };
 
 const getMessageId = () => {
@@ -1335,7 +1350,14 @@ const clearCurrentChat = async () => {
 							? "Thanks for sending the video. We will check it and reply as soon as possible."
 							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
 				} else if (shouldTriggerBot) {
-					replyText = await callAIChat(trimmed);
+					let aiReply = await callAIChat(trimmed);
+					if (!aiReply || isGenericResponse(aiReply)) {
+						const botReply = getBotReply(trimmed);
+						replyText = typeof botReply === "string" ? botReply : botReply.content || "";
+						replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+					} else {
+						replyText = aiReply;
+					}
 				} else {
 					const botReply = getBotReply(trimmed);
 					replyText = typeof botReply === "string" ? botReply : botReply.content || "";
