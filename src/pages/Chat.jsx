@@ -325,6 +325,47 @@ const getBotReply = (text) => {
 	return "Thanks for your message. If you need more help, ask about availability, rates, amenities, location, events, rules, policies, photos, or nationwide bookings.";
 };
 
+const callAIChat = async (userMessage) => {
+	try {
+		const response = await fetch("/api/ai-chat", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				messages: [
+					{ role: "user", parts: [{ type: "text", text: userMessage }] },
+				],
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error("AI request failed");
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let fullText = "";
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			const chunk = decoder.decode(value, { stream: true });
+			const lines = chunk.split("\n").filter(line => line.trim());
+
+			for (const line of lines) {
+				if (line.startsWith("0:")) {
+					const delta = line.slice(2).replace(/^"|"$/g, "").replace(/\\"/g, '"');
+					fullText += delta;
+				}
+			}
+		}
+
+		return fullText || "Thanks for your message. How can I help you with Hacienda Amara?";
+	} catch {
+		return "Thanks for your message. How can I help you with Hacienda Amara?";
+	}
+};
+
 const getMessageId = () => {
 	if (typeof crypto !== "undefined" && crypto.randomUUID) {
 		return crypto.randomUUID();
@@ -1266,29 +1307,30 @@ const clearCurrentChat = async () => {
 			}
 			setPrompt("");
 
-			// Trigger bot if admin/staff is offline OR if it's a location-related query 
-			// (allowing admin/staff to also trigger the QR code for the client)
-			const isLocationQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location"].some(k => trimmed.toLowerCase().includes(k));
-			const isAboutQuery = ["about", "about us", "amenities", "details", "facilities", "features", "ano ang", "tungkol", "about page details"].some(k => trimmed.toLowerCase().includes(k));
-			const isRulesQuery = ["rules", "policy", "policies", "guidelines", "house rules", "mga rules", "bawal"].some(k => trimmed.toLowerCase().includes(k));
-			const isPaymentQuery = ["pay", "bayad", "payment", "magbabayad", "saan magbabayad", "saan ako mag babayad", "mode of payment", "payment details"].some(k => trimmed.toLowerCase().includes(k));
-			if ((!isAdminOrStaff && !adminOnline) || isLocationQuery || isAboutQuery || isRulesQuery || isPaymentQuery || trimmed.toLowerCase().includes("qr")) {
+			const shouldTriggerBot = !isAdminOrStaff && (!adminOnline && !staffOnline);
+			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
+
+			if (shouldTriggerBot || isQuickQuery) {
 				const hasVideo = draftAttachments.some((item) => item.kind === "video");
 				const hasPhoto = draftAttachments.some((item) => item.kind === "image");
-				const botReply = draftAttachments.length
-					? {
-							content: hasVideo && hasPhoto
-								? "Thanks for sending the photo and video. We will check them and reply as soon as possible."
-								: hasVideo
-									? "Thanks for sending the video. We will check it and reply as soon as possible."
-									: "Thanks for sending the photo. We will check it and reply as soon as possible.",
-							attachments: [],
-						}
-					: getBotReply(trimmed);
-				const replyText =
-					typeof botReply === "string" ? botReply : botReply.content || "";
-				const replyAttachments =
-					typeof botReply === "string" ? [] : botReply.attachments || [];
+				
+				let replyText = "";
+				let replyAttachments = [];
+
+				if (draftAttachments.length) {
+					replyText = hasVideo && hasPhoto
+						? "Thanks for sending the photo and video. We will check them and reply as soon as possible."
+						: hasVideo
+							? "Thanks for sending the video. We will check it and reply as soon as possible."
+							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
+				} else if (shouldTriggerBot) {
+					replyText = await callAIChat(trimmed);
+				} else {
+					const botReply = getBotReply(trimmed);
+					replyText = typeof botReply === "string" ? botReply : botReply.content || "";
+					replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+				}
+
 				const botMessage = {
 					id: getMessageId(),
 					conversationKey: outgoing.conversationKey,
