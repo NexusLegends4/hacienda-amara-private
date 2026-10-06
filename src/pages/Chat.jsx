@@ -582,14 +582,16 @@ const Chat = ({ presentation = "page", onClose }) => {
 	const displayName = getDisplayName(profile);
 	const display = getUserLabel(profile);
 
-	const [adminAvailable, setAdminAvailable] = useState(() => {
+const [adminAvailable, setAdminAvailable] = useState(() => {
 		if (typeof window === "undefined" || !isAdminOrStaff) return false;
 
 		const saved = localStorage.getItem(ADMIN_AVAILABILITY_KEY);
 		return saved ? saved === "true" : true;
 	});
-	const [presenceOnline, setPresenceOnline] = useState(false);
-	const [historyByConversation, setHistoryByConversation] = useState(() => {
+const [presenceOnline, setPresenceOnline] = useState(false);
+const [adminOnline, setAdminOnline] = useState(false);
+const [staffOnline, setStaffOnline] = useState(false);
+const [historyByConversation, setHistoryByConversation] = useState(() => {
 		const stored = readHistory();
 		return stored;
 	});
@@ -660,11 +662,10 @@ const [isSending, setIsSending] = useState(false);
 			if (profileId) ids.add(profileId);
 		});
 
-		return [...ids];
+return [...ids];
 	}, [historyByConversation, isAdminOrStaff]);
 
-	const adminOnline = presenceOnline;
-	const canReply = !isAdminOrStaff || adminAvailable;
+const canReply = !isAdminOrStaff || adminAvailable;
 
 	const scrollMessagesToBottom = (behavior = "smooth") => {
 		const container = messageListRef.current;
@@ -964,8 +965,12 @@ const clearCurrentChat = async () => {
 
 		const applyPresence = () => {
 			const state = channel.presenceState();
-			const staffOnline = Object.values(state).flat().some((entry) => (entry.role === "admin" || entry.role === "staff") && entry.available);
-			setPresenceOnline(staffOnline);
+			const entries = Object.values(state).flat();
+			const hasAdmin = entries.some((entry) => entry.role === "admin" && entry.available);
+			const hasStaff = entries.some((entry) => entry.role === "staff" && entry.available);
+			setAdminOnline(hasAdmin);
+			setStaffOnline(hasStaff);
+			setPresenceOnline(hasAdmin || hasStaff);
 		};
 
 		channel.on("broadcast", { event: "message" }, ({ payload }) => {
@@ -1641,9 +1646,14 @@ const chatContent = (
 													: isAdmin
 														? "Admin offline"
 														: "Staff offline"
-												: adminOnline
-													? "Admin/Staff online"
-													: "Assistant ready"}
+												: (() => {
+														const roles = [];
+														if (adminOnline) roles.push("Admin");
+														if (staffOnline) roles.push("Staff");
+														return roles.length > 0
+															? `${roles.join(" & ")} online`
+															: "Assistant ready";
+													})()}
 										</p>
 										{!isBubble && <p className="truncate text-[0.7rem] text-slate-700 sm:text-xs">
 											{profile ? `Signed in as ${displayName}` : "Continue as Guest"}
@@ -1675,9 +1685,14 @@ const chatContent = (
 											? adminAvailable
 												? "Clients can message you live"
 												: "Turn online to reply"
-											: adminOnline
-												? "Admin/Staff is available"
-												: "Assistant will answer"}
+											: (() => {
+													const roles = [];
+													if (adminOnline) roles.push("Admin");
+													if (staffOnline) roles.push("Staff");
+													return roles.length > 0
+														? `${roles.join(" & ")} available`
+														: "Assistant will answer";
+												})()}
 									</p>
 								</div>}
 
