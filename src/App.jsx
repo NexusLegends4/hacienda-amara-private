@@ -37,6 +37,26 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 
+const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
+const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
+const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
+
+const clearChatData = async (profile) => {
+	if (typeof window !== "undefined") {
+		localStorage.removeItem(HISTORY_STORAGE_KEY);
+		localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
+		localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
+	}
+
+	if (profile?.id) {
+		try {
+			await supabase.from("chat_messages").delete().eq("sender_id", profile.id);
+		} catch {
+			// ignore
+		}
+	}
+};
+
 const THEME_STORAGE_KEY = "theme";
 
 // Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
@@ -185,6 +205,7 @@ function App() {
 					alert(
 						"This account has been deleted. Please contact the administrator.",
 					);
+					await clearChatData(data);
 					await supabase.auth.signOut();
 					return;
 				}

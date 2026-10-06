@@ -6,6 +6,26 @@ import LoginIcon from "./icons/LoginIcon";
 import { useNavigate } from "react-router-dom";
 import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo } from "react-icons/fi";
 
+const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
+const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
+const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
+
+const clearChatData = async (profile) => {
+	if (typeof window !== "undefined") {
+		localStorage.removeItem(HISTORY_STORAGE_KEY);
+		localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
+		localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
+	}
+
+	if (profile?.id) {
+		try {
+			await supabase.from("chat_messages").delete().eq("sender_id", profile.id);
+		} catch {
+			// ignore
+		}
+	}
+};
+
 const getInitials = (name) => {
 	const parts = String(name || "")
 		.trim()
@@ -96,6 +116,8 @@ const NavBar = () => {
 					actor_role: profile.role || "client"
 				});
 		}
+
+		await clearChatData(profile);
 
 		const { error } = await supabase.auth.signOut();
 		if (error) alert("Error logging out: " + error.message);
