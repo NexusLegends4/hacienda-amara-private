@@ -25,6 +25,7 @@ const Login = () => {
   const [lockoutUntil, setLockoutUntil] = useState(null);
 
   const [showOtp, setShowOtp] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -123,13 +124,31 @@ const Login = () => {
             throw new Error("No active session found. Please try logging in again.");
           }
 
+          const { data: oauthProfile, error: oauthProfileError } = await supabase
+            .from("profiles")
+            .select("email, role, deleted_at")
+            .eq("id", sessionData.session.user.id)
+            .single();
+
+          if (oauthProfileError || oauthProfile?.deleted_at) {
+            throw new Error("Unable to load your account. Please try logging in again.");
+          }
+
+          if (!["staff", "admin"].includes(oauthProfile?.role)) {
+            navigate("/");
+            return;
+          }
+
+          setOtpEmail(oauthProfile.email || sessionData.session.user.email || "");
+          setShowOtp(true);
+
           const otpSent = await sendLoginOTP();
           console.log("OTP sent result:", otpSent);
           if (!otpSent) {
+            setShowOtp(false);
             throw new Error("Failed to send verification code.");
           }
 
-          setShowOtp(true);
         } catch (error) {
           console.error("OAuth OTP error:", error);
           setLoginError(error?.message || "Unable to send verification code. Please try again.");
@@ -545,6 +564,15 @@ const Login = () => {
         return;
       }
 
+      // Email OTP is required for staff and admin accounts.
+      if (!["staff", "admin"].includes(profileData?.role)) {
+        navigate("/");
+        return;
+      }
+
+      setOtpEmail(profileData?.email || data.user.email || "");
+      setShowOtp(true);
+
       /*
        * PASSWORD IS CORRECT
        *
@@ -562,6 +590,7 @@ const Login = () => {
         await sendLoginOTP();
 
       if (!otpSent) {
+        setShowOtp(false);
         await supabase.auth.signOut();
 
         setLoginError(
@@ -572,7 +601,6 @@ const Login = () => {
         return;
       }
 
-      setShowOtp(true);
     } catch (error) {
       console.error(
         "Login error:",
@@ -860,7 +888,7 @@ const Login = () => {
                   </h1>
 
                   <p className="mt-2 text-sm sm:text-base text-slate-700">
-                    We sent a 6-digit verification code to your email.
+                    We sent a 6-digit verification code to {otpEmail || "your email"}.
                   </p>
                 </div>
 
@@ -958,7 +986,7 @@ const Login = () => {
                     {otpLoading ? (
                       <>
                         <span className="loading loading-spinner loading-sm" />
-                        Verifying...
+                        {otp.length === 6 ? "Verifying..." : "Sending code..."}
                       </>
                     ) : (
                       "Verify Code"

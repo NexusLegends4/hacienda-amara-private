@@ -81,6 +81,21 @@ serve(async (req) => {
       );
     }
 
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) throw profileError;
+
+    if (!["staff", "admin"].includes(profile?.role)) {
+      return new Response(
+        JSON.stringify({ error: "Email verification is only available for staff and admin accounts." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { otp } = await req.json();
 
     if (!otp || !/^\d{6}$/.test(otp)) {
