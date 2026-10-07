@@ -48,7 +48,7 @@ serve(async (req) => {
         body: JSON.stringify({
           sender: {
             name: "Hacienda Amara",
-            email: "haciendaaamaraprivateresort@gmail.com",
+            email: "ricafrentejun13@gmail.com",
           },
           to: [
             {
