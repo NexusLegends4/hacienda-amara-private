@@ -3,8 +3,9 @@ import MainLayout from "../layouts/MainLayout";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
-import { FaPalette, FaBell, FaShieldAlt, FaSlidersH } from "react-icons/fa";
+import { FaPalette, FaShieldAlt, FaSlidersH } from "react-icons/fa";
 import { FiLock, FiRefreshCw } from "react-icons/fi";
+import { FiSun, FiMoon, FiMonitor } from "react-icons/fi";
 
 const DEFAULT_THEME = "light";
 
@@ -16,24 +17,27 @@ const getEffectiveTheme = (theme) => {
 	return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
+const applyTheme = (theme) => {
+	const effective = getEffectiveTheme(theme);
+	document.documentElement.setAttribute("data-theme", effective);
+	document.documentElement.style.colorScheme = effective;
+};
+
 const Settings = () => {
 	const { session, profile, setProfile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [theme, setTheme] = useState(
 		localStorage.getItem("theme") || DEFAULT_THEME,
 	);
-	const [emailNotifications, setEmailNotifications] = useState(
-		localStorage.getItem("emailNotifications") === "true",
-	);
-	const [profileVisibility, setProfileVisibility] = useState(
-		localStorage.getItem("profileVisibility") || "public",
-	);
-	const [compactMode, setCompactMode] = useState(
-		localStorage.getItem("compactMode") === "true",
-	);
 	const [role, setRole] = useState(profile?.role || "staff");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+
+	const themeOptions = [
+		{ value: "system", label: "System", icon: FiMonitor },
+		{ value: "light", label: "Light", icon: FiSun },
+		{ value: "dark", label: "Dark", icon: FiMoon },
+	];
 
 	useEffect(() => {
 		if (profile?.role) {
@@ -42,32 +46,29 @@ const Settings = () => {
 	}, [profile]);
 
 	useEffect(() => {
-		// Guard the settings page so only signed-in users can open it.
 		if (!session) {
 			navigate("/log-in");
 		}
 	}, [session, navigate]);
 
 	useEffect(() => {
-		const effectiveTheme = getEffectiveTheme(theme);
-		document.documentElement.setAttribute("data-theme", effectiveTheme);
-		document.documentElement.style.colorScheme = effectiveTheme;
+		applyTheme(theme);
 	}, [theme]);
 
+	const handleThemeChange = (newTheme) => {
+		setTheme(newTheme);
+		localStorage.setItem("theme", newTheme);
+	};
+
 	const handleSavePreferences = async (event) => {
-		// Persist the preference toggles locally and keep the theme in sync.
 		event.preventDefault();
 		localStorage.setItem("theme", theme);
-		localStorage.setItem("emailNotifications", String(emailNotifications));
-		localStorage.setItem("profileVisibility", profileVisibility);
-		localStorage.setItem("compactMode", String(compactMode));
 
 		if (!session?.user?.id) {
 			alert("No active session found.");
 			return;
 		}
 
-		// Only admins can change their own role here.
 		if (profile?.role === "admin" && role !== profile.role) {
 			const { data, error } = await supabase
 				.from("profiles")
@@ -92,20 +93,11 @@ const Settings = () => {
 	const handleResetPreferences = () => {
 		setTheme(DEFAULT_THEME);
 		localStorage.setItem("theme", DEFAULT_THEME);
-		setEmailNotifications(true);
-		setProfileVisibility("public");
-		setCompactMode(false);
 		setRole(profile?.role || "staff");
-		localStorage.setItem("emailNotifications", "true");
-		localStorage.setItem("profileVisibility", "public");
-		localStorage.setItem("compactMode", "false");
-		const effectiveTheme = getEffectiveTheme(DEFAULT_THEME);
-		document.documentElement.setAttribute("data-theme", effectiveTheme);
-		document.documentElement.style.colorScheme = effectiveTheme;
+		applyTheme(DEFAULT_THEME);
 	};
 
 	const handlePasswordChange = async (event) => {
-		// Update the auth password after validating both password fields.
 		event.preventDefault();
 
 		if (!newPassword || newPassword.length < 8) {
@@ -134,7 +126,6 @@ const Settings = () => {
 
 	return (
 		<MainLayout>
-			{/* Settings page is split into preferences and security panels. */}
 			<div className="min-h-screen bg-base-200 px-4 py-12">
 				<div className="mx-auto max-w-7xl space-y-12">
 					<div>
@@ -164,7 +155,7 @@ const Settings = () => {
 							<div className="grid gap-3 text-sm text-base-content/70 md:text-right">
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2">
 									<FaSlidersH className="text-base-content/60" />
-									<span>4 saved preferences</span>
+									<span>2 saved preferences</span>
 								</div>
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2">
 									<FiLock className="text-base-content/60" />
@@ -201,81 +192,19 @@ const Settings = () => {
 											Switch between light and dark appearance.
 										</span>
 									</div>
-									<select
-										className="select select-bordered select-sm w-36"
-										value={theme}
-										onChange={(event) => setTheme(event.target.value)}
-									>
-										<option value="system">System</option>
-										<option value="light">Light</option>
-										<option value="dark">Dark</option>
-									</select>
-								</label>
-
-								<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
-									<div className="pr-4">
-										<div className="flex items-center gap-2">
-											<FaBell className="text-base-content/60" />
-											<span className="block font-medium text-base-content">
-												Email notifications
-											</span>
-										</div>
-										<span className="mt-1 block text-sm text-base-content/60">
-											Get helpful updates about your account and events.
-										</span>
+									<div className="flex items-center gap-2">
+										{themeOptions.map((opt) => (
+											<button
+												key={opt.value}
+												type="button"
+												onClick={() => handleThemeChange(opt.value)}
+												className={`flex items-center gap-2 rounded-xl px-4 py-2 transition text-sm ${theme === opt.value ? "bg-primary text-primary-content" : "bg-base-200 hover:bg-base-300"}`}
+											>
+												<opt.icon className="w-4 h-4" />
+												{opt.label}
+											</button>
+										))}
 									</div>
-									<input
-										type="checkbox"
-										className="toggle toggle-primary"
-										checked={emailNotifications}
-										onChange={(event) =>
-											setEmailNotifications(event.target.checked)
-										}
-									/>
-								</label>
-
-								<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
-									<div className="pr-4">
-										<div className="flex items-center gap-2">
-											<FaShieldAlt className="text-base-content/60" />
-											<span className="block font-medium text-base-content">
-												Profile visibility
-											</span>
-										</div>
-										<span className="mt-1 block text-sm text-base-content/60">
-											Choose who can see your profile details.
-										</span>
-									</div>
-									<select
-										className="select select-bordered select-sm w-36"
-										value={profileVisibility}
-										onChange={(event) =>
-											setProfileVisibility(event.target.value)
-										}
-									>
-										<option value="public">Public</option>
-										<option value="private">Private</option>
-									</select>
-								</label>
-
-								<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
-									<div className="pr-4">
-										<div className="flex items-center gap-2">
-											<FiRefreshCw className="text-base-content/60" />
-											<span className="block font-medium text-base-content">
-												Compact mode
-											</span>
-										</div>
-										<span className="mt-1 block text-sm text-base-content/60">
-											Use a denser layout on smaller screens.
-										</span>
-									</div>
-										<input
-										type="checkbox"
-										className="toggle toggle-primary"
-										checked={compactMode}
-										onChange={(event) => setCompactMode(event.target.checked)}
-									/>
 								</label>
 
 								{profile?.role === "admin" ? (
