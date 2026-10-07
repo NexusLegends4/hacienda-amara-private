@@ -5,39 +5,13 @@ import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
 import { FaPalette, FaShieldAlt, FaSlidersH } from "react-icons/fa";
 import { FiLock, FiRefreshCw } from "react-icons/fi";
-import { FiSun, FiMoon, FiMonitor } from "react-icons/fi";
-
-const DEFAULT_THEME = "light";
-
-const getEffectiveTheme = (theme) => {
-	if (theme !== "system") {
-		return theme;
-	}
-
-	return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
-
-const applyTheme = (theme) => {
-	const effective = getEffectiveTheme(theme);
-	document.documentElement.setAttribute("data-theme", effective);
-	document.documentElement.style.colorScheme = effective;
-};
 
 const Settings = () => {
 	const { session, profile, setProfile } = useContext(SessionContext);
 	const navigate = useNavigate();
-	const [theme, setTheme] = useState(
-		localStorage.getItem("theme") || DEFAULT_THEME,
-	);
 	const [role, setRole] = useState(profile?.role || "staff");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-
-	const themeOptions = [
-		{ value: "system", label: "System", icon: FiMonitor },
-		{ value: "light", label: "Light", icon: FiSun },
-		{ value: "dark", label: "Dark", icon: FiMoon },
-	];
 
 	useEffect(() => {
 		if (profile?.role) {
@@ -51,18 +25,8 @@ const Settings = () => {
 		}
 	}, [session, navigate]);
 
-	useEffect(() => {
-		applyTheme(theme);
-	}, [theme]);
-
-	const handleThemeChange = (newTheme) => {
-		setTheme(newTheme);
-		localStorage.setItem("theme", newTheme);
-	};
-
 	const handleSavePreferences = async (event) => {
 		event.preventDefault();
-		localStorage.setItem("theme", theme);
 
 		if (!session?.user?.id) {
 			alert("No active session found.");
@@ -91,10 +55,7 @@ const Settings = () => {
 	};
 
 	const handleResetPreferences = () => {
-		setTheme(DEFAULT_THEME);
-		localStorage.setItem("theme", DEFAULT_THEME);
 		setRole(profile?.role || "staff");
-		applyTheme(DEFAULT_THEME);
 	};
 
 	const handlePasswordChange = async (event) => {
@@ -155,7 +116,7 @@ const Settings = () => {
 							<div className="grid gap-3 text-sm text-base-content/70 md:text-right">
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2">
 									<FaSlidersH className="text-base-content/60" />
-									<span>2 saved preferences</span>
+									<span>1 saved preference</span>
 								</div>
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2">
 									<FiLock className="text-base-content/60" />
@@ -183,30 +144,6 @@ const Settings = () => {
 							</div>
 
 							<div className="mt-12 space-y-6">
-								<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
-									<div>
-										<span className="block font-medium text-base-content">
-											Theme
-										</span>
-										<span className="text-sm text-base-content/60">
-											Switch between light and dark appearance.
-										</span>
-									</div>
-									<div className="flex items-center gap-2">
-										{themeOptions.map((opt) => (
-											<button
-												key={opt.value}
-												type="button"
-												onClick={() => handleThemeChange(opt.value)}
-												className={`flex items-center gap-2 rounded-xl px-4 py-2 transition text-sm ${theme === opt.value ? "bg-primary text-primary-content" : "bg-base-200 hover:bg-base-300"}`}
-											>
-												<opt.icon className="w-4 h-4" />
-												{opt.label}
-											</button>
-										))}
-									</div>
-								</label>
-
 								{profile?.role === "admin" ? (
 									<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
 										<div className="pr-4">
