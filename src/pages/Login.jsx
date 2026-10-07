@@ -91,7 +91,9 @@ const Login = () => {
   }, [resendCountdown]);
 
 useEffect(() => {
+    console.log("Login: Profile effect triggered", { profile: !!profile, showOtp, isSubmitting });
     if (profile && !showOtp && !isSubmitting) {
+      console.log("Login: Redirecting to home");
       navigate("/");
     }
   }, [

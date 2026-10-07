@@ -10,34 +10,41 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
+      console.log("AuthCallback: Starting OAuth callback", { 
+        href: window.location.href,
+        search: window.location.search 
+      });
+      
       // Get the auth code from URL
       const code = searchParams.get("code");
       const next = searchParams.get("next");
 
       if (!code) {
-        console.error("No auth code in callback URL");
+        console.error("AuthCallback: No auth code in callback URL");
         navigate("/log-in?error=oauth_no_code");
         return;
       }
 
       try {
+        console.log("AuthCallback: Exchanging code for session");
         // Use exchangeCodeForSession with the full search params
         // Supabase client automatically retrieves PKCE verifier from localStorage
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (exchangeError) {
-          console.error("Auth callback exchange error:", exchangeError);
+          console.error("AuthCallback: Exchange error:", exchangeError);
           
           // Fallback: try to get session directly (in case PKCE already handled)
+          console.log("AuthCallback: Trying fallback getSession");
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
           if (sessionError || !session) {
-            console.error("No session after fallback:", sessionError);
+            console.error("AuthCallback: No session after fallback:", sessionError);
             navigate("/log-in?error=oauth_failed");
             return;
           }
           
-          console.log("Session recovered via fallback:", !!session);
+          console.log("AuthCallback: Session recovered via fallback:", !!session);
         }
 
         // Wait a bit for session to be fully established
@@ -45,17 +52,18 @@ const AuthCallback = () => {
         
         // Verify session exists
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("AuthCallback: Final session check:", !!session);
         if (!session) {
-          console.error("No session after exchange");
+          console.error("AuthCallback: No session after exchange");
           navigate("/log-in?error=oauth_no_session");
           return;
         }
 
-        console.log("OAuth successful, session established");
+        console.log("AuthCallback: OAuth successful, redirecting to home");
         // Redirect to home - auto login without OTP
         navigate("/");
       } catch (err) {
-        console.error("Auth callback error:", err);
+        console.error("AuthCallback: Unexpected error:", err);
         navigate("/log-in?error=oauth_exception");
       }
     };
