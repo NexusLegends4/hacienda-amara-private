@@ -2,9 +2,9 @@ import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 5;
@@ -16,8 +16,6 @@ const OTP_RESEND_SECONDS = 60;
 const Login = () => {
   const { profile } = useContext(SessionContext);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isOAuthFlow = searchParams.get("oauth") === "true";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -92,70 +90,16 @@ const Login = () => {
     return () => clearInterval(interval);
   }, [resendCountdown]);
 
-  useEffect(() => {
-    // Don't redirect if we're in an OAuth flow that needs OTP verification
-    if (profile && !showOtp && !isSubmitting && !isOAuthFlow) {
+useEffect(() => {
+    if (profile && !showOtp && !isSubmitting) {
       navigate("/");
     }
   }, [
     profile,
     showOtp,
     isSubmitting,
-    isOAuthFlow,
     navigate,
   ]);
-
-  // Auto-trigger OTP for OAuth flow
-  const otpTriggeredRef = useRef(false);
-
-  useEffect(() => {
-    console.log("OAuth flow check:", { isOAuthFlow, showOtp, isSubmitting, otpLoading, otpTriggered: otpTriggeredRef.current });
-    if (isOAuthFlow && !showOtp && !isSubmitting && !otpLoading && !otpTriggeredRef.current) {
-      otpTriggeredRef.current = true;
-      const triggerOtp = async () => {
-        console.log("Triggering OTP for OAuth flow");
-        setIsSubmitting(true);
-        setLoginError("");
-
-        try {
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          console.log("Session check:", { sessionData: !!sessionData?.session, sessionError });
-          if (sessionError || !sessionData?.session?.access_token) {
-            throw new Error("No active session found. Please try logging in again.");
-          }
-
-          const { data: oauthProfile, error: oauthProfileError } = await supabase
-            .from("profiles")
-            .select("email, role, deleted_at")
-            .eq("id", sessionData.session.user.id)
-            .single();
-
-if (oauthProfileError || oauthProfile?.deleted_at) {
-            throw new Error("Unable to load your account. Please try logging in again.");
-          }
-
-          setOtpEmail(oauthProfile.email || sessionData.session.user.email || "");
-          setShowOtp(true);
-
-          const otpSent = await sendLoginOTP();
-          console.log("OTP sent result:", otpSent);
-          if (!otpSent) {
-            setShowOtp(false);
-            throw new Error("Failed to send verification code.");
-          }
-
-        } catch (error) {
-          console.error("OAuth OTP error:", error);
-          setLoginError(error?.message || "Unable to send verification code. Please try again.");
-          navigate("/log-in?error=oauth_otp_failed");
-        } finally {
-          setIsSubmitting(false);
-        }
-      };
-
-      triggerOtp();
-    }
-  }, [isOAuthFlow, showOtp, otpLoading, navigate]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);

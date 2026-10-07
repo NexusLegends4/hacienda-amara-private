@@ -52,8 +52,8 @@ const AuthCallback = () => {
         }
 
         console.log("OAuth successful, session established");
-        // Redirect to login page with OAuth flag to trigger OTP flow
-        navigate("/log-in?oauth=true");
+        // Redirect to home - auto login without OTP
+        navigate("/");
       } catch (err) {
         console.error("Auth callback error:", err);
         navigate("/log-in?error=oauth_exception");
