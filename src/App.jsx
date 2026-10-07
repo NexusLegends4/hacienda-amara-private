@@ -178,6 +178,7 @@ function App() {
 			} else if (event === "SIGNED_OUT") {
 				setSession(null);
 				setProfile(null);
+				localStorage.removeItem("otp_pending");
 			} else if (nextSession) {
 				setSession(nextSession);
 			}
@@ -187,6 +188,16 @@ function App() {
 			subscription.unsubscribe();
 		};
 	}, [navigate]);
+
+	// Route guard: prevent navigation away from login page when OTP is pending
+	useEffect(() => {
+		const otpPending = localStorage.getItem("otp_pending") === "true";
+		const isLoginPage = window.location.pathname === "/log-in";
+
+		if (session && otpPending && !isLoginPage) {
+			navigate("/log-in", { replace: true });
+		}
+	}, [session, navigate]);
 
 	// Profile
 	useEffect(() => {

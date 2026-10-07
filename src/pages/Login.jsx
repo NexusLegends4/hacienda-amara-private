@@ -130,13 +130,8 @@ const Login = () => {
             .eq("id", sessionData.session.user.id)
             .single();
 
-          if (oauthProfileError || oauthProfile?.deleted_at) {
+if (oauthProfileError || oauthProfile?.deleted_at) {
             throw new Error("Unable to load your account. Please try logging in again.");
-          }
-
-          if (!["staff", "admin"].includes(oauthProfile?.role)) {
-            navigate("/");
-            return;
           }
 
           setOtpEmail(oauthProfile.email || sessionData.session.user.email || "");
@@ -343,6 +338,9 @@ const Login = () => {
       setOtpError("");
       setResendCountdown(0);
 
+      // Clear OTP pending flag
+      localStorage.removeItem("otp_pending");
+
       navigate("/");
     } catch (error) {
       console.error(
@@ -384,6 +382,9 @@ const Login = () => {
     setOtp("");
     setOtpError("");
     setResendCountdown(0);
+
+    // Clear OTP pending flag
+    localStorage.removeItem("otp_pending");
     setLoginError("");
   };
 
@@ -553,7 +554,7 @@ const Login = () => {
         return;
       }
 
-      if (profileData?.deleted_at) {
+if (profileData?.deleted_at) {
         await supabase.auth.signOut();
 
         setLoginError(
@@ -564,12 +565,7 @@ const Login = () => {
         return;
       }
 
-      // Email OTP is required for staff and admin accounts.
-      if (!["staff", "admin"].includes(profileData?.role)) {
-        navigate("/");
-        return;
-      }
-
+      // Send OTP for all roles (admin, staff, customer)
       setOtpEmail(profileData?.email || data.user.email || "");
       setShowOtp(true);
 
@@ -586,7 +582,7 @@ const Login = () => {
        *     ↓
        * User's email
        */
-      const otpSent =
+const otpSent =
         await sendLoginOTP();
 
       if (!otpSent) {
@@ -600,6 +596,9 @@ const Login = () => {
         setIsSubmitting(false);
         return;
       }
+
+      // Mark OTP as pending to prevent navigation away
+      localStorage.setItem("otp_pending", "true");
 
     } catch (error) {
       console.error(
