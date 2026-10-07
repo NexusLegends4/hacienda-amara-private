@@ -92,13 +92,15 @@ const Login = () => {
   }, [resendCountdown]);
 
   useEffect(() => {
-    if (profile && !showOtp && !isSubmitting) {
+    // Don't redirect if we're in an OAuth flow that needs OTP verification
+    if (profile && !showOtp && !isSubmitting && !isOAuthFlow) {
       navigate("/");
     }
   }, [
     profile,
     showOtp,
     isSubmitting,
+    isOAuthFlow,
     navigate,
   ]);
 
