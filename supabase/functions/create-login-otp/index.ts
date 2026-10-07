@@ -105,15 +105,8 @@ serve(async (req) => {
         .eq("id", user.id)
         .single();
 
-    if (profileError) {
+if (profileError) {
       throw profileError;
-    }
-
-    if (!["staff", "admin"].includes(profile?.role)) {
-      return new Response(
-        JSON.stringify({ error: "Email verification is only available for staff and admin accounts." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     const email =
@@ -184,7 +177,7 @@ serve(async (req) => {
           sender: {
             name: "Hacienda Amara",
             email:
-              "haciendaaamaraprivateresort@gmail.com",
+              "ricafrentejun13@gmail.com",
           },
           to: [
             {
