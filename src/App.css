@@ -156,6 +156,104 @@ html[data-theme="dark"] .home-hero-badge {
 	border-color: rgb(255 255 255 / 0.14);
 }
 
+/* Comprehensive dark mode support for common components */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .card-body,
+html[data-theme="dark"] .card-title {
+	background-color: rgb(30 30 30 / 1);
+	color: rgb(255 255 255 / 1);
+	border-color: rgb(255 255 255 / 0.1);
+}
+
+html[data-theme="dark"] .navbar,
+html[data-theme="dark"] .menu,
+html[data-theme="dark"] .dropdown-content,
+html[data-theme="dark"] .modal-box {
+	background-color: rgb(30 30 30 / 1);
+	border-color: rgb(255 255 255 / 0.1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .btn-ghost {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .btn-ghost:hover {
+	background-color: rgb(255 255 255 / 0.1);
+}
+
+html[data-theme="dark"] .badge,
+html[data-theme="dark"] .badge-outline {
+	border-color: rgb(255 255 255 / 0.2);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .alert {
+	background-color: rgb(30 30 30 / 1);
+	border-color: rgb(255 255 255 / 0.1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .table,
+html[data-theme="dark"] .table th,
+html[data-theme="dark"] .table td {
+	border-color: rgb(255 255 255 / 0.1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .stat-title,
+html[data-theme="dark"] .stat-value {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .tabs,
+html[data-theme="dark"] .tab {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .tooltip {
+	background-color: rgb(30 30 30 / 1);
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .chat-bubble,
+html[data-theme="dark"] .chat-header,
+html[data-theme="dark"] .chat-footer {
+	color: rgb(255 255 255 / 1);
+}
+
+html[data-theme="dark"] .bg-base-100,
+html[data-theme="dark"] .bg-base-200,
+html[data-theme="dark"] .bg-base-300 {
+	background-color: rgb(30 30 30 / 1) !important;
+}
+
+html[data-theme="dark"] .text-base-content {
+	color: rgb(255 255 255 / 1) !important;
+}
+
+html[data-theme="dark"] .text-base-content\/50,
+html[data-theme="dark"] .text-base-content\/60,
+html[data-theme="dark"] .text-base-content\/70,
+html[data-theme="dark"] .text-base-content\/75 {
+	color: rgb(255 255 255 / 0.7) !important;
+}
+
+html[data-theme="dark"] .border-base-200,
+html[data-theme="dark"] .border-base-300 {
+	border-color: rgb(255 255 255 / 0.1) !important;
+}
+
+html[data-theme="dark"] .shadow-sm,
+html[data-theme="dark"] .shadow,
+html[data-theme="dark"] .shadow-md,
+html[data-theme="dark"] .shadow-lg,
+html[data-theme="dark"] .shadow-xl,
+html[data-theme="dark"] .shadow-2xl {
+	box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+}
+
 html,
 body {
 	overflow-x: hidden;

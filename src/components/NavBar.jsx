@@ -1,10 +1,22 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
-import { useNavigate } from "react-router-dom";
-import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo } from "react-icons/fi";
+import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo, FiSun, FiMoon, FiMonitor } from "react-icons/fi";
+
+const THEME_STORAGE_KEY = "theme";
+
+const getEffectiveTheme = (theme) => {
+	if (theme !== "system") return theme;
+	return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+const applyTheme = (theme) => {
+	const effective = getEffectiveTheme(theme);
+	document.documentElement.setAttribute("data-theme", effective);
+	document.documentElement.style.colorScheme = effective;
+};
 
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
@@ -44,6 +56,22 @@ const NavBar = () => {
 	const displayName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim();
 	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
+	const [theme, setTheme] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || "system");
+
+	useEffect(() => {
+		applyTheme(theme);
+	}, [theme]);
+
+	const handleThemeChange = (newTheme) => {
+		setTheme(newTheme);
+		localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+	};
+
+	const themeOptions = [
+		{ value: "system", label: "System", icon: FiMonitor },
+		{ value: "light", label: "Light", icon: FiSun },
+		{ value: "dark", label: "Dark", icon: FiMoon },
+	];
 
 	const fetchUnreadCount = useCallback(async () => {
 		if (!profile?.id) return;
@@ -185,6 +213,26 @@ const NavBar = () => {
 									<LoginIcon className="text-lg" /> Login
 								</NavLink>
 							</>
+						)}
+						{session && (
+							<div className="dropdown dropdown-end">
+								<div tabIndex={0} role="button" className="btn btn-ghost btn-circle border border-base-300 bg-white/80 hover:bg-base-200" aria-label="Theme">
+									{themeOptions.map((t) => t.value === theme && <t.icon key={t.value} className="w-5 h-5" />)}
+								</div>
+								<ul tabIndex={0} className="menu menu-sm dropdown-content mt-2 w-40 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl">
+									{themeOptions.map((opt) => (
+										<li key={opt.value}>
+											<button
+												onClick={() => handleThemeChange(opt.value)}
+												className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 transition ${theme === opt.value ? "bg-primary/10 text-primary" : "hover:bg-base-200"}`}
+											>
+												<opt.icon className="w-4 h-4" />
+												{opt.label}
+											</button>
+										</li>
+									))}
+								</ul>
+							</div>
 						)}
 
 							{["admin", "staff"].includes(profile?.role) && (
@@ -369,6 +417,18 @@ const NavBar = () => {
 
 							{session && (
 								<>
+									<div className="border-t border-base-200 my-2" />
+									<p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Appearance</p>
+									{themeOptions.map((opt) => (
+										<button
+											key={opt.value}
+											onClick={() => { handleThemeChange(opt.value); closeMobile(); }}
+											className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition w-full text-left ${theme === opt.value ? "bg-primary/10 text-primary" : "text-base-content hover:bg-base-200"}`}
+										>
+											<opt.icon className="w-5 h-5" />
+											{opt.label}
+										</button>
+									))}
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/profile" className={mobileLinkClass} onClick={closeMobile}>Profile</NavLink>
 									<NavLink to="/settings" className={mobileLinkClass} onClick={closeMobile}>Settings</NavLink>
