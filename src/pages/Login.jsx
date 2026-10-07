@@ -2,7 +2,7 @@ import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 
@@ -103,19 +103,26 @@ const Login = () => {
   ]);
 
   // Auto-trigger OTP for OAuth flow
+  const otpTriggeredRef = useRef(false);
+
   useEffect(() => {
-    if (isOAuthFlow && !showOtp && !isSubmitting && !otpLoading) {
+    console.log("OAuth flow check:", { isOAuthFlow, showOtp, isSubmitting, otpLoading, otpTriggered: otpTriggeredRef.current });
+    if (isOAuthFlow && !showOtp && !isSubmitting && !otpLoading && !otpTriggeredRef.current) {
+      otpTriggeredRef.current = true;
       const triggerOtp = async () => {
+        console.log("Triggering OTP for OAuth flow");
         setIsSubmitting(true);
         setLoginError("");
 
         try {
           const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          console.log("Session check:", { sessionData: !!sessionData?.session, sessionError });
           if (sessionError || !sessionData?.session?.access_token) {
             throw new Error("No active session found. Please try logging in again.");
           }
 
           const otpSent = await sendLoginOTP();
+          console.log("OTP sent result:", otpSent);
           if (!otpSent) {
             throw new Error("Failed to send verification code.");
           }
@@ -132,7 +139,7 @@ const Login = () => {
 
       triggerOtp();
     }
-  }, [isOAuthFlow, showOtp, isSubmitting, otpLoading, navigate]);
+  }, [isOAuthFlow, showOtp, otpLoading, navigate]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);
