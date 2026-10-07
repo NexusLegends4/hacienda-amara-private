@@ -16,7 +16,8 @@ const AuthCallback = () => {
         console.error("Auth callback error:", error);
         navigate("/log-in?error=oauth_failed");
       } else {
-        navigate("/");
+        // Redirect to login page with OAuth flag to trigger OTP flow
+        navigate("/log-in?oauth=true");
       }
     };
 

@@ -4,7 +4,7 @@ import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "../contexts/SessionContext.jsx";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 5;
@@ -16,6 +16,8 @@ const OTP_RESEND_SECONDS = 60;
 const Login = () => {
   const { profile } = useContext(SessionContext);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isOAuthFlow = searchParams.get("oauth") === "true";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -99,6 +101,38 @@ const Login = () => {
     isSubmitting,
     navigate,
   ]);
+
+  // Auto-trigger OTP for OAuth flow
+  useEffect(() => {
+    if (isOAuthFlow && !showOtp && !isSubmitting && !otpLoading) {
+      const triggerOtp = async () => {
+        setIsSubmitting(true);
+        setLoginError("");
+
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !sessionData?.session?.access_token) {
+            throw new Error("No active session found. Please try logging in again.");
+          }
+
+          const otpSent = await sendLoginOTP();
+          if (!otpSent) {
+            throw new Error("Failed to send verification code.");
+          }
+
+          setShowOtp(true);
+        } catch (error) {
+          console.error("OAuth OTP error:", error);
+          setLoginError(error?.message || "Unable to send verification code. Please try again.");
+          navigate("/log-in?error=oauth_otp_failed");
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+
+      triggerOtp();
+    }
+  }, [isOAuthFlow, showOtp, isSubmitting, otpLoading, navigate]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);
