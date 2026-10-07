@@ -44,6 +44,18 @@ const NavBar = () => {
 	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
+	// Check if OTP verification is pending
+	const isOtpPending = () => localStorage.getItem("otp_pending") === "true";
+
+	// Wrapper to prevent navigation when OTP is pending
+	const handleNav = (to) => (event) => {
+		if (isOtpPending()) {
+			event.preventDefault();
+			return;
+		}
+		navigate(to);
+	};
+
 	const fetchUnreadCount = useCallback(async () => {
 		if (!profile?.id) return;
 		const { count, error } = await supabase
@@ -185,37 +197,37 @@ const NavBar = () => {
 								</NavLink>
 							</>
 						)}
-						{["admin", "staff"].includes(profile?.role) && (
+{["admin", "staff"].includes(profile?.role) && (
 							<>
-{profile?.role === "admin" && <div className="dropdown dropdown-bottom relative z-[999]">
-    <div tabIndex={0} role="button" className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer">
-        Manage <FiChevronDown />
-    </div>
-    <ul tabIndex={0} className="menu menu-sm dropdown-content z-[1000] mt-2 w-52 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl">
-        <li><NavLink to="/manage-packages" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Packages</NavLink></li>
-        <li><NavLink to="/edit-package" className="rounded-xl px-3 py-2 hover:bg-base-200">Edit Packages</NavLink></li>
-        <li><NavLink to="/manage-clients" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Clients</NavLink></li>
-        <li><NavLink to="/manage-reservations" className="rounded-xl px-3 py-2 hover:bg-base-200">Manage Reservations</NavLink></li>
-        <li><NavLink to="/scan-qr" className="rounded-xl px-3 py-2 hover:bg-base-200">Scan QR</NavLink></li>
-    </ul>
-</div>}
-								<NavLink to="/admin-notifications" className={navLinkClass}>Notifications</NavLink>
+							{profile?.role === "admin" && <div className="dropdown dropdown-bottom relative z-[999]">
+							    <div tabIndex={0} role="button" className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200 cursor-pointer">
+							        Manage <FiChevronDown />
+							    </div>
+							    <ul tabIndex={0} className="menu menu-sm dropdown-content z-[1000] mt-2 w-52 rounded-2xl border border-base-200 bg-base-100 p-2 shadow-2xl">
+							        <li><a href="#" onClick={handleNav("/manage-packages")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Manage Packages</a></li>
+							        <li><a href="#" onClick={handleNav("/edit-package")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Edit Packages</a></li>
+							        <li><a href="#" onClick={handleNav("/manage-clients")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Manage Clients</a></li>
+							        <li><a href="#" onClick={handleNav("/manage-reservations")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Manage Reservations</a></li>
+							        <li><a href="#" onClick={handleNav("/scan-qr")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Scan QR</a></li>
+							    </ul>
+							</div>}
+								<a href="#" onClick={handleNav("/admin-notifications")} className={navLinkClass}>Notifications</a>
 							</>
 						)}
 
 						{profile?.role === "staff" && (
-											<NavLink to="/admin-reservations" className={navLinkClass}>Calendar</NavLink>
+											<a href="#" onClick={handleNav("/admin-reservations")} className={navLinkClass}>Calendar</a>
 										)}
 
 						{profile?.role === "client" && (
 							<>
-								<NavLink to="/client-notifications" className={navLinkClass}>
+								<a href="#" onClick={handleNav("/client-notifications")} className={navLinkClass}>
 									<FiBell className="text-base" />
 									Notifications
 									{unreadNotificationsCount > 0 && (
 										<span className="badge badge-error badge-xs ml-1">{unreadNotificationsCount}</span>
 									)}
-								</NavLink>
+								</a>
 							</>
 						)}
 
@@ -233,8 +245,8 @@ const NavBar = () => {
 									</div>
 								</div>
 								<ul tabIndex="-1" className="menu menu-sm dropdown-content z-[1000] mt-4 w-56 rounded-2xl border border-base-200 bg-base-100 p-3 shadow-2xl">
-									<li><NavLink to="/profile" className="justify-between rounded-xl px-3 py-2 hover:bg-base-200">Profile <span className="badge">New</span></NavLink></li>
-									<li><NavLink to="/settings" className="rounded-xl px-3 py-2 hover:bg-base-200">Settings</NavLink></li>
+									<li><a href="#" onClick={handleNav("/profile")} className="justify-between rounded-xl px-3 py-2 hover:bg-base-200 block">Profile <span className="badge">New</span></a></li>
+									<li><a href="#" onClick={handleNav("/settings")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Settings</a></li>
 									<li>
 										<button className="btn btn-black btn-sm mt-2 w-full rounded-full border border-black text-white shadow-lg ring-2 ring-black/10 ring-offset-2 ring-offset-base-100" onClick={handleLogout}>
 											Logout
@@ -249,15 +261,15 @@ const NavBar = () => {
 					<div className="flex lg:hidden items-center gap-1 sm:gap-2">
 						{session && (
 							<div className="relative">
-														<div
-															onClick={() => { navigate(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications"); }}
-												className="relative cursor-pointer"
-											>
-												{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
-													<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
-												)}
-											</div>
-										</div>
+																<div
+																	onClick={handleNav(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications")}
+																className="relative cursor-pointer"
+															>
+																{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
+																	<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
+																)}
+															</div>
+														</div>
 									)}
 						<button
 							onClick={() => setMobileOpen(!mobileOpen)}
