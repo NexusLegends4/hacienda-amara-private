@@ -1,28 +1,85 @@
 import { supabase } from "../utils/supabase";
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const { error } = await supabase.auth.exchangeCodeForSession(
-        window.location.search
-      );
+      // Get the auth code from URL
+      const code = searchParams.get("code");
+      const next = searchParams.get("next");
 
-      if (error) {
-        console.error("Auth callback error:", error);
-        navigate("/log-in?error=oauth_failed");
-      } else {
+      if (!code) {
+        console.error("No auth code in callback URL");
+        navigate("/log-in?error=oauth_no_code");
+        return;
+      }
+
+      try {
+        // Use exchangeCodeForSession with the full search params
+        // Supabase client automatically retrieves PKCE verifier from localStorage
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (exchangeError) {
+          console.error("Auth callback exchange error:", exchangeError);
+          
+          // Fallback: try to get session directly (in case PKCE already handled)
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError || !session) {
+            console.error("No session after fallback:", sessionError);
+            navigate("/log-in?error=oauth_failed");
+            return;
+          }
+          
+          console.log("Session recovered via fallback:", !!session);
+        }
+
+        // Wait a bit for session to be fully established
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Verify session exists
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.error("No session after exchange");
+          navigate("/log-in?error=oauth_no_session");
+          return;
+        }
+
+        console.log("OAuth successful, session established");
         // Redirect to login page with OAuth flag to trigger OTP flow
         navigate("/log-in?oauth=true");
+      } catch (err) {
+        console.error("Auth callback error:", err);
+        navigate("/log-in?error=oauth_exception");
       }
     };
 
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, searchParams]);
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-rose-600">Authentication failed: {error}</p>
+            <button 
+              onClick={() => navigate("/log-in")}
+              className="btn btn-black mt-4 rounded-full"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
