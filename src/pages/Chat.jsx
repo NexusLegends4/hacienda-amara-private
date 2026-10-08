@@ -410,6 +410,7 @@ const censorProfanity = (text) => {
 		result = result.replace(regex, replacement);
 	}
 	
+	console.log("Censor check:", { original: text, censored: result, changed: result !== text });
 	return result;
 };
 
@@ -1342,6 +1343,7 @@ const clearCurrentChat = async () => {
 		
 		// Check if message contains profanity (censored differs from original)
 		const hasProfanity = censored !== trimmed;
+		console.log("Profanity check:", { trimmed, censored, hasProfanity });
 		if (hasProfanity) {
 			setError("Your message contains inappropriate language. Please remove it and try again.");
 			return;
