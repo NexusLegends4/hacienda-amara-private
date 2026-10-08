@@ -1339,7 +1339,15 @@ const clearCurrentChat = async () => {
 
 		const trimmed = DOMPurify.sanitize(prompt.trim());
 		const censored = censorProfanity(trimmed);
-		if (!censored && draftAttachments.length === 0) return;
+		
+		// Check if message contains profanity (censored differs from original)
+		const hasProfanity = censored !== trimmed;
+		if (hasProfanity) {
+			setError("Your message contains inappropriate language. Please remove it and try again.");
+			return;
+		}
+		
+		if (!trimmed && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
 		if (isAdminOrStaff && !canReply) return;
 
@@ -1349,14 +1357,14 @@ const clearCurrentChat = async () => {
 		shouldStickToBottomRef.current = true;
 
 		try {
-			const outgoing = await sendMessage(censored, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
+			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
 			if (draftAttachments.length > 0) {
 				clearDraftAttachment();
 			}
 			setPrompt("");
 
 			const shouldTriggerBot = !isAdminOrStaff && (!adminOnline && !staffOnline);
-			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => censored.toLowerCase().includes(k));
+			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
 
 			if (shouldTriggerBot || isQuickQuery) {
 				const hasVideo = draftAttachments.some((item) => item.kind === "video");
