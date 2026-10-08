@@ -18,7 +18,9 @@ const ScanQr = () => {
 		// Check if we're on HTTPS or localhost
 		const protocol = window.location.protocol;
 		const hostname = window.location.hostname;
-		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1";
+		// Vercel domains are always HTTPS
+		const isVercel = hostname.endsWith(".vercel.app");
+		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1" || isVercel;
 		setIsHttps(secure);
 		
 		if (!secure) {
