@@ -211,7 +211,30 @@ const NavBar = () => {
 							        <li><a href="#" onClick={handleNav("/scan-qr")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Scan QR</a></li>
 							    </ul>
 							</div>}
-								<a href="#" onClick={handleNav("/admin-notifications")} className={navLinkClass}>Notifications</a>
+							{/* Admin: Notifications button in navbar */}
+							<a href="#" onClick={handleNav("/admin-notifications")} className="relative navLinkClass">
+								<FiBell className="text-base" />
+								{unreadNotificationsCount > 0 && (
+									<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
+								)}
+							</a>
+							</>
+						)}
+						{profile?.role === "staff" && (
+							<>
+								{/* Staff: Calendar button in navbar */}
+								<a href="#" onClick={handleNav("/admin-reservations")} className="navLinkClass">
+									<FiCalendar className="text-base" />
+									Calendar
+								</a>
+								{/* Staff: Notifications button in navbar */}
+								<a href="#" onClick={handleNav("/admin-notifications")} className="relative navLinkClass">
+									<FiBell className="text-base" />
+									Notifications
+									{unreadNotificationsCount > 0 && (
+										<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
+									)}
+								</a>
 							</>
 						)}
 
