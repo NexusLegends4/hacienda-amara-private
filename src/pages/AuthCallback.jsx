@@ -59,9 +59,35 @@ const AuthCallback = () => {
           return;
         }
 
-        console.log("AuthCallback: OAuth successful, redirecting to home");
-        // Redirect to home - auto login without OTP
-        navigate("/");
+        // Fetch user profile to determine role and redirect accordingly
+        console.log("AuthCallback: Fetching user profile for role-based redirect");
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role, firstname, lastname")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error("AuthCallback: Profile fetch error:", profileError);
+          // Default to home if profile fetch fails
+          navigate("/");
+          return;
+        }
+
+        console.log("AuthCallback: User role:", profile?.role);
+        
+        // Role-based redirect
+        let redirectPath = "/";
+        if (profile?.role === "admin") {
+          redirectPath = "/admin-reservations"; // Admin dashboard
+        } else if (profile?.role === "staff") {
+          redirectPath = "/admin-reservations"; // Staff calendar
+        } else if (profile?.role === "client") {
+          redirectPath = "/"; // Customer home
+        }
+
+        console.log("AuthCallback: OAuth successful, redirecting to:", redirectPath);
+        navigate(redirectPath);
       } catch (err) {
         console.error("AuthCallback: Unexpected error:", err);
         navigate("/log-in?error=oauth_exception");
