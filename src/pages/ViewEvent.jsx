@@ -5,7 +5,7 @@ import { supabase } from "../utils/supabase";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { FiCheckCircle, FiDownload, FiShare2, FiUserCheck, FiUsers, FiX } from "react-icons/fi";
+import { FiCheckCircle, FiDownload, FiShare2, FiUserCheck, FiUsers, FiX, FiCalendar, FiBell } from "react-icons/fi";
 
 const ViewEvent = () => {
 	const { eventId } = useParams();
@@ -165,10 +165,25 @@ const ViewEvent = () => {
 						</div>
 
 						<div className="mt-8 flex flex-wrap justify-end gap-3">
-							{!registered && (
+							{!registered && profile?.role !== "admin" && profile?.role !== "staff" && (
 								<button onClick={() => setShowSignInForm(true)} disabled={registering} className="btn btn-primary rounded-full">
 									Sign In to Event
 								</button>
+							)}
+							{profile?.role === "admin" && (
+								<Link to="/admin-notifications" className="btn btn-black rounded-full">
+									<FiBell /> Notifications
+								</Link>
+							)}
+							{profile?.role === "staff" && (
+								<>
+									<Link to="/admin-reservations" className="btn btn-black rounded-full">
+										<FiCalendar /> Calendar
+									</Link>
+									<Link to="/admin-notifications" className="btn btn-black rounded-full">
+										<FiBell /> Notifications
+									</Link>
+								</>
 							)}
 							<button onClick={() => setShowShareQr(true)} className="btn btn-outline rounded-full">
 								<FiShare2 /> Share
