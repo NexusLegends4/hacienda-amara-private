@@ -5,6 +5,14 @@ import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiPlus, FiTrash2, FiEdit2, FiDollarSign, FiClock, FiUsers, FiArrowUp, FiArrowDown, FiArrowRight, FiSave, FiX } from "react-icons/fi";
 
+const DURATION_OPTIONS = [
+    { value: 9, label: "Day Time (9 hrs - 9AM-6PM)" },
+    { value: 9, label: "Night Time (9 hrs - 9PM-6AM)" },
+    { value: 21, label: "Overnight (21 hrs - 9AM-6AM next day)" },
+    { value: 12, label: "Half Day (12 hrs)" },
+    { value: 24, label: "Full Day (24 hrs)" },
+];
+
 const ManagePackages = () => {
     const { profile } = useContext(SessionContext);
     const navigate = useNavigate();
@@ -19,7 +27,7 @@ const ManagePackages = () => {
         base_price: '',
         min_price: '',
         max_price: '',
-        duration_hours: '',
+        duration_hours: 9,
         check_in_time: '',
         check_out_time: '',
         max_guests: '',
@@ -260,8 +268,18 @@ const ManagePackages = () => {
                                     <input type="number" name="max_price" step="1" className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
-                                    <label className="label"><span className="label-text">Duration (Hours)</span></label>
-                                    <input type="number" name="duration_hours" className="input input-bordered w-full" value={formData.duration_hours} onChange={handleChange} required />
+                                    <label className="label"><span className="label-text">Duration</span></label>
+                                    <select
+                                        name="duration_hours"
+                                        className="select select-bordered w-full"
+                                        value={formData.duration_hours}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        {DURATION_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Check-in Time</span></label>
@@ -342,7 +360,13 @@ const ManagePackages = () => {
                                                                     <input type="number" name="max_price" value={editData.max_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Max" />
                                                                 </div>
                                                             </td>
-                                                            <td><input type="number" name="duration_hours" value={editData.duration_hours} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
+                                                            <td>
+                                                                 <select name="duration_hours" value={editData.duration_hours} onChange={handleEditChange} className="select select-bordered select-sm w-20">
+                                                                     {DURATION_OPTIONS.map(opt => (
+                                                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                     ))}
+                                                                 </select>
+                                                              </td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
                                                                     <input type="time" name="check_in_time" value={editData.check_in_time} onChange={handleEditChange} className="input input-bordered input-sm" />
