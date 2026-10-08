@@ -34,7 +34,7 @@ const ManagePackages = () => {
         additional_guest_price: '',
         features: [],
         is_active: true,
-        display_order: 0
+        display_order: 1
     });
 
     useEffect(() => {
@@ -54,6 +54,8 @@ const ManagePackages = () => {
             alert(error.message);
         } else {
             setPackages(data || []);
+            // Set display_order to next available number
+            setFormData(prev => ({ ...prev, display_order: (data || []).length + 1 }));
         }
         setLoading(false);
     };
@@ -206,14 +208,14 @@ const ManagePackages = () => {
             base_price: '',
             min_price: '',
             max_price: '',
-            duration_hours: '',
+            duration_hours: 9,
             check_in_time: '',
             check_out_time: '',
             max_guests: '',
             additional_guest_price: '',
             features: [],
             is_active: true,
-            display_order: packages.length
+            display_order: packages.length + 1
         });
     };
 
