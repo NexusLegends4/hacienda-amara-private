@@ -69,8 +69,19 @@ const ViewEvent = () => {
 		}
 		if (!guestPhone.trim()) {
 			errors.phone = "Phone number is required";
-		} else if (!/^(\+63|0)9\d{9}$/.test(guestPhone.trim().replace(/\s/g, ''))) {
-			errors.phone = "Please enter a valid Philippine mobile number (e.g., 09xx-xxx-xxxx or +639xx-xxx-xxxx)";
+		} else {
+			// Normalize phone number by removing spaces, dashes, parentheses
+			const normalizedPhone = guestPhone.trim().replace(/[\s\-\(\)]/g, '');
+			// More flexible Philippine phone validation:
+			// Accepts: 09xxxxxxxxx, +639xxxxxxxxx, 639xxxxxxxxx, (09xx) xxx-xxxx, 09xx-xxx-xxxx, etc.
+			// Also accepts landlines: 02xxxxxxx, +632xxxxxxx, (02) xxxx-xxxx, etc.
+			const mobileRegex = /^(\+63|0)?9\d{9}$/;
+			const landlineRegex = /^(\+63|0)?2\d{7,8}$/;
+			const normalized = normalizedPhone.replace(/^\+63/, '0').replace(/^63/, '0');
+			
+			if (!mobileRegex.test(normalized) && !landlineRegex.test(normalized)) {
+				errors.phone = "Please enter a valid Philippine phone number (mobile: 09xx-xxx-xxxx, landline: 02-xxxx-xxxx)";
+			}
 		}
 
 		if (Object.keys(errors).length > 0) {
