@@ -518,7 +518,7 @@ const Login = () => {
                   <div className="w-full border-t border-slate-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-[#f8ecd8] text-slate-500">
+                  <span className="px-4 bg-transparent text-slate-500">
                     Or continue with
                   </span>
                 </div>
