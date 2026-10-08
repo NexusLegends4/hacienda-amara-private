@@ -1,13 +1,29 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
+import { FiRefreshCw, FiCamera, FiLock, FiExternalLink } from "react-icons/fi";
 
 const ScanQr = () => {
 	const navigate = useNavigate();
 	const { session, profile } = useContext(SessionContext);
-	const [status, setStatus] = useState("Starting camera...");
+	const [status, setStatus] = useState("Requesting camera permission...");
+	const [showInstructions, setShowInstructions] = useState(false);
+	const [isHttps, setIsHttps] = useState(false);
+	const scannerRef = useRef(null);
+
+	useEffect(() => {
+		// Check if we're on HTTPS or localhost
+		const protocol = window.location.protocol;
+		const hostname = window.location.hostname;
+		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1";
+		setIsHttps(secure);
+		
+		if (!secure) {
+			setStatus("Camera requires HTTPS. Please access via HTTPS or use localhost.");
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!session || profile?.role !== "admin") return undefined;
@@ -70,7 +86,19 @@ const ScanQr = () => {
 
 				if (!isMounted) return;
 
-				html5QrCode = new Html5Qrcode(scannerId);
+				// First, check if we have camera permission
+				try {
+					const stream = await navigator.mediaDevices.getUserMedia({ 
+						video: { facingMode: "environment" } 
+					});
+					stream.getTracks().forEach(track => track.stop());
+				} catch (permError) {
+					if (!isMounted) return;
+					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
+					return;
+				}
+
+				html5QrCode = new Html5Qrcode("qr-reader");
 				await html5QrCode.start(
 					{ facingMode: "environment" },
 					{
@@ -80,16 +108,25 @@ const ScanQr = () => {
 							return { width: size, height: size };
 						},
 					},
-					handleResult,
+					(decodedText) => {
+						if (isMounted) handleResult(decodedText);
+					},
 				);
 				if (isMounted) {
 					setStatus("Camera ready. Scan a QR code.");
 				}
 			} catch (error) {
 				console.error(error);
-				setStatus(
-					"Camera could not start. Allow camera access and use HTTPS or localhost.",
-				);
+				if (!isMounted) return;
+				if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
+				} else if (error.name === "NotFoundError") {
+					setStatus("No camera found. Please connect a camera and refresh.");
+				} else if (!isHttps) {
+					setStatus("Camera requires HTTPS. Please access via HTTPS or use localhost.");
+				} else {
+					setStatus("Camera could not start. Allow camera access and use HTTPS or localhost.");
+				}
 			}
 		};
 
@@ -99,7 +136,13 @@ const ScanQr = () => {
 			isMounted = false;
 			void stopScanner();
 		};
-	}, [navigate, profile?.role, session]);
+	}, [navigate, profile?.role, session, isHttps]);
+
+	const handleRetry = () => {
+		setStatus("Starting camera...");
+		// Trigger a re-render of the scanner
+		scannerRef.current = (scannerRef.current || 0) + 1;
+	};
 
 	if (!session || profile?.role !== "admin") {
 		return (
@@ -124,12 +167,50 @@ const ScanQr = () => {
 							</p>
 						</div>
 
-						<div className="p-0 bg-black">
+						<div className="p-0 bg-black relative">
 							<div id="qr-reader" className="overflow-hidden" />
 							<div className="bg-white px-5 py-6 text-center text-xs font-bold uppercase tracking-widest text-slate-400 border-t border-slate-100">
 								{status}
 							</div>
+							{!isHttps && (
+								<div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-xs px-3 py-2 rounded-full backdrop-blur-sm">
+									<FiLock className="w-3 h-3 inline mr-1" /> Requires HTTPS
+								</div>
+							)}
 						</div>
+
+						<div className="bg-slate-50 border-t border-slate-100 p-6 flex flex-col gap-3 justify-center">
+							<button
+								type="button"
+								onClick={handleRetry}
+								className="btn btn-primary btn-wide rounded-full flex items-center justify-center gap-2"
+							>
+								<FiRefreshCw className="w-4 h-4" />
+								Retry Camera
+							</button>
+							<button
+								type="button"
+								onClick={() => setShowInstructions(!showInstructions)}
+								className="btn btn-ghost btn-wide rounded-full flex items-center justify-center gap-2"
+							>
+								<FiCamera className="w-4 h-4" />
+								Camera Help
+							</button>
+						</div>
+
+						{showInstructions && (
+							<div className="bg-blue-50 border-t border-blue-100 p-6 text-left">
+								<h3 className="font-bold text-blue-800 mb-3 flex items-center gap-2">
+									<FiCamera className="w-5 h-5" /> Camera Access Help
+								</h3>
+								<ul className="space-y-2 text-sm text-blue-700">
+									<li className="flex items-center gap-2"><FiLock className="w-4 h-4" /> <strong>Allow camera access</strong> - Click the camera icon in your browser's address bar and select "Allow"</li>
+									<li className="flex items-center gap-2"><FiLock className="w-4 h-4" /> Use <strong>HTTPS</strong> - Camera only works on HTTPS sites (or localhost)</li>
+									<li className="flex items-center gap-2"><FiExternalLink className="w-4 h-4" /> If on mobile, use <strong>Chrome/Safari</strong> - other browsers may block camera</li>
+									<li className="flex items-center gap-2"><FiRefreshCw className="w-4 h-4" /> Try the <strong>Retry Camera</strong> button after allowing permission</li>
+								</ul>
+							</div>
+						)}
 
 						<div className="bg-slate-50 border-t border-slate-100 p-6 flex justify-center">
 							<button
