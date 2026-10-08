@@ -576,35 +576,6 @@ const Login = () => {
                   </svg>
                   <span>Google</span>
                 </button>
-
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    gap-3
-                    rounded-xl
-                    border
-                    border-slate-200
-                    bg-white/80
-                    py-3
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    transition-all
-                    hover:bg-slate-50
-                    hover:border-slate-300
-                    disabled:opacity-50
-                    disabled:cursor-not-allowed
-                  "
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.804 2.807 1.36 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.305-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.611-1.528 5.553-1.48 5.553 6.025 0 4.09-2.74 7.18-5.52 7.18z"/>
-                  </svg>
-                  <span>GitHub</span>
-                </button>
               </div>
             </div>
           </div>
