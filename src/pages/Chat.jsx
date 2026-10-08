@@ -392,6 +392,27 @@ const isGenericResponse = (text) => {
 	return generic.some(g => lower.includes(g));
 };
 
+const censorProfanity = (text) => {
+	const profanityList = [
+		"putang", "puta", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", 
+		"leche", "amputa", "tanginamo", "putangina", "putang ina", "putang ina mo",
+		"bobo ka", "boba ka", "gago ka", "gaga ka", "ulol ka", "leche ka",
+		"fuck", "shit", "bitch", "asshole", "dick", "pussy", "cunt", "motherfucker",
+		"fucker", "fucking", "bullshit", "shithead", "dumbass", "ass", "damn",
+		"tarantado", "tarantada", "bwisit", "buwisit", "pakyu", "putang ina nyo",
+		"punyeta", "hayop", "demonyo", "hayop ka", "putangina mo", "tanginamo"
+	];
+	
+	let result = text;
+	for (const word of profanityList) {
+		const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+		const replacement = '*'.repeat(word.length);
+		result = result.replace(regex, replacement);
+	}
+	
+	return result;
+};
+
 const getMessageId = () => {
 	if (typeof crypto !== "undefined" && crypto.randomUUID) {
 		return crypto.randomUUID();
@@ -1317,7 +1338,8 @@ const clearCurrentChat = async () => {
 		event.preventDefault();
 
 		const trimmed = DOMPurify.sanitize(prompt.trim());
-		if (!trimmed && draftAttachments.length === 0) return;
+		const censored = censorProfanity(trimmed);
+		if (!censored && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
 		if (isAdminOrStaff && !canReply) return;
 
@@ -1327,14 +1349,14 @@ const clearCurrentChat = async () => {
 		shouldStickToBottomRef.current = true;
 
 		try {
-			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
+			const outgoing = await sendMessage(censored, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
 			if (draftAttachments.length > 0) {
 				clearDraftAttachment();
 			}
 			setPrompt("");
 
 			const shouldTriggerBot = !isAdminOrStaff && (!adminOnline && !staffOnline);
-			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
+			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => censored.toLowerCase().includes(k));
 
 			if (shouldTriggerBot || isQuickQuery) {
 				const hasVideo = draftAttachments.some((item) => item.kind === "video");
