@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
-import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo } from "react-icons/fi";
+import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo, FiCalendar } from "react-icons/fi";
 
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
