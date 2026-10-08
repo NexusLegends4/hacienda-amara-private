@@ -184,6 +184,9 @@ const ManagePackages = () => {
         if (!pkg) return;
 
         const targetOrder = pkg.display_order + (direction === 'up' ? -1 : 1);
+        // Prevent going below 1
+        if (targetOrder < 1) return;
+        
         const targetPkg = packages.find(p => p.display_order === targetOrder);
         if (!targetPkg) return;
 
@@ -305,7 +308,7 @@ const ManagePackages = () => {
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Display Order</span></label>
-                                    <input type="number" name="display_order" className="input input-bordered w-full" value={formData.display_order} onChange={handleChange} />
+                                    <input type="number" name="display_order" className="input input-bordered w-full" value={formData.display_order} onChange={handleChange} min="1" />
                                 </div>
                                 <div className="form-control">
                                     <label className="label cursor-pointer flex items-center gap-2">
@@ -354,7 +357,7 @@ const ManagePackages = () => {
                                                 <tr key={pkg.id} className={editingId === pkg.id ? 'bg-warning/10' : ''}>
                                                     {editingId === pkg.id && editData ? (
                                                         <>
-                                                            <td><input type="number" name="display_order" value={editData.display_order || 1} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
+                                                            <td><input type="number" name="display_order" value={editData.display_order || 1} onChange={handleEditChange} className="input input-bordered input-sm w-20" min="1" /></td>
                                                             <td><input type="text" name="name" value={editData.name} onChange={handleEditChange} className="input input-bordered input-sm w-full" required /></td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
