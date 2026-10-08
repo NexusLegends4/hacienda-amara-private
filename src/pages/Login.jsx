@@ -501,7 +501,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="mt-6 flex justify-center">
                 <button
                   type="button"
                   onClick={() => handleOAuthLogin("google")}
