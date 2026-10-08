@@ -492,26 +492,6 @@ const Login = () => {
               </button>
             </form>
 
-            <div className="mt-8 text-center">
-              <p className="text-sm text-slate-500">
-                Don&apos;t have an account?{" "}
-                <Link
-                  to="/sign-up"
-                  className="text-black font-medium hover:underline"
-                >
-                  Sign up
-                </Link>
-              </p>
-              <p className="mt-2 text-sm text-slate-500">
-                <Link
-                  to="/forgot-password"
-                  className="text-black font-medium hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </p>
-            </div>
-
             <div className="mt-8">
               <div className="relative">
                 <div className="relative flex justify-center text-sm">
