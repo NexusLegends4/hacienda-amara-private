@@ -354,7 +354,7 @@ const ManagePackages = () => {
                                                 <tr key={pkg.id} className={editingId === pkg.id ? 'bg-warning/10' : ''}>
                                                     {editingId === pkg.id && editData ? (
                                                         <>
-                                                            <td><input type="number" name="display_order" value={editData.display_order} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
+                                                            <td><input type="number" name="display_order" value={editData.display_order || 1} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
                                                             <td><input type="text" name="name" value={editData.name} onChange={handleEditChange} className="input input-bordered input-sm w-full" required /></td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
@@ -391,7 +391,7 @@ const ManagePackages = () => {
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <td className="font-medium">{pkg.display_order}</td>
+                                                            <td className="font-medium">{pkg.display_order || 1}</td>
                                                             <td>{pkg.name}</td>
                                                             <td>₱{Number(pkg.min_price).toLocaleString()} - ₱{Number(pkg.max_price).toLocaleString()}</td>
                                                             <td>{pkg.duration_hours} hrs</td>
