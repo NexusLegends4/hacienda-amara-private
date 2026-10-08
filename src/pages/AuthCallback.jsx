@@ -12,15 +12,25 @@ const AuthCallback = () => {
     const handleAuthCallback = async () => {
       console.log("AuthCallback: Starting OAuth callback", { 
         href: window.location.href,
-        search: window.location.search 
+        search: window.location.search,
+        hash: window.location.hash
       });
       
-      // Get the auth code from URL
-      const code = searchParams.get("code");
+      // Get the auth code from URL query params OR hash fragment
+      // Supabase sometimes returns OAuth response in fragment (implicit flow)
+      let code = searchParams.get("code");
+      
+      if (!code && window.location.hash) {
+        // Try to get code from URL fragment (after #)
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        code = hashParams.get("code");
+        console.log("AuthCallback: Got code from hash fragment:", !!code);
+      }
+      
       const next = searchParams.get("next");
 
       if (!code) {
-        console.error("AuthCallback: No auth code in callback URL");
+        console.error("AuthCallback: No auth code in callback URL (query or hash)");
         navigate("/log-in?error=oauth_no_code");
         return;
       }
