@@ -365,32 +365,25 @@ const NavBar = () => {
 								</>
 							)}
 
-							{["admin", "staff"].includes(profile?.role) && (
+{["admin", "staff"].includes(profile?.role) && (
 													<>
-{profile?.role === "admin" && <>
-    <div className="border-t border-base-200 my-2" />
-    <p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Manage</p>
-    <NavLink to="/manage-packages" className={mobileLinkClass} onClick={closeMobile}>Manage Packages</NavLink>
-    <NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
-    <NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
-    <NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
-    <div className="border-t border-base-200 my-2" />
-    <NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
-    </>}
-									{profile?.role === "staff" && <>
+													{profile?.role === "admin" && <>
+									<div className="border-t border-base-200 my-2" />
+									<p className="text-[0.65rem] uppercase tracking-widest text-base-content/40 px-4 py-1">Manage</p>
+									<NavLink to="/manage-packages" className={mobileLinkClass} onClick={closeMobile}>Manage Packages</NavLink>
+									<NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
+									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
+									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
+									<div className="border-t border-base-200 my-2" />
+									<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
+									</>}
+													{profile?.role === "staff" && <>
 										<div className="border-t border-base-200 my-2" />
 										<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
 										<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
-									</>}
-									</>
-							)}
-
-							{profile?.role === "staff" && (
-								<>
-									<div className="border-t border-base-200 my-2" />
-													<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
-								</>
-							)}
+										</>}
+													</>
+											)}
 
 							{profile?.role === "client" && (
 								<>
