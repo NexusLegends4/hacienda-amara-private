@@ -60,7 +60,7 @@ const AuthCallback = () => {
         }
 
         // Fetch user profile to determine role and redirect accordingly
-        console.log("AuthCallback: Fetching user profile for role-based redirect");
+        console.log("AuthCallback: Fetching user profile for role-based redirect, user id:", session.user.id);
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role, firstname, lastname")
@@ -69,7 +69,39 @@ const AuthCallback = () => {
 
         if (profileError) {
           console.error("AuthCallback: Profile fetch error:", profileError);
-          // Default to home if profile fetch fails
+          
+          // Profile doesn't exist - create it for new Google users
+          if (profileError.code === 'PGRST116') { // No rows returned
+            console.log("AuthCallback: Profile not found, creating new profile for Google user");
+            
+            const newProfile = {
+              id: session.user.id,
+              email: session.user.email,
+              firstname: session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0] || 'User',
+              lastname: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+              role: 'client', // Default role for new Google users
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            const { error: insertError } = await supabase
+              .from("profiles")
+              .insert(newProfile);
+            
+            if (insertError) {
+              console.error("AuthCallback: Failed to create profile:", insertError);
+              navigate("/");
+              return;
+            }
+            
+            console.log("AuthCallback: Created new profile for Google user, role: client");
+            // Redirect to home for new client users
+            navigate("/");
+            return;
+          }
+          
+          // Other profile errors - redirect to home
+          console.error("AuthCallback: Profile error, redirecting to home");
           navigate("/");
           return;
         }
