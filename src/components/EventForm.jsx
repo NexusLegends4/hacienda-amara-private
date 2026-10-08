@@ -101,6 +101,19 @@ const EventForm = ({ eventData = null }) => {
 							name="end_time"
 							defaultValue={eventData?.end_time}
 						/>
+						<label className="label">
+							<span className="label-text">Duration</span>
+						</label>
+						<select
+							name="duration"
+							className="select select-bordered w-full"
+							defaultValue={eventData?.duration || "day"}
+						>
+							<option value="day">Day Time (9AM - 6PM)</option>
+							<option value="night">Night Time (9PM - 6AM)</option>
+							<option value="overnight">Overnight (21 hours)</option>
+							<option value="custom">Custom Duration</option>
+						</select>
 						<Input
 							type="text"
 							label="Location"
