@@ -3,6 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import EventCard from "../components/EventCard";
 import { SessionContext } from "../contexts/SessionContext";
+import { FiCalendar, FiMapPin, FiClock, FiUsers, FiTag } from "react-icons/fi";
 
 const Events = () => {
 	const [events, setEvents] = useState([]);
@@ -12,7 +13,7 @@ const Events = () => {
 	useEffect(() => {
 		const loadData = async () => {
 			// Fetch Events
-			const { data: eventsData, error: eventsError } = await supabase.from("events").select();
+			const { data: eventsData, error: eventsError } = await supabase.from("events").select().order("start_date", { ascending: true });
 			if (eventsError) alert(eventsError.message || eventsError);
 			if (eventsData) setEvents(eventsData);
 
@@ -30,6 +31,21 @@ const Events = () => {
 		loadData();
 	}, [profile]);
 
+	const formatDate = (dateStr) => {
+		if (!dateStr) return "";
+		const date = new Date(dateStr);
+		return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+	};
+
+	const formatTime = (timeStr) => {
+		if (!timeStr) return "";
+		const [hours, minutes] = timeStr.split(":");
+		const hour = parseInt(hours);
+		const ampm = hour >= 12 ? "PM" : "AM";
+		const displayHour = hour % 12 || 12;
+		return `${displayHour}:${minutes} ${ampm}`;
+	};
+
 	return (
 		<MainLayout>
 			<div className="px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-8">
@@ -39,17 +55,20 @@ const Events = () => {
 						<h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">Upcoming Events</h1>
 						<p className="mt-2 text-sm sm:text-base text-base-content/70 max-w-2xl">Join our community events and special occasions at Hacienda Amara.</p>
 					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-						{events?.map((event) => (
-							<EventCard
-								key={event.id}
-								event={event}
-								registrations={registrations}
-								setRegistrations={setRegistrations}
-							/>
-						))}
-					</div>
-					{events?.length === 0 && (
+					{events?.length > 0 ? (
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
+							{events?.map((event) => (
+								<EventCard
+									key={event.id}
+									event={event}
+									registrations={registrations}
+									setRegistrations={setRegistrations}
+									formatDate={formatDate}
+									formatTime={formatTime}
+								/>
+							))}
+						</div>
+					) : (
 						<div className="text-center py-12 sm:py-16">
 							<p className="text-base-content/60 text-lg sm:text-xl">No events available at the moment.</p>
 							<p className="mt-2 text-sm text-base-content/50">Check back soon for upcoming events!</p>
