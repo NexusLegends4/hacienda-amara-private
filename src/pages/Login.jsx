@@ -331,7 +331,7 @@ const Login = () => {
             bg-gradient-to-b
             from-[#6b4b2a]/35
             via-[#9a6a3c]/20
-            to-[#f8e8d2]/60
+            to-[#f8ecd8]/60
           "
         />
         <div
