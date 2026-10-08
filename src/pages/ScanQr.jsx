@@ -12,6 +12,7 @@ const ScanQr = () => {
 	const [showInstructions, setShowInstructions] = useState(false);
 	const [isHttps, setIsHttps] = useState(false);
 	const scannerRef = useRef(null);
+	const isInitializedRef = useRef(false);
 
 	useEffect(() => {
 		// Check if we're on HTTPS or localhost
@@ -27,6 +28,14 @@ const ScanQr = () => {
 
 	useEffect(() => {
 		if (!session || profile?.role !== "admin") return undefined;
+		
+		// Prevent double initialization
+		if (isInitializedRef.current) {
+			console.log("Scanner already initialized, skipping");
+			return undefined;
+		}
+		isInitializedRef.current = true;
+		
 		let isMounted = true;
 		let html5QrCode = null;
 		const scannerId = "qr-reader";
@@ -134,6 +143,7 @@ const ScanQr = () => {
 
 		return () => {
 			isMounted = false;
+			isInitializedRef.current = false;
 			void stopScanner();
 		};
 	}, [navigate, profile?.role, session, isHttps]);
