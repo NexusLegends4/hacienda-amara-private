@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
-import { FiRefreshCw, FiCamera, FiLock, FiExternalLink } from "react-icons/fi";
+import { FiRefreshCw, FiCamera, FiLock, FiExternalLink, FiUpload, FiImage } from "react-icons/fi";
 
 const ScanQr = () => {
 	const navigate = useNavigate();
@@ -11,6 +11,7 @@ const ScanQr = () => {
 	const [status, setStatus] = useState("Requesting camera permission...");
 	const [showInstructions, setShowInstructions] = useState(false);
 	const [isHttps, setIsHttps] = useState(false);
+	const [cameraError, setCameraError] = useState(null);
 	const scannerRef = useRef(null);
 	const isInitializedRef = useRef(false);
 
@@ -20,7 +21,7 @@ const ScanQr = () => {
 		const hostname = window.location.hostname;
 		// Vercel domains are always HTTPS
 		const isVercel = hostname.endsWith(".vercel.app");
-		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1" || isVercel;
+		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".vercel.app");
 		setIsHttps(secure);
 		
 		if (!secure) {
@@ -91,7 +92,7 @@ const ScanQr = () => {
 			}
 		};
 
-		const startScanner = async () => {
+		const startScanner = async (facingMode = "environment") => {
 			try {
 				await stopScanner();
 
@@ -100,18 +101,26 @@ const ScanQr = () => {
 				// First, check if we have camera permission
 				try {
 					const stream = await navigator.mediaDevices.getUserMedia({ 
-						video: { facingMode: "environment" } 
+						video: { facingMode } 
 					});
 					stream.getTracks().forEach(track => track.stop());
 				} catch (permError) {
 					if (!isMounted) return;
+					if (facingMode === "environment") {
+						// Try front camera as fallback
+						console.log("Rear camera failed, trying front camera...");
+						await startScanner("user");
+						return;
+					}
+					if (!isMounted) return;
+					setCameraError("Camera permission denied. Please allow camera access in your browser settings and refresh.");
 					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
 					return;
 				}
 
 				html5QrCode = new Html5Qrcode("qr-reader");
 				await html5QrCode.start(
-					{ facingMode: "environment" },
+					{ facingMode },
 					{
 						fps: 10,
 						qrbox: (viewfinderWidth, viewfinderHeight) => {
@@ -124,18 +133,38 @@ const ScanQr = () => {
 					},
 				);
 				if (isMounted) {
-					setStatus("Camera ready. Scan a QR code.");
+					setCameraError(null);
+					setStatus(`Camera ready (${facingMode === "environment" ? "rear" : "front"}). Scan a QR code.`);
 				}
 			} catch (error) {
 				console.error(error);
 				if (!isMounted) return;
 				if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+					if (facingMode === "environment") {
+						// Try front camera as fallback
+						await startScanner("user");
+						return;
+					}
+					setCameraError("Camera permission denied. Please allow camera access in your browser settings and refresh.");
 					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
 				} else if (error.name === "NotFoundError") {
+					if (facingMode === "environment") {
+						// Try front camera as fallback
+						await startScanner("user");
+						return;
+					}
+					setCameraError("No camera found. Please connect a camera and refresh.");
 					setStatus("No camera found. Please connect a camera and refresh.");
 				} else if (!isHttps) {
+					setCameraError("Camera requires HTTPS. Please access via HTTPS or use localhost.");
 					setStatus("Camera requires HTTPS. Please access via HTTPS or use localhost.");
 				} else {
+					if (facingMode === "environment") {
+						// Try front camera as fallback
+						await startScanner("user");
+						return;
+					}
+					setCameraError("Camera could not start. Allow camera access and use HTTPS or localhost.");
 					setStatus("Camera could not start. Allow camera access and use HTTPS or localhost.");
 				}
 			}
@@ -151,9 +180,38 @@ const ScanQr = () => {
 	}, [navigate, profile?.role, session, isHttps]);
 
 	const handleRetry = () => {
+		setCameraError(null);
 		setStatus("Starting camera...");
 		// Trigger a re-render of the scanner
 		scannerRef.current = (scannerRef.current || 0) + 1;
+	};
+
+	const handleFileUpload = async (event) => {
+		const file = event.target.files[0];
+		if (!file) return;
+
+		if (!file.type.startsWith("image/")) {
+			alert("Please select an image file (JPG, PNG, etc.)");
+			return;
+		}
+
+		setStatus("Processing QR code from image...");
+
+		try {
+			// Use html5-qrcode to scan from file
+			const html5QrCode = new Html5Qrcode("qr-reader-file");
+			const result = await html5QrCode.scanFile(file, true);
+			
+			if (result) {
+				setStatus("QR code detected from image.");
+				await handleResult(result);
+			} else {
+				setStatus("No QR code found in the uploaded image.");
+			}
+		} catch (error) {
+			console.error("File scan error:", error);
+			setStatus("Failed to scan QR code from image. Please try a clearer image.");
+		}
 	};
 
 	if (!session || profile?.role !== "admin") {
@@ -189,6 +247,11 @@ const ScanQr = () => {
 									<FiLock className="w-3 h-3 inline mr-1" /> Requires HTTPS
 								</div>
 							)}
+							{cameraError && (
+								<div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-xs px-3 py-2 rounded-full backdrop-blur-sm max-w-[90%] text-center">
+									{cameraError}
+								</div>
+							)}
 						</div>
 
 						<div className="bg-slate-50 border-t border-slate-100 p-6 flex flex-col gap-3 justify-center">
@@ -208,6 +271,17 @@ const ScanQr = () => {
 								<FiCamera className="w-4 h-4" />
 								Camera Help
 							</button>
+							<label className="btn btn-outline btn-wide rounded-full flex items-center justify-center gap-2 cursor-pointer">
+								<FiUpload className="w-4 h-4" />
+								Upload QR Image
+								<input
+									type="file"
+									accept="image/*"
+									onChange={handleFileUpload}
+									className="hidden"
+									id="qr-file-upload"
+								/>
+							</label>
 						</div>
 
 						{showInstructions && (
@@ -220,6 +294,7 @@ const ScanQr = () => {
 									<li className="flex items-center gap-2"><FiLock className="w-4 h-4" /> Use <strong>HTTPS</strong> - Camera only works on HTTPS sites (or localhost)</li>
 									<li className="flex items-center gap-2"><FiExternalLink className="w-4 h-4" /> If on mobile, use <strong>Chrome/Safari</strong> - other browsers may block camera</li>
 									<li className="flex items-center gap-2"><FiRefreshCw className="w-4 h-4" /> Try the <strong>Retry Camera</strong> button after allowing permission</li>
+									<li className="flex items-center gap-2"><FiUpload className="w-4 h-4" /> Or <strong>upload a QR code image</strong> if camera doesn't work</li>
 								</ul>
 							</div>
 						)}
