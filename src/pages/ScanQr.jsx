@@ -29,10 +29,10 @@ const ScanQr = () => {
 		}
 	}, []);
 
-	useEffect(() => {
+useEffect(() => {
 		if (!session || profile?.role !== "admin") return undefined;
 		
-		// Prevent double initialization
+		// Prevent double initialization - use a more robust check
 		if (isInitializedRef.current) {
 			console.log("Scanner already initialized, skipping");
 			return undefined;
@@ -42,6 +42,14 @@ const ScanQr = () => {
 		let isMounted = true;
 		let html5QrCode = null;
 		const scannerId = "qr-reader";
+
+		// Check if scanner already exists in DOM
+		const existingContainer = document.getElementById(scannerId);
+		if (existingContainer && existingContainer.children.length > 0) {
+			console.log("Scanner already exists in DOM, skipping");
+			isInitializedRef.current = false; // Allow re-init if needed
+			return undefined;
+		}
 
 		const stopScanner = async () => {
 			if (html5QrCode && html5QrCode.isScanning) {
@@ -104,19 +112,25 @@ const ScanQr = () => {
 						video: { facingMode } 
 					});
 					stream.getTracks().forEach(track => track.stop());
-				} catch (permError) {
-					if (!isMounted) return;
-					if (facingMode === "environment") {
-						// Try front camera as fallback
-						console.log("Rear camera failed, trying front camera...");
-						await startScanner("user");
-						return;
-					}
-					if (!isMounted) return;
-					setCameraError("Camera permission denied. Please allow camera access in your browser settings and refresh.");
-					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
+} catch (permError) {
+				if (!isMounted) return;
+				console.error("Permission check error:", permError);
+				if (facingMode === "environment") {
+					// Try front camera as fallback
+					console.log("Rear camera permission failed, trying front camera...");
+					await startScanner("user");
 					return;
 				}
+				if (!isMounted) return;
+				const errorMsg = permError.name === "NotAllowedError" 
+					? "Camera access blocked by browser. Click the camera icon 🔒 in the address bar → Allow → Refresh."
+					: permError.name === "NotFoundError"
+						? "No camera detected. Connect a webcam or check device settings."
+						: `Camera error: ${permError.message}. Check browser permissions and try again.`;
+				setCameraError(errorMsg);
+				setStatus(errorMsg);
+				return;
+			}
 
 				html5QrCode = new Html5Qrcode("qr-reader");
 				await html5QrCode.start(
@@ -137,7 +151,7 @@ const ScanQr = () => {
 					setStatus(`Camera ready (${facingMode === "environment" ? "rear" : "front"}). Scan a QR code.`);
 				}
 			} catch (error) {
-				console.error(error);
+				console.error("Scanner start error:", error);
 				if (!isMounted) return;
 				if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
 					if (facingMode === "environment") {
@@ -145,16 +159,16 @@ const ScanQr = () => {
 						await startScanner("user");
 						return;
 					}
-					setCameraError("Camera permission denied. Please allow camera access in your browser settings and refresh.");
-					setStatus("Camera permission denied. Please allow camera access in your browser settings and refresh.");
+					setCameraError("Camera access blocked. Click the camera icon 🔒 in the address bar → Allow → Refresh.");
+					setStatus("Camera access blocked. Click the camera icon 🔒 in the address bar → Allow → Refresh.");
 				} else if (error.name === "NotFoundError") {
 					if (facingMode === "environment") {
 						// Try front camera as fallback
 						await startScanner("user");
 						return;
 					}
-					setCameraError("No camera found. Please connect a camera and refresh.");
-					setStatus("No camera found. Please connect a camera and refresh.");
+					setCameraError("No camera detected. Connect a webcam or check device settings.");
+					setStatus("No camera detected. Connect a webcam or check device settings.");
 				} else if (!isHttps) {
 					setCameraError("Camera requires HTTPS. Please access via HTTPS or use localhost.");
 					setStatus("Camera requires HTTPS. Please access via HTTPS or use localhost.");
@@ -164,8 +178,8 @@ const ScanQr = () => {
 						await startScanner("user");
 						return;
 					}
-					setCameraError("Camera could not start. Allow camera access and use HTTPS or localhost.");
-					setStatus("Camera could not start. Allow camera access and use HTTPS or localhost.");
+					setCameraError(`Camera error: ${error.message}. Check permissions and try again.`);
+					setStatus(`Camera error: ${error.message}. Check permissions and try again.`);
 				}
 			}
 		};
