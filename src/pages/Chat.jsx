@@ -985,7 +985,17 @@ const clearCurrentChat = async () => {
 					setHistoryByConversation(stored);
 				}
 			} else {
-				setHistoryByConversation(readHistory());
+				// Clear chat history for guests on page refresh
+				const stored = readHistory();
+				if (stored[conversationKey] && stored[conversationKey].length > 0) {
+					// Clear guest chat history on page refresh
+					const newHistory = { ...stored };
+					newHistory[conversationKey] = [];
+					writeHistory(newHistory);
+					setHistoryByConversation(newHistory);
+				} else {
+					setHistoryByConversation(stored);
+				}
 			}
 
 			if (!isAdminOrStaff) {
