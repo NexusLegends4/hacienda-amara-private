@@ -5,6 +5,14 @@ import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiPlus, FiTrash2, FiEdit2, FiDollarSign, FiClock, FiUsers, FiArrowUp, FiArrowDown, FiArrowRight, FiSave, FiX } from "react-icons/fi";
 
+const DURATION_OPTIONS = [
+    { value: 9, label: "Day Time (9 hrs - 9AM-6PM)" },
+    { value: 9, label: "Night Time (9 hrs - 9PM-6AM)" },
+    { value: 21, label: "Overnight (21 hrs - 9AM-6AM next day)" },
+    { value: 12, label: "Half Day (12 hrs)" },
+    { value: 24, label: "Full Day (24 hrs)" },
+];
+
 const ManagePackages = () => {
     const { profile } = useContext(SessionContext);
     const navigate = useNavigate();
@@ -19,14 +27,14 @@ const ManagePackages = () => {
         base_price: '',
         min_price: '',
         max_price: '',
-        duration_hours: '',
+        duration_hours: 9,
         check_in_time: '',
         check_out_time: '',
         max_guests: '',
         additional_guest_price: '',
         features: [],
         is_active: true,
-        display_order: 0
+        display_order: 1
     });
 
     useEffect(() => {
@@ -46,6 +54,8 @@ const ManagePackages = () => {
             alert(error.message);
         } else {
             setPackages(data || []);
+            // Set display_order to next available number
+            setFormData(prev => ({ ...prev, display_order: (data || []).length + 1 }));
         }
         setLoading(false);
     };
@@ -174,6 +184,9 @@ const ManagePackages = () => {
         if (!pkg) return;
 
         const targetOrder = pkg.display_order + (direction === 'up' ? -1 : 1);
+        // Prevent going below 1
+        if (targetOrder < 1) return;
+        
         const targetPkg = packages.find(p => p.display_order === targetOrder);
         if (!targetPkg) return;
 
@@ -198,14 +211,14 @@ const ManagePackages = () => {
             base_price: '',
             min_price: '',
             max_price: '',
-            duration_hours: '',
+            duration_hours: 9,
             check_in_time: '',
             check_out_time: '',
             max_guests: '',
             additional_guest_price: '',
             features: [],
             is_active: true,
-            display_order: packages.length
+            display_order: packages.length + 1
         });
     };
 
@@ -260,8 +273,18 @@ const ManagePackages = () => {
                                     <input type="number" name="max_price" step="1" className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
-                                    <label className="label"><span className="label-text">Duration (Hours)</span></label>
-                                    <input type="number" name="duration_hours" className="input input-bordered w-full" value={formData.duration_hours} onChange={handleChange} required />
+                                    <label className="label"><span className="label-text">Duration</span></label>
+                                    <select
+                                        name="duration_hours"
+                                        className="select select-bordered w-full"
+                                        value={formData.duration_hours}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        {DURATION_OPTIONS.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Check-in Time</span></label>
@@ -285,7 +308,7 @@ const ManagePackages = () => {
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Display Order</span></label>
-                                    <input type="number" name="display_order" className="input input-bordered w-full" value={formData.display_order} onChange={handleChange} />
+                                    <input type="number" name="display_order" className="input input-bordered w-full" value={formData.display_order} onChange={handleChange} min="1" />
                                 </div>
                                 <div className="form-control">
                                     <label className="label cursor-pointer flex items-center gap-2">
@@ -334,7 +357,7 @@ const ManagePackages = () => {
                                                 <tr key={pkg.id} className={editingId === pkg.id ? 'bg-warning/10' : ''}>
                                                     {editingId === pkg.id && editData ? (
                                                         <>
-                                                            <td><input type="number" name="display_order" value={editData.display_order} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
+                                                            <td><input type="number" name="display_order" value={editData.display_order || 1} onChange={handleEditChange} className="input input-bordered input-sm w-20" min="1" /></td>
                                                             <td><input type="text" name="name" value={editData.name} onChange={handleEditChange} className="input input-bordered input-sm w-full" required /></td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
@@ -342,7 +365,13 @@ const ManagePackages = () => {
                                                                     <input type="number" name="max_price" value={editData.max_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Max" />
                                                                 </div>
                                                             </td>
-                                                            <td><input type="number" name="duration_hours" value={editData.duration_hours} onChange={handleEditChange} className="input input-bordered input-sm w-20" /></td>
+                                                            <td>
+                                                                 <select name="duration_hours" value={editData.duration_hours} onChange={handleEditChange} className="select select-bordered select-sm w-20">
+                                                                     {DURATION_OPTIONS.map(opt => (
+                                                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                     ))}
+                                                                 </select>
+                                                              </td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
                                                                     <input type="time" name="check_in_time" value={editData.check_in_time} onChange={handleEditChange} className="input input-bordered input-sm" />
@@ -365,7 +394,7 @@ const ManagePackages = () => {
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <td className="font-medium">{pkg.display_order}</td>
+                                                            <td className="font-medium">{pkg.display_order || 1}</td>
                                                             <td>{pkg.name}</td>
                                                             <td>₱{Number(pkg.min_price).toLocaleString()} - ₱{Number(pkg.max_price).toLocaleString()}</td>
                                                             <td>{pkg.duration_hours} hrs</td>

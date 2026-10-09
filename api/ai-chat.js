@@ -3,6 +3,46 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
+// List of allowed resort-related keywords
+const RESORT_KEYWORDS = [
+	'hacienda amara', 'resort', 'event', 'booking', 'booking', 'reservation', 'booking',
+	'amenities', 'amenity', 'facility', 'facilities', 'pool', 'pool', 'jacuzzi', 'kiddie pool',
+	'barkada room', 'room', 'bed', 'beds', 'ac', 'aircon', 'air condition',
+	'jbl', 'speaker', 'microphone', 'dining', 'table', 'kitchen', 'refrigerator',
+	'water dispenser', 'rice cooker', 'microwave', 'cookware', 'tableware',
+	'bathroom', 'heater', 'parking', 'games', 'wifi', 'internet', 'gas stove',
+	'mineral water', 'heated pool', 'gas stove',
+	'rates', 'rate', 'price', 'price', 'price', 'price', 'price', 'price',
+	'down payment', 'full payment', 'payment', 'payment', 'gcash', 'bdo',
+	'location', 'address', 'where', 'where', 'where', 'map', 'map', 'directions',
+	'rules', 'rules', 'rules', 'policy', 'guidelines', 'guidelines', 'bawal',
+	'facebook', 'fb', 'facebook', 'qr', 'qr', 'scan', 'scan',
+	'events', 'event', 'birthday', 'wedding', 'debut', 'corporate', 'coordinator',
+	'sound system', 'lighting', 'electricity', 'power', 'decorations', 'decorate',
+	'rehearsal', 'corkage', 'guest list', 'extend', 'cleaning', 'security deposit',
+	'site visit', 'inspect', 'book early', 'availability', 'available', 'slot',
+	'booking', 'reserve', 'overnight', 'day tour', 'guests', 'capacity',
+	'parking', 'food', 'drinks', 'drinks', 'extra hours', 'overtime',
+	'sound system', 'lighting', 'electricity', 'power', 'decorations', 'rehearsal',
+	'corkage', 'guest list', 'extend', 'cleaning', 'deposit', 'site visit',
+	'book early', 'availability', 'overnight', 'day tour', 'guests', 'capacity',
+	'parking', 'food', 'drinks', 'extra hours', 'overtime',
+	'corkage', 'guest list', 'extend', 'cleaning', 'deposit', 'site visit',
+	'book early', 'parking', 'food', 'drinks', 'extra hours', 'overtime',
+	'gas stove', 'mineral water', 'gas stove', 'mineral water',
+	'kids', 'children', 'kids', 'children', 'pets', 'pets',
+	'wi-fi', 'wifi', 'internet', 'internet', 'internet',
+	'access', 'setup', 'setup', 'coordinator', 'coordinator',
+	'corkage', 'guest list', 'extend', 'cleaning', 'deposit', 'site visit',
+	'book early', 'parking', 'food', 'drinks', 'extra hours', 'overtime',
+];
+
+function isResortRelated(text) {
+	const lowerText = text.toLowerCase().trim();
+	// Check if the message contains any resort-related keywords
+	return RESORT_KEYWORDS.some(keyword => lowerText.includes(keyword.toLowerCase()));
+}
+
 const SYSTEM_PROMPT = `You are Hacienda Amara's AI assistant. You MUST answer using ONLY the knowledge base below. Never say "I don't know" or "I'm not sure." If a question isn't directly covered, give the most relevant information from the knowledge base.
 
 === KNOWLEDGE BASE (MEMORIZE THIS) ===
@@ -136,6 +176,13 @@ export async function POST(request) {
 
 	const messages = body?.messages ?? [];
 	const userText = getTextFromMessages(messages);
+
+	// Check if question is resort-related
+	if (!isResortRelated(userText)) {
+		return Response.json({ 
+			error: "I can only answer questions about Hacienda Amara resort. Please ask about amenities, rates, bookings, location, rules, events, or other resort-related topics." 
+		}, { status: 400 });
+	}
 
 	if (!GROQ_API_KEY) {
 		return Response.json({ error: "AI not configured" }, { status: 503 });

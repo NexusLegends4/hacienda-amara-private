@@ -392,6 +392,28 @@ const isGenericResponse = (text) => {
 	return generic.some(g => lower.includes(g));
 };
 
+const censorProfanity = (text) => {
+	const profanityList = [
+		"putang", "puta", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", 
+		"leche", "amputa", "tanginamo", "putangina", "putang ina", "putang ina mo",
+		"bobo ka", "boba ka", "gago ka", "gaga ka", "ulol ka", "leche ka",
+		"fuck", "shit", "bitch", "asshole", "dick", "pussy", "cunt", "motherfucker",
+		"fucker", "fucking", "bullshit", "shithead", "dumbass", "ass", "damn",
+		"tarantado", "tarantada", "bwisit", "buwisit", "pakyu", "putang ina nyo",
+		"punyeta", "hayop", "demonyo", "hayop ka", "putangina mo", "tanginamo"
+	];
+	
+	let result = text;
+	for (const word of profanityList) {
+		const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+		const replacement = '*'.repeat(word.length);
+		result = result.replace(regex, replacement);
+	}
+	
+	console.log("Censor check:", { original: text, censored: result, changed: result !== text });
+	return result;
+};
+
 const getMessageId = () => {
 	if (typeof crypto !== "undefined" && crypto.randomUUID) {
 		return crypto.randomUUID();
@@ -963,7 +985,17 @@ const clearCurrentChat = async () => {
 					setHistoryByConversation(stored);
 				}
 			} else {
-				setHistoryByConversation(readHistory());
+				// Clear chat history for guests on page refresh
+				const stored = readHistory();
+				if (stored[conversationKey] && stored[conversationKey].length > 0) {
+					// Clear guest chat history on page refresh
+					const newHistory = { ...stored };
+					newHistory[conversationKey] = [];
+					writeHistory(newHistory);
+					setHistoryByConversation(newHistory);
+				} else {
+					setHistoryByConversation(stored);
+				}
 			}
 
 			if (!isAdminOrStaff) {
@@ -1317,6 +1349,16 @@ const clearCurrentChat = async () => {
 		event.preventDefault();
 
 		const trimmed = DOMPurify.sanitize(prompt.trim());
+		const censored = censorProfanity(trimmed);
+		
+		// Check if message contains profanity (censored differs from original)
+		const hasProfanity = censored !== trimmed;
+		console.log("Profanity check:", { trimmed, censored, hasProfanity });
+		if (hasProfanity) {
+			setError("Your message contains inappropriate language. Please remove it and try again.");
+			return;
+		}
+		
 		if (!trimmed && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
 		if (isAdminOrStaff && !canReply) return;

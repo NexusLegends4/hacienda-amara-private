@@ -19,6 +19,7 @@ const ViewEvent = () => {
 	const [guestName, setGuestName] = useState("");
 	const [guestEmail, setGuestEmail] = useState("");
 	const [guestPhone, setGuestPhone] = useState("");
+	const [formErrors, setFormErrors] = useState({});
 	const qrCanvasRef = useRef(null);
 	const { profile } = useContext(SessionContext);
 	const eventUrl = `${window.location.origin}/view-event/${eventId}`;
@@ -55,6 +56,40 @@ const ViewEvent = () => {
 	const handleRegister = async (event) => {
 		event.preventDefault();
 		if (registered) return;
+
+		// Validation
+		const errors = {};
+		if (!guestName.trim() || guestName.trim().length < 2) {
+			errors.name = "Full name must be at least 2 characters";
+		}
+		if (!guestEmail.trim()) {
+			errors.email = "Email address is required";
+		} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+			errors.email = "Please enter a valid email address";
+		}
+		if (!guestPhone.trim()) {
+			errors.phone = "Phone number is required";
+		} else {
+			// Normalize phone number by removing spaces, dashes, parentheses
+			const normalizedPhone = guestPhone.trim().replace(/[\s\-\(\)]/g, '');
+			// More flexible Philippine phone validation:
+			// Accepts: 09xxxxxxxxx, +639xxxxxxxxx, 639xxxxxxxxx, (09xx) xxx-xxxx, 09xx-xxx-xxxx, etc.
+			// Also accepts landlines: 02xxxxxxx, +632xxxxxxx, (02) xxxx-xxxx, etc.
+			const mobileRegex = /^(\+63|0)?9\d{9}$/;
+			const landlineRegex = /^(\+63|0)?2\d{7,8}$/;
+			const normalized = normalizedPhone.replace(/^\+63/, '0').replace(/^63/, '0');
+			
+			if (!mobileRegex.test(normalized) && !landlineRegex.test(normalized)) {
+				errors.phone = "Please enter a valid Philippine phone number (mobile: 09xx-xxx-xxxx, landline: 02-xxxx-xxxx)";
+			}
+		}
+
+		if (Object.keys(errors).length > 0) {
+			setFormErrors(errors);
+			return;
+		}
+
+		setFormErrors({});
 		setRegistering(true);
 		const { error } = await supabase
 			.from("registrations")
@@ -165,7 +200,7 @@ const ViewEvent = () => {
 						</div>
 
 						<div className="mt-8 flex flex-wrap justify-end gap-3">
-							{!registered && (
+							{!registered && profile?.role !== "admin" && profile?.role !== "staff" && (
 								<button onClick={() => setShowSignInForm(true)} disabled={registering} className="btn btn-primary rounded-full">
 									Sign In to Event
 								</button>
@@ -201,9 +236,22 @@ const ViewEvent = () => {
 				{showSignInForm && event && (
 					<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Event sign in">
 						<form onSubmit={handleRegister} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-							<div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/55">Event sign in</p><h2 className="mt-1 text-xl font-black">{event.title}</h2></div><button type="button" className="btn btn-ghost btn-circle btn-sm" onClick={() => setShowSignInForm(false)} aria-label="Close sign in form"><FiX /></button></div>
+							<div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/55">Event sign in</p><h2 className="mt-1 text-xl font-black">{event.title}</h2></div><button type="button" className="btn btn-ghost btn-circle btn-sm" onClick={() => { setShowSignInForm(false); setFormErrors({}); }} aria-label="Close sign in form"><FiX /></button></div>
 							<p className="mt-3 text-sm text-base-content/65">No account is needed. Resort staff use these details to monitor attendance.</p>
-							<div className="mt-5 space-y-3"><input className="input input-bordered w-full" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Full name" minLength="2" required /><input className="input input-bordered w-full" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email address" type="email" required /><input className="input input-bordered w-full" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Phone number" type="tel" minLength="7" required /></div>
+							<div className="mt-5 space-y-3">
+								<div>
+									<input className={`input input-bordered w-full ${formErrors.name ? 'border-error' : ''}`} value={guestName} onChange={(e) => { setGuestName(e.target.value); if (formErrors.name) setFormErrors(prev => ({...prev, name: undefined})); }} placeholder="Full name" minLength="2" required />
+									{formErrors.name && <p className="mt-1 text-sm text-error">{formErrors.name}</p>}
+								</div>
+								<div>
+									<input className={`input input-bordered w-full ${formErrors.email ? 'border-error' : ''}`} value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); if (formErrors.email) setFormErrors(prev => ({...prev, email: undefined})); }} placeholder="Email address" type="email" required />
+									{formErrors.email && <p className="mt-1 text-sm text-error">{formErrors.email}</p>}
+								</div>
+								<div>
+									<input className={`input input-bordered w-full ${formErrors.phone ? 'border-error' : ''}`} value={guestPhone} onChange={(e) => { setGuestPhone(e.target.value); if (formErrors.phone) setFormErrors(prev => ({...prev, phone: undefined})); }} placeholder="Phone number (e.g., 09xx-xxx-xxxx)" type="tel" minLength="7" required />
+									{formErrors.phone && <p className="mt-1 text-sm text-error">{formErrors.phone}</p>}
+								</div>
+							</div>
 							<button disabled={registering} className="btn btn-primary mt-5 w-full rounded-full" type="submit">{registering ? "Signing in..." : "Confirm Event Sign In"}</button>
 						</form>
 					</div>
