@@ -3,6 +3,29 @@ import {
 	createUIMessageStreamResponse,
 } from "ai";
 
+const INAPPROPRIATE_WORDS = [
+	// English
+	"sex", "fuck", "shit", "bitch", "asshole", "bastard", "damn", "cunt", "dick", "pussy", "cock", "cum", "porn", "nude", "naked", "horny", "orgasm", "masturbate", "blowjob", "handjob", "anal", "oral", "vagina", "penis", "boobs", "tits", "ass", "whore", "slut", "pimp", "hoe", "thot", "rape", "molest", "pedophile", "kill", "murder", "suicide", "die", "hate", "stupid", "idiot", "moron", "retard", "gay", "fag", "faggot", "tranny", "shemale", "nigger", "nigga", "chink", "spic", "kike", "terrorist", "bomb", "weapon", "gun", "knife", "drugs", "cocaine", "heroin", "meth", "weed", "marijuana",
+	// Tagalog
+	"kantot", "kantutin", "kantot ka", "puta", "putang ina", "putangina", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", "ulul", "leche", "lintik", "buang", "sira ulo", "hayop", "demonyo", "puta ka", "putang ina mo", "tangina mo", "gago ka", "bobo ka", "ulol ka", "leche ka", "kantot mo", "kantutin mo", "jakol", "jakulan", "jajakol", "boso", "bosas", "malibog", "libog", "kinantot", "kinakantot", "kantutin kita", "kantot tayo", "sex", "seks", "seksing", "kabit", "kerida", "querida", "puki", "titi", "bayag", "susmaryosep", "pakshet", "pak yu", "fuck you", "putang ina nyo"
+];
+
+function containsInappropriate(text) {
+	const lower = text.toLowerCase();
+	return INAPPROPRIATE_WORDS.some(word => lower.includes(word.toLowerCase()));
+}
+
+const RESORT_KEYWORDS = [
+	"resort", "hacienda", "amara", "pool", "jacuzzi", "jacuzzy", "room", "rate", "price", "booking", "reservation", "event", "wedding", "party", "venue", "amenities", "facilities", "location", "address", "direction", "map", "waze", "google maps", "contact", "phone", "email", "rules", "policy", "guideline", "payment", "pay", "gcash", "bdo", "transfer", "deposit", "overnight", "daytime", "nighttime", "package", "promo", "discount", "capacity", "guest", "pax", "kid", "children", "child", "food", "drink", "alcohol", "catering", "sound", "music", "karaoke", "videoke", "parking", "security", "staff", "admin", "manager", "owner", "schedule", "time", "hour", "checkin", "checkout", "check in", "check out", "availability", "available", "book", "reserve", "cancel", "refund", "review", "feedback", "complaint", "suggestion", "inquiry", "question", "help", "support", "problem", "issue", "concern",
+	// Tagalog
+	"presyo", "magkano", "bayad", "magbabayad", "reserba", "book", "event", "kasal", "binyag", "debut", "birthday", "celebration", "pasyal", "staycation", "bakasyon", "bakasyon", "palipad", "tawid", "sakay", "punta", "punta tayo", "saan", "nasaan", "address", "lugar", "pook", "pasok", "labas", "oras", "oras", "gabi", "umaga", "tanghali", "hapon", "buwan", "buwan", "linggo", "araw", "taon", "taon", "taon", "taon"
+];
+
+function isResortRelated(text) {
+	const lower = text.toLowerCase();
+	return RESORT_KEYWORDS.some(keyword => lower.includes(keyword.toLowerCase()));
+}
+
 const getTextFromMessages = (messages = []) => {
 	const lastUserMessage = [...messages]
 		.reverse()
@@ -19,6 +42,16 @@ const getTextFromMessages = (messages = []) => {
 };
 
 const getReply = (userText) => {
+	// Check inappropriate words first
+	if (containsInappropriate(userText)) {
+		return "I'm sorry, but I can't respond to that. Please keep our conversation respectful and appropriate.";
+	}
+
+	// Check if resort-related
+	if (!isResortRelated(userText)) {
+		return "I can only help with questions about Hacienda Amara Resort - rates, bookings, events, amenities, location, payments, rules, and packages. Please ask me about the resort!";
+	}
+
 	const t = userText.toLowerCase();
 
 	if (t.includes("scan") || t.includes("qr")) {

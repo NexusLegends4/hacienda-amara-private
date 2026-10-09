@@ -633,7 +633,7 @@ const Login = () => {
           right-1/2
           -mx-[50vw]
           w-screen
-          h-[calc(100vh-92px)]
+          min-h-screen
           overflow-hidden
           flex
           items-center
@@ -677,7 +677,7 @@ const Login = () => {
             className="
               w-full
               max-h-[calc(100vh-120px)]
-              overflow-hidden
+              overflow-y-auto
               rounded-2xl
               sm:rounded-[2rem]
               border

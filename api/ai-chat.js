@@ -3,6 +3,19 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
+// Inappropriate words filter (English + Tagalog)
+const INAPPROPRIATE_WORDS = [
+	// English
+	"sex", "fuck", "shit", "bitch", "asshole", "bastard", "damn", "cunt", "dick", "pussy", "cock", "cum", "porn", "nude", "naked", "horny", "orgasm", "masturbate", "blowjob", "handjob", "anal", "oral", "vagina", "penis", "boobs", "tits", "ass", "whore", "slut", "pimp", "hoe", "thot", "rape", "molest", "pedophile", "kill", "murder", "suicide", "die", "hate", "stupid", "idiot", "moron", "retard", "gay", "fag", "faggot", "tranny", "shemale", "nigger", "nigga", "chink", "spic", "kike", "terrorist", "bomb", "weapon", "gun", "knife", "drugs", "cocaine", "heroin", "meth", "weed", "marijuana",
+	// Tagalog
+	"kantot", "kantutin", "kantot ka", "puta", "putang ina", "putangina", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", "ulul", "leche", "lintik", "buang", "sira ulo", "hayop", "demonyo", "puta ka", "putang ina mo", "tangina mo", "gago ka", "bobo ka", "ulol ka", "leche ka", "kantot mo", "kantutin mo", "jakol", "jakulan", "jajakol", "boso", "bosas", "malibog", "libog", "kinantot", "kinakantot", "kantutin kita", "kantot tayo", "sex", "seks", "seksing", "kabit", "kerida", "querida", "puki", "titi", "bayag", "susmaryosep", "pakshet", "pak yu", "fuck you", "putang ina nyo"
+];
+
+function containsInappropriate(text) {
+	const lower = text.toLowerCase();
+	return INAPPROPRIATE_WORDS.some(word => lower.includes(word.toLowerCase()));
+}
+
 // List of allowed resort-related keywords
 const RESORT_KEYWORDS = [
 	'hacienda amara', 'resort', 'event', 'booking', 'booking', 'reservation', 'booking',
@@ -176,6 +189,13 @@ export async function POST(request) {
 
 	const messages = body?.messages ?? [];
 	const userText = getTextFromMessages(messages);
+
+	// Check inappropriate words first
+	if (containsInappropriate(userText)) {
+		return Response.json({ 
+			error: "I'm sorry, but I can't respond to that. Please keep our conversation respectful and appropriate." 
+		}, { status: 400 });
+	}
 
 	// Check if question is resort-related
 	if (!isResortRelated(userText)) {
