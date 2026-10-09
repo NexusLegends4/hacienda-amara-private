@@ -694,6 +694,20 @@ const Login = () => {
           >
             {!showOtp ? (
               <>
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/")}
+                    className="
+                      flex items-center gap-2
+                      text-sm font-medium text-slate-700
+                      hover:underline
+                      transition-colors
+                    "
+                  >
+                    ← Back to Home
+                  </button>
+                </div>
                 <h1
                   className="
                     text-2xl
