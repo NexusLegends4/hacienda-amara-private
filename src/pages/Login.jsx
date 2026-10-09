@@ -346,6 +346,8 @@ const Login = () => {
       setOtpError("");
       setResendCountdown(0);
 
+      localStorage.removeItem("otp_pending");
+
       navigate("/");
     } catch (error) {
       console.error(
@@ -388,6 +390,8 @@ const Login = () => {
     setOtpError("");
     setResendCountdown(0);
     setLoginError("");
+
+    localStorage.removeItem("otp_pending");
   };
 
   const handleSubmit = async (event) => {
@@ -603,6 +607,8 @@ const Login = () => {
         return;
       }
 
+      localStorage.setItem("otp_pending", "true");
+
     } catch (error) {
       console.error(
         "Login error:",
@@ -619,7 +625,7 @@ const Login = () => {
   };
 
   return (
-    <MainLayout>
+    <MainLayout hideNav>
       <div
         className="
           relative

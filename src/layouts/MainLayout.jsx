@@ -2,10 +2,10 @@ import React from "react";
 import NavBar from "../components/NavBar";
 import ChatBubble from "../components/ChatBubble";
 
-const MainLayout = ({ children, noScroll = false }) => {
+const MainLayout = ({ children, noScroll = false, hideNav = false }) => {
 	return (
 		<div className={`flex flex-col ${noScroll ? "h-screen overflow-hidden" : "min-h-screen"} overflow-x-hidden`}>
-			<NavBar />
+			{!hideNav && <NavBar />}
 			<main
 				className={`mx-auto w-full max-w-7xl ${
 					noScroll ? "flex-1 flex min-h-0" : "flex-1"
