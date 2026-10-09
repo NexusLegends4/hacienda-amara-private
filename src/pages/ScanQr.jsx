@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
-import { FiRefreshCw, FiCamera, FiLock, FiExternalLink, FiUpload, FiImage } from "react-icons/fi";
+import { FiRefreshCw, FiCamera, FiLock, FiExternalLink } from "react-icons/fi";
 
 const ScanQr = () => {
 	const navigate = useNavigate();
@@ -180,41 +180,6 @@ const ScanQr = () => {
 	}, [navigate, profile?.role, session, isHttps]);
 
 	const handleRetry = () => {
-		setCameraError(null);
-		setStatus("Starting camera...");
-		// Trigger a re-render of the scanner
-		scannerRef.current = (scannerRef.current || 0) + 1;
-	};
-
-	const handleFileUpload = async (event) => {
-		const file = event.target.files[0];
-		if (!file) return;
-
-		if (!file.type.startsWith("image/")) {
-			alert("Please select an image file (JPG, PNG, etc.)");
-			return;
-		}
-
-		setStatus("Processing QR code from image...");
-
-		try {
-			// Use html5-qrcode to scan from file
-			const html5QrCode = new Html5Qrcode("qr-reader-file");
-			const result = await html5QrCode.scanFile(file, true);
-			
-			if (result) {
-				setStatus("QR code detected from image.");
-				await handleResult(result);
-			} else {
-				setStatus("No QR code found in the uploaded image.");
-			}
-		} catch (error) {
-			console.error("File scan error:", error);
-			setStatus("Failed to scan QR code from image. Please try a clearer image.");
-		}
-	};
-
-	if (!session || profile?.role !== "admin") {
 		return (
 			<MainLayout><div className="mx-auto flex min-h-[60vh] max-w-xl items-center px-4"><div className="w-full rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black">Admin access required</h1><p className="mt-3 text-base-content/70">Event attendance monitoring is available to administrators only.</p><button className="btn btn-black mt-6 rounded-full" onClick={() => navigate("/")}>Back Home</button></div></div></MainLayout>
 		);
@@ -271,17 +236,6 @@ const ScanQr = () => {
 								<FiCamera className="w-4 h-4" />
 								Camera Help
 							</button>
-							<label className="btn btn-outline btn-wide rounded-full flex items-center justify-center gap-2 cursor-pointer">
-								<FiUpload className="w-4 h-4" />
-								Upload QR Image
-								<input
-									type="file"
-									accept="image/*"
-									onChange={handleFileUpload}
-									className="hidden"
-									id="qr-file-upload"
-								/>
-							</label>
 						</div>
 
 						{showInstructions && (
@@ -294,7 +248,6 @@ const ScanQr = () => {
 									<li className="flex items-center gap-2"><FiLock className="w-4 h-4" /> Use <strong>HTTPS</strong> - Camera only works on HTTPS sites (or localhost)</li>
 									<li className="flex items-center gap-2"><FiExternalLink className="w-4 h-4" /> If on mobile, use <strong>Chrome/Safari</strong> - other browsers may block camera</li>
 									<li className="flex items-center gap-2"><FiRefreshCw className="w-4 h-4" /> Try the <strong>Retry Camera</strong> button after allowing permission</li>
-									<li className="flex items-center gap-2"><FiUpload className="w-4 h-4" /> Or <strong>upload a QR code image</strong> if camera doesn't work</li>
 								</ul>
 							</div>
 						)}
