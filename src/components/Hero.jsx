@@ -15,7 +15,7 @@ const Hero = () => {
 		<div className="hero min-h-screen bg-base-200">
 			<div className="hero-content flex-col lg:flex-row">
 				<img
-					src="https://th.bing.com/th/id/OIP.O6XPwTpg3n890Ow3JDwWZgHaHa?w=152&h=180&c=7&r=0&o=7&pid=1.7&rm=3"
+					src="https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara"
 					className="max-w-sm rounded-lg shadow-2xl"
 				/>
 				<div>

@@ -28,19 +28,3 @@ $$;
 
 revoke all on function public.cancel_guest_reservation(text, text, date) from public;
 grant execute on function public.cancel_guest_reservation(text, text, date) to anon, authenticated;
-
-drop function if exists public.get_reserved_date_ranges();
-
-create function public.get_reserved_date_ranges()
-returns table (check_in date, check_out date)
-language sql
-security definer
-set search_path = public
-as $$
-  select r.check_in, r.check_out
-  from public.reservations r
-  where r.status <> 'cancelled';
-$$;
-
-revoke all on function public.get_reserved_date_ranges() from public;
-grant execute on function public.get_reserved_date_ranges() to anon, authenticated;

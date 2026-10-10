@@ -1,14 +1,10 @@
-/**
- * Records an authentication event in the auth_notifications table.
- */
-export async function recordAuthNotification(supabaseClient, payload) {
-  const { error } = await supabaseClient.from('auth_notifications').insert({
-    event_type: payload.eventType,
-    actor_profile_id: payload.profileId,
-    actor_name: payload.name,
-    actor_email: payload.email,
-  });
+import { recordAuthNotification } from "./authNotifications.js";
 
-  if (error) console.error('Error recording notification:', error.message);
-  return { error };
+export async function recordAuthNotification(supabaseClient, payload) {
+  return recordAuthNotification(supabaseClient, {
+    eventType: payload.eventType,
+    profileId: payload.profileId,
+    name: payload.name,
+    email: payload.email,
+  });
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
@@ -37,7 +37,7 @@ const ManagePackages = () => {
         display_order: 1
     });
 
-    const fetchPackages = async () => {
+    const fetchPackages = useCallback(async () => {
         const { data, error } = await supabase
             .from("packages")
             .select("*")
@@ -50,7 +50,7 @@ const ManagePackages = () => {
             setFormData(prev => ({ ...prev, display_order: (data || []).length + 1 }));
         }
         setLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         if (profile?.role !== "admin") {

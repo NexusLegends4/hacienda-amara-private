@@ -1,7 +1,7 @@
 import "./App.css";
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 
@@ -36,6 +36,9 @@ import CustomerNotificationAccess from "./pages/CustomerNotificationAccess";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
+import RoomPricing from "./pages/RoomPricing";
+import FacebookQr from "./pages/FacebookQr";
+import ManageAnnouncements from "./pages/ManageAnnouncements";
 
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
@@ -62,14 +65,14 @@ const THEME_STORAGE_KEY = "theme";
 // Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
 function PageTransition({ children }) {
 	return (
-		<div
+		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: -20 }}
 			transition={{ duration: 0.3, ease: "easeOut" }}
 		>
 			{children}
-		</div>
+		</motion.div>
 	);
 }
 
@@ -110,6 +113,9 @@ const routes = [
 	{ path: "/events", element: <Events /> },
 	{ path: "/rooms", element: <Reservations /> },
 	{ path: "/booking-qr", element: <BookingQr /> },
+	{ path: "/room-pricing", element: <RoomPricing /> },
+	{ path: "/facebook-qr", element: <FacebookQr /> },
+	{ path: "/manage-announcements", element: <ManageAnnouncements /> },
 ];
 
 function App() {

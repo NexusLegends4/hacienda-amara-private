@@ -98,7 +98,7 @@ const PostReview = () => {
 		<MainLayout>
 			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 sm:px-4 sm:py-6 md:px-6">
 				<div className="mx-auto max-w-4xl space-y-6">
-					<div className="hero rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl min-h-[280px] sm:min-h-[400px]" style={{ backgroundImage: "url(https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=cfCLJUVzao4Q7kNvwHkxwNh&_nc_oc=AdpE0JFQrBnPMHKnH6dqabs-xqQOdPvHsw262QkOci5yTGgiK6vHwqedamAx6AmlLps&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=hvaparAoG7w4R15a9Bp1BQ&_nc_ss=7a3a8&oh=00_Af1xxj9ZwlTVMjU_VoVV6LVK_iESz0Nd4JnGEcT1ZcEErg&oe=69E232C7)", backgroundPosition: "center" }}>
+					<div className="hero rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl min-h-[280px] sm:min-h-[400px]" style={{ backgroundImage: "url(https://via.placeholder.com/800x600/6b4b2a/ffffff?text=Hacienda+Amara)", backgroundPosition: "center" }}>
 						<div className="hero-overlay bg-black/60 backdrop-blur-sm"></div>
 						<div className="hero-content text-neutral-content text-center">
 							<div className="max-w-md">

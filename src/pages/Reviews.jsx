@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { FiStar, FiMessageSquare, FiEdit2, FiTrash2, FiRefreshCw } from "react-icons/fi";
@@ -19,7 +19,7 @@ const Reviews = () => {
 	const [reviews, setReviews] = useState([]);
 	const [loading, setLoading] = useState(true);
 
-	const fetchReviews = async (showLoading = true) => {
+	const fetchReviews = useCallback(async (showLoading = true) => {
 		if (showLoading) setLoading(true);
 		const { data } = await supabase
 			.from("reviews")
@@ -27,7 +27,7 @@ const Reviews = () => {
 			.order("created_at", { ascending: false });
 		if (data) setReviews(data);
 		setLoading(false);
-	};
+	}, []);
 
 	// Initial fetch
 	useEffect(() => {
@@ -100,7 +100,7 @@ const Reviews = () => {
 
 					{/* Hero for clients */}
 					{profile?.role === "client" && (
-						<div className="hero rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl mb-6 min-h-[280px] sm:min-h-[400px]" style={{ backgroundImage: "url(https://scontent.fmnl9-3.fna.fbcdn.net/v/t39.30808-6/498621173_122130914540749963_238405466557103005_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=2a1932&_nc_eui2=AeFbSN8TdpWfyxBZrWSC_FxAelQG7z5WU_J6VAbvPlZT8jlKAoCsk3Ai6CCiD2DZT9WadKTyFNCeB9LrzyNCNd5Y&_nc_ohc=cfCLJUVzao4Q7kNvwHkxwNh&_nc_oc=AdpE0JFQrBnPMHKnH6dqabs-xqQOdPvHsw262QkOci5yTGgiK6vHwqedamAx6AmlLps&_nc_zt=23&_nc_ht=scontent.fmnl9-3.fna&_nc_gid=hvaparAoG7w4R15a9Bp1BQ&_nc_ss=7a3a8&oh=00_Af1xxj9ZwlTVMjU_VoVV6LVK_iESz0Nd4JnGEcT1ZcEErg&oe=69E232C7)", backgroundPosition: "center" }}>
+						<div className="hero rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl mb-6 min-h-[280px] sm:min-h-[400px]" style={{ backgroundImage: "url(https://via.placeholder.com/800x600/6b4b2a/ffffff?text=Hacienda+Amara)", backgroundPosition: "center" }}>
 							<div className="hero-overlay bg-black/60 backdrop-blur-[2px]"></div>
 							<div className="hero-content text-neutral-content text-center p-8">
 								<div className="max-w-md">

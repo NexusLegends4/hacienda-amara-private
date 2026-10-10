@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useNavigate } from "react";
 import Card from "./Card";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
@@ -8,6 +8,7 @@ import { FiCalendar, FiMapPin, FiClock, FiUsers, FiTag, FiArrowRight } from "rea
 const EventCard = ({ event, setEvents, formatDate, formatTime }) => {
 	const { profile } = useContext(SessionContext);
 	const isAdmin = profile?.role === "admin";
+	const navigate = useNavigate();
 
 	const handleDelete = async (e) => {
 		e.preventDefault();
@@ -48,7 +49,7 @@ const EventCard = ({ event, setEvents, formatDate, formatTime }) => {
 	const eventImage = event.image_url || event.image;
 
 	const handleClick = () => {
-		window.location.href = `/view-event/${event.id}`;
+		navigate(`/view-event/${event.id}`);
 	};
 
 	return (

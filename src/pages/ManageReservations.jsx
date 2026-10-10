@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
@@ -96,6 +96,25 @@ const ManageReservations = () => {
 
 		const clientName = resToUpdate ? reservationGuestName(resToUpdate) : "the client";
 		const action = newStatus === "confirmed" ? "accepted" : "declined";
+
+		// Send email notification to guest
+		if (resToUpdate?.guest_email) {
+			try {
+				await fetch("/api/reservation-status-notification", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						name: clientName,
+						email: resToUpdate.guest_email,
+						status: newStatus,
+						roomType: resToUpdate.room_type,
+						checkIn: resToUpdate.check_in,
+					}),
+				});
+			} catch (e) {
+				console.warn("Failed to send notification:", e);
+			}
+		}
 
 		alert(`Reservation for ${clientName} was ${action}.`);
 		fetchReservations(false);

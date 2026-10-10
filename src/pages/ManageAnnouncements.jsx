@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiPlus, FiTrash2, FiMegaphone } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiBell } from "react-icons/fi";
 import DOMPurify from "dompurify";
 
 const ManageAnnouncements = () => {

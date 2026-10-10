@@ -31,9 +31,9 @@ const HACIENDA_AMARA_LOCATION_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-
 )}`;
 const HACIENDA_AMARA_GALLERY_IMAGES = [
 	heroImage,
-	"https://scontent.fmnl9-6.fna.fbcdn.net/v/t39.30808-6/494369075_122128145408749963_4990497671908646009_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=110&ccb=1-7&_nc_sid=7b2446&_nc_ohc=_bIjtQyapPkQ7kNvwGyjTEL&_nc_oc=Adqs_72QnpeiESmu27Z5jwKEdvlzqAcLaFBXBG4oCyJCT9SIGVUdoqhTiyTTjh4lpro&_nc_zt=23&se=-1&_nc_ht=scontent.fmnl9-6.fna&_nc_gid=AsNb17ujiPpWRbYFkqG07w&_nc_ss=7a3a8&oh=00_Af136LY8WbVVP2OmYbCjcpfh2N0e4mOXOcsRxVzAEKKHmg&oe=69D7F2D5",
-	"https://scontent.fmnl9-5.fna.fbcdn.net/v/t39.30808-6/494762994_122127788384749963_4263195623448948223_n.jpg?stp=cp6_dst-jpegr_tt6&_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=6OFQMtbjetIQ7kNvwHtH7vf&_nc_oc=Adr7NEt_2pBX122W0L--hXKylnF9pPJ7v5gY3zAW_Dd9OGkEujcWud89DsChdBnxslw&_nc_zt=23&se=-1&_nc_ht=scontent.fmnl9-5.fna&_nc_gid=dgRO_3Ik7Zj1gdWjg2XxBA&_nc_ss=7a3a8&oh=00_Af3TDz95LXs0-AvgiUGW23HdIYWvYZIGofDco7LGcSNukw&oe=69D7E208",
-	"https://scontent.fmnl9-5.fna.fbcdn.net/v/t39.30808-6/481303337_122113740890749963_5078274125687890241_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=RyHA9Ozrar8Q7kNvwH8K6VK&_nc_oc=AdraLsPc2PDU-Q6_Y9MimOqcUsFDkPs4oXzKKb1LKgve13xWnTLn_dxJbRgX01Q8hlI&_nc_zt=23&_nc_ht=scontent.fmnl9-5.fna&_nc_gid=Dhnwso3p1VJu6NytddB2dQ&_nc_ss=7a3a8&oh=00_Af0ttsvg1OSlH2qn2qu317k9aQJ_eShFNMvwQ-iML3m8zQ&oe=69D7E6DE",
+	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
+	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
+	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
 ];
 const BOT_DISPLAY_NAME = "Hacienda Amara Assistant";
 const CLIENT_CHAT_PROMPTS = [
