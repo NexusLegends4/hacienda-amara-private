@@ -30,7 +30,7 @@ const ManageReservations = () => {
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
 
-	const fetchReservations = async (showLoading = true) => {
+	const fetchReservations = useCallback(async (showLoading = true) => {
 		if (showLoading) setLoading(true);
 
 		const { data, error } = await supabase
@@ -45,7 +45,7 @@ const ManageReservations = () => {
 		}
 
 		setLoading(false);
-	};
+	}, []);
 
 	useEffect(() => {
 		if (!session) {
