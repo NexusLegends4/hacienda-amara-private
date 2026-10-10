@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import javascriptObfuscator from "vite-plugin-javascript-obfuscator";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -58,6 +59,26 @@ export default defineConfig({
 				],
 			},
 		}),
+		javascriptObfuscator({
+			compact: true,
+			controlFlowFlattening: true,
+			deadCodeInjection: true,
+			debugProtection: true,
+			debugProtectionInterval: 4000,
+			disableConsoleOutput: true,
+			identifierNamesGenerator: "hexadecimal",
+			log: false,
+			numbersToExpressions: true,
+			renameGlobals: false,
+			selfDefending: true,
+			simplify: true,
+			splitStrings: true,
+			stringArray: true,
+			stringArrayEncoding: ["rc4"],
+			stringArrayThreshold: 0.75,
+			transformObjectKeys: true,
+			unicodeEscapeSequence: false,
+		}, []),
 	],
 	server: {
 		host: "0.0.0.0",

@@ -6,9 +6,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Rate limiting
+const RATE_LIMIT_WINDOW_MS = 60000
+const RATE_LIMIT_MAX_REQUESTS = 10
+const rateLimitMap = new Map<string, number[]>()
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const requests = rateLimitMap.get(ip) || []
+  const recent = requests.filter(t => now - t < RATE_LIMIT_WINDOW_MS)
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) return false
+  recent.push(now)
+  rateLimitMap.set(ip, recent)
+  return true
+}
+
 serve(async (req) => {
+  const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!checkRateLimit(clientIP)) {
+    return new Response(JSON.stringify({ error: 'Too many requests. Please wait.' }), {
+      status: 429,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   try {
