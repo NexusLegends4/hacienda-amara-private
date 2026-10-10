@@ -30,6 +30,23 @@ const ManageReservations = () => {
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
 
+	const fetchReservations = async (showLoading = true) => {
+		if (showLoading) setLoading(true);
+
+		const { data, error } = await supabase
+			.from("reservations")
+			.select("*, profiles(firstname, lastname, avatar_url)")
+			.order("created_at", { ascending: false });
+
+		if (error) {
+			alert(error.message);
+		} else if (data) {
+			setReservations(data);
+		}
+
+		setLoading(false);
+	};
+
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
@@ -62,24 +79,7 @@ const ManageReservations = () => {
 				supabase.removeChannel(channel);
 			};
 		}
-	}, [canManageReservations]);
-
-	const fetchReservations = async (showLoading = true) => {
-		if (showLoading) setLoading(true);
-
-		const { data, error } = await supabase
-			.from("reservations")
-			.select("*, profiles(firstname, lastname, avatar_url)")
-			.order("created_at", { ascending: false });
-
-		if (error) {
-			alert(error.message);
-		} else if (data) {
-			setReservations(data);
-		}
-
-		setLoading(false);
-	};
+	}, [canManageReservations, fetchReservations]);
 
 	const updateStatus = async (id, newStatus) => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);

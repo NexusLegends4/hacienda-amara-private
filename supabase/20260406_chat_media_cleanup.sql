@@ -15,8 +15,7 @@ select
 				url := 'https://amobzzxmzepvznkgmiwh.supabase.co/functions/v1/cleanup-chat-media',
 				headers := jsonb_build_object(
 					'Content-type', 'application/json',
-					'Authorization', 'Bearer <sb_publishable_kSqEqdr6lpdqz1f43hJ1rA_AB4J-oIa
->'
+					'Authorization', 'Bearer <sb_publishable_kSqEqdr6lpdqz1f43hJ1rA_AB4J-oIa>'
 				),
 				body := jsonb_build_object(
 					'source', 'cron',

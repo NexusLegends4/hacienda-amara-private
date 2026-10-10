@@ -37,14 +37,6 @@ const ManagePackages = () => {
         display_order: 1
     });
 
-    useEffect(() => {
-        if (profile?.role !== "admin") {
-            navigate("/");
-            return;
-        }
-        fetchPackages();
-    }, [profile, navigate]);
-
     const fetchPackages = async () => {
         const { data, error } = await supabase
             .from("packages")
@@ -59,6 +51,14 @@ const ManagePackages = () => {
         }
         setLoading(false);
     };
+
+    useEffect(() => {
+        if (profile?.role !== "admin") {
+            navigate("/");
+            return;
+        }
+        fetchPackages();
+    }, [profile, navigate, fetchPackages]);
 
     const handleChange = (e) => {
         const { name, value, type } = e.target;

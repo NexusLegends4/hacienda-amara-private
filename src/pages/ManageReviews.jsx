@@ -23,6 +23,16 @@ const ManageReviews = () => {
 	const [reviews, setReviews] = useState([]);
 	const [loading, setLoading] = useState(true);
 
+	const fetchReviews = async () => {
+		setLoading(true);
+		const { data } = await supabase
+			.from("reviews")
+			.select("*, profiles(firstname, lastname, avatar_url)")
+			.order("created_at", { ascending: false });
+		if (data) setReviews(data);
+		setLoading(false);
+	};
+
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
@@ -49,17 +59,7 @@ const ManageReviews = () => {
 				};
 			}
 		}
-	}, [session, profile, navigate]);
-
-	const fetchReviews = async () => {
-		setLoading(true);
-		const { data } = await supabase
-			.from("reviews")
-			.select("*, profiles(firstname, lastname, avatar_url)")
-			.order("created_at", { ascending: false });
-		if (data) setReviews(data);
-		setLoading(false);
-	};
+	}, [session, profile, navigate, fetchReviews]);
 
 	const ratingSummary = useMemo(() => {
 		if (reviews.length === 0) return { avg: "0.0", total: 0, counts: [0, 0, 0, 0, 0] };

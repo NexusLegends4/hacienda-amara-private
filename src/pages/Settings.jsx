@@ -13,11 +13,8 @@ const Settings = () => {
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 
-	useEffect(() => {
-		if (profile?.role) {
-			setRole(profile.role);
-		}
-	}, [profile]);
+	// Sync role with profile - derive from profile instead of syncing
+	const effectiveRole = profile?.role || "staff";
 
 	useEffect(() => {
 		if (!session) {
@@ -33,10 +30,10 @@ const Settings = () => {
 			return;
 		}
 
-		if (profile?.role === "admin" && role !== profile.role) {
+		if (profile?.role === "admin" && effectiveRole !== profile.role) {
 			const { data, error } = await supabase
 				.from("profiles")
-				.update({ role })
+				.update({ role: effectiveRole })
 				.eq("id", session.user.id)
 				.select()
 				.single();
@@ -159,7 +156,7 @@ const Settings = () => {
 										</div>
 										<select
 											className="select select-bordered select-sm w-36"
-											value={role}
+											value={effectiveRole}
 											onChange={(event) => setRole(event.target.value)}
 										>
 											<option value="client">Client</option>

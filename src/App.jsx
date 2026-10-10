@@ -1,7 +1,7 @@
 import "./App.css";
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { supabase } from "./utils/supabase";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 
@@ -62,14 +62,14 @@ const THEME_STORAGE_KEY = "theme";
 // Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
 function PageTransition({ children }) {
 	return (
-		<motion.div
+		<div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: -20 }}
 			transition={{ duration: 0.3, ease: "easeOut" }}
 		>
 			{children}
-		</motion.div>
+		</div>
 	);
 }
 

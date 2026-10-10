@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { SpeedInsights } from "@vercel/speed-insights/react"; // Note: Use the /react subpath
-import App from './App'; // Or your main router component
+import App from './App';
 
 const THEME_STORAGE_KEY = "theme";
 
@@ -22,7 +21,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 	<React.StrictMode>
 	<BrowserRouter>
 		<App />
-		<SpeedInsights />
 	</BrowserRouter>
 	</React.StrictMode>
 );

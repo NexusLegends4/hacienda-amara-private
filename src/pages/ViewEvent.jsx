@@ -71,7 +71,7 @@ const ViewEvent = () => {
 			errors.phone = "Phone number is required";
 		} else {
 			// Normalize phone number by removing spaces, dashes, parentheses
-			const normalizedPhone = guestPhone.trim().replace(/[\s\-\(\)]/g, '');
+			const normalizedPhone = guestPhone.trim().replace(/[\s\-()]/g, '');
 			// More flexible Philippine phone validation:
 			// Accepts: 09xxxxxxxxx, +639xxxxxxxxx, 639xxxxxxxxx, (09xx) xxx-xxxx, 09xx-xxx-xxxx, etc.
 			// Also accepts landlines: 02xxxxxxx, +632xxxxxxx, (02) xxxx-xxxx, etc.

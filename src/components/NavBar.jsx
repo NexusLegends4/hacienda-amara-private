@@ -212,12 +212,17 @@ const NavBar = () => {
 							    </ul>
 							</div>}
 							{/* Admin: Notifications button in navbar */}
-							<a href="#" onClick={handleNav("/admin-notifications")} className="relative navLinkClass">
+							<NavLink to="/admin-notifications" onClick={closeMobile} className={({ isActive }) => [
+								"inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
+								isActive
+									? "border-black bg-black text-white shadow-md"
+									: "border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200",
+							].join(" ")}>
 								<FiBell className="text-base" />
 								{unreadNotificationsCount > 0 && (
 									<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
 								)}
-							</a>
+							</NavLink>
 							</>
 						)}
 {profile?.role === "staff" && (

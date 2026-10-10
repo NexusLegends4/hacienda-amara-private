@@ -12,15 +12,12 @@ const ScanQr = () => {
 	const [showInstructions, setShowInstructions] = useState(false);
 	const [isHttps, setIsHttps] = useState(false);
 	const [cameraError, setCameraError] = useState(null);
-	const scannerRef = useRef(null);
 	const isInitializedRef = useRef(false);
 
 	useEffect(() => {
 		// Check if we're on HTTPS or localhost
 		const protocol = window.location.protocol;
 		const hostname = window.location.hostname;
-		// Vercel domains are always HTTPS
-		const isVercel = hostname.endsWith(".vercel.app");
 		const secure = protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".vercel.app");
 		setIsHttps(secure);
 		
@@ -63,7 +60,7 @@ useEffect(() => {
 				if (html5QrCode) {
 					html5QrCode.clear();
 				}
-			} catch (err) {
+			} catch {
 				// Ignore clear errors
 			}
 
@@ -194,10 +191,10 @@ useEffect(() => {
 	}, [navigate, profile?.role, session, isHttps]);
 
 	const handleRetry = () => {
-		return (
-			<MainLayout><div className="mx-auto flex min-h-[60vh] max-w-xl items-center px-4"><div className="w-full rounded-3xl bg-white p-8 text-center shadow-xl"><h1 className="text-2xl font-black">Admin access required</h1><p className="mt-3 text-base-content/70">Event attendance monitoring is available to administrators only.</p><button className="btn btn-black mt-6 rounded-full" onClick={() => navigate("/")}>Back Home</button></div></div></MainLayout>
-		);
-	}
+		isInitializedRef.current = false;
+		setCameraError(null);
+		setStatus("Retrying camera...");
+	};
 
 	return (
 		<MainLayout>

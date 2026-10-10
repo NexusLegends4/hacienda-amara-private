@@ -10,6 +10,14 @@ const ManageEvents = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 
+	const fetchEvents = async () => {
+		const { data: eventsData, error: eventsError } = await supabase
+			.from("events")
+			.select();
+		if (eventsError) alert(eventsError.message || eventsError);
+		if (eventsData) setEvents(eventsData);
+	};
+
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
@@ -20,15 +28,7 @@ const ManageEvents = () => {
 			return;
 		}
 		fetchEvents();
-	}, [session, profile, navigate]);
-
-	const fetchEvents = async () => {
-		const { data: eventsData, error: eventsError } = await supabase
-			.from("events")
-			.select();
-		if (eventsError) alert(eventsError.message || eventsError);
-		if (eventsData) setEvents(eventsData);
-	};
+	}, [session, profile, navigate, fetchEvents]);
 
 	return (
 		<MainLayout>

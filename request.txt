@@ -1,0 +1,1 @@
+https://sbdohxwwvhajqwvwfpnk.supabase.co/rest/v1/profiles?select=id%2Cfirstname%2Clastname%2Cemail%2Cavatar_url%2Crole%2Cdeleted_at&id=eq.798ef0f6-700a-4bb9-9d2c-3df99cad75c0

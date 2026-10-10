@@ -13,14 +13,6 @@ const ManageAnnouncements = () => {
 	const [newTitle, setNewTitle] = useState("");
 	const [newContent, setNewContent] = useState("");
 
-	useEffect(() => {
-		// Guard the page so only administrators can access it.
-		if (profile?.role !== "admin") {
-			navigate("/");
-		}
-		fetchAnnouncements();
-	}, [profile, navigate]);
-
 	const fetchAnnouncements = async () => {
 		const { data, error } = await supabase
 			.from("announcements")
@@ -28,6 +20,14 @@ const ManageAnnouncements = () => {
 			.order("created_at", { ascending: false });
 		if (data) setAnnouncements(data);
 	};
+
+	useEffect(() => {
+		// Guard the page so only administrators can access it.
+		if (profile?.role !== "admin") {
+			navigate("/");
+		}
+		fetchAnnouncements();
+	}, [profile, navigate, fetchAnnouncements]);
 
 	const handlePost = async (e) => {
 		e.preventDefault();

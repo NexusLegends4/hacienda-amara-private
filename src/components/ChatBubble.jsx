@@ -20,8 +20,11 @@ const ChatBubbleLauncher = () => {
 	// Hide chat on login page and chat page
 	if (location.pathname === "/log-in" || location.pathname === "/chat") return null;
 
-	// Hide chat if user is logged in (has profile)
-	if (profile) return null;
+	// Show chat for guests (not logged in)
+	if (profile) {
+		// Optionally: only show for specific roles
+		// if (!["admin", "staff"].includes(profile?.role)) return null;
+	}
 
 	return (
 		<>

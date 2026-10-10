@@ -31,8 +31,6 @@ const Login = () => {
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
-  const OTP_RESEND_SECONDS = 60;
-
   useEffect(() => {
     const storedAttempts = parseInt(
       localStorage.getItem(ATTEMPTS_KEY) || "0",

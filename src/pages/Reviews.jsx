@@ -29,16 +29,20 @@ const Reviews = () => {
 		setLoading(false);
 	};
 
+	// Initial fetch
 	useEffect(() => {
-		fetchReviews();
+		fetchReviews(false);
+	}, [fetchReviews]);
 
+	// Real-time sync
+	useEffect(() => {
 		const profileChannel = supabase
 			.channel("reviews-profile-sync")
 			.on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, () => fetchReviews(false))
 			.subscribe();
 
 		return () => { supabase.removeChannel(profileChannel); };
-	}, []);
+	}, [fetchReviews]);
 
 	const handleDelete = async (id) => {
 		if (!window.confirm("Are you sure you want to delete this review?")) return;
@@ -204,7 +208,7 @@ const Reviews = () => {
 													</NavLink>
 												)}
 												{/* Delete — admin OR the review owner */}
-														{!isReadOnlyStaff && rev.profile_id === session?.user?.id && (
+												{(profile?.role === "admin" || (!isReadOnlyStaff && rev.profile_id === session?.user?.id)) && (
 													<button
 														onClick={() => handleDelete(rev.id)}
 														className="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:opacity-75 transition-opacity"
