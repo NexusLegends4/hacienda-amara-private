@@ -391,6 +391,7 @@ const ManageClients = () => {
 										value={roleFilter}
 										onChange={(event) => setRoleFilter(event.target.value)}
 									>
+										<option value="client">Client</option>
 										<option value="staff">Staff</option>
 										<option value="admin">Admins</option>
 										<option value="all">All Roles</option>
@@ -505,7 +506,7 @@ const ManageClients = () => {
 									<label className="form-control"><div className="label"><span className="label-text font-medium">Email</span></div><input required type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} className="input input-bordered w-full" /></label>
 									<div className="grid gap-5 md:grid-cols-2">
 										<label className="form-control"><div className="label"><span className="label-text font-medium">Temporary password</span></div><input required minLength={8} type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} className="input input-bordered w-full" /></label>
-										<label className="form-control"><div className="label"><span className="label-text font-medium">Account role</span></div><select className="select select-bordered w-full" value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+										<label className="form-control"><div className="label"><span className="label-text font-medium">Account role</span></div><select className="select select-bordered w-full" value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}><option value="client">Client</option><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
 									</div>
 									<div className="flex flex-wrap gap-3 pt-2"><button type="submit" disabled={creating} className="btn btn-black rounded-full px-6"><FiPlus />{creating ? "Creating..." : "Create account"}</button><button type="button" onClick={() => setShowCreateForm(false)} className="btn btn-outline rounded-full px-6">Cancel</button></div>
 								</form>
@@ -555,8 +556,12 @@ const ManageClients = () => {
 												{selectedProfile.email || "No email on file"}
 											</p>
 											<p className="mt-1 text-xs uppercase tracking-[0.2em] text-base-content/45">
-												{normalizeRole(selectedProfile.role) === "admin" ? "Administrator" : "Staff"}
-											</p>
+											{normalizeRole(selectedProfile.role) === "admin"
+												? "Administrator"
+												: normalizeRole(selectedProfile.role) === "staff"
+												? "Staff"
+												: "Client"}
+										</p>
 											{selectedIsDeleted && (
 												<p className="mt-2 inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
 													Deleted account
@@ -635,13 +640,14 @@ const ManageClients = () => {
 												}))
 											}
 										>
+											<option value="client">Client</option>
 											<option value="staff">Staff</option>
 											<option value="admin">Admin</option>
 										</select>
 									</label>
 
 									<div className="rounded-2xl bg-base-200 px-4 py-4 text-sm leading-6 text-base-content/70">
-										Only administrators can change account roles. Staff and admin are the available roles in the system.
+										Administrators can change account roles to client, staff, or admin.
 									</div>
 
 									{status && (

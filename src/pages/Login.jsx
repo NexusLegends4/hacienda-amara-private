@@ -675,16 +675,16 @@ const Login = () => {
             className="
               w-full
               max-h-[calc(100vh-120px)]
-              overflow-y-auto
+              overflow-hidden
               rounded-2xl
               sm:rounded-[2rem]
               border
               border-white/30
               bg-white/40
               p-5
-              sm:p-7
-              md:p-8
-              lg:p-10
+              sm:p-6
+              md:p-7
+              lg:p-8
               text-slate-900
               shadow-2xl
               backdrop-blur-xl
@@ -740,7 +740,7 @@ const Login = () => {
                     </div>
                   )}
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <label className="block">
                       <span className="block text-sm font-medium text-slate-700 mb-1">
                         Email
@@ -784,9 +784,11 @@ const Login = () => {
                       rounded-xl
                       bg-black
                       text-white
-                      py-3
-                      sm:py-4
+                      py-2.5
+                      sm:py-3
                       font-semibold
+                      text-sm
+                      sm:text-base
                       transition-all
                       disabled:opacity-50
                       disabled:cursor-not-allowed
@@ -795,12 +797,13 @@ const Login = () => {
                       focus:ring-2
                       focus:ring-black
                       focus:ring-offset-2
+                      min-w-[180px]
                     "
                   >
                     {isSubmitting ? (
                       <>
                         <svg
-                          className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -847,16 +850,13 @@ const Login = () => {
                         justify-center
                         gap-3
                         rounded-xl
-                        border
-                        border-slate-200
-                        bg-white/80
+                        bg-transparent
                         py-3
                         text-sm
                         font-medium
                         text-slate-700
                         transition-all
                         hover:bg-slate-50
-                        hover:border-slate-300
                         disabled:opacity-50
                         disabled:cursor-not-allowed
                         focus:outline-none

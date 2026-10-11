@@ -6,17 +6,18 @@ import { useNavigate } from "react-router-dom";
 import { FiStar, FiUpload, FiSend } from "react-icons/fi";
 import DOMPurify from "dompurify";
 
-const getInitials = (name) => {
-	const parts = String(name || "")
-		.trim()
-		.split(/\s+/)
-		.filter(Boolean);
+// Profanity filter
+const INAPPROPRIATE_WORDS = [
+	// English
+	"sex", "fuck", "shit", "bitch", "asshole", "bastard", "damn", "cunt", "dick", "pussy", "cock", "cum", "porn", "nude", "naked", "horny", "orgasm", "masturbate", "blowjob", "handjob", "anal", "oral", "vagina", "penis", "boobs", "tits", "ass", "whore", "slut", "pimp", "hoe", "thot", "rape", "molest", "pedophile", "kill", "murder", "suicide", "die", "hate", "stupid", "idiot", "moron", "retard", "gay", "fag", "faggot", "tranny", "shemale", "nigger", "nigga", "chink", "spic", "kike", "terrorist", "bomb", "weapon", "gun", "knife", "drugs", "cocaine", "heroin", "meth", "weed", "marijuana",
+	// Tagalog
+	"kantot", "kantutin", "kantot ka", "puta", "putang ina", "putangina", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", "ulul", "leche", "lintik", "buang", "sira ulo", "hayop", "demonyo", "puta ka", "putang ina mo", "tangina mo", "gago ka", "bobo ka", "ulol ka", "leche ka", "kantot mo", "kantutin mo", "jakol", "jakulan", "jajakol", "boso", "bosas", "malibog", "libog", "kinantot", "kinakantot", "kantutin kita", "kantot tayo", "sex", "seks", "seksing", "kabit", "kerida", "querida", "puki", "titi", "bayag", "susmaryosep", "pakshet", "pak yu", "fuck you", "putang ina nyo"
+];
 
-	if (parts.length === 0) return "?";
-	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-	return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-};
+function containsInappropriate(text) {
+	const lower = text.toLowerCase();
+	return INAPPROPRIATE_WORDS.some(word => lower.includes(word.toLowerCase()));
+}
 
 const PostReview = () => {
 	const { session, profile } = useContext(SessionContext);
@@ -50,6 +51,14 @@ const PostReview = () => {
 	const handlePost = async (e) => {
 		e.preventDefault();
 		if (reviewerName.trim().length < 2) return alert("Please enter the name used during registration.");
+
+		// Check for inappropriate words in comment
+		if (containsInappropriate(comment)) {
+			alert("Your review contains inappropriate language. Please keep it respectful.");
+			setUploading(false);
+			return;
+		}
+
 		setUploading(true);
 
 		let mediaUrl = null;
