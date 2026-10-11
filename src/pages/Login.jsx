@@ -13,6 +13,19 @@ const LOCKOUT_KEY = "hacienda-login-lockout";
 
 const OTP_RESEND_SECONDS = 60;
 
+// supabase.functions.invoke only reports "Edge Function returned a non-2xx status code".
+// The real reason (and a fix hint) is in the response body, so read it from there.
+const getFunctionErrorMessage = async (error, fallback) => {
+  try {
+    const body = await error?.context?.json?.();
+    if (body?.error) return body.hint ? `${body.error} ${body.hint}` : body.error;
+  } catch {
+    // Response body was not JSON.
+  }
+  return fallback || error?.message || "Something went wrong.";
+};
+
+
 const Login = () => {
   const { profile } = useContext(SessionContext);
   const navigate = useNavigate();
@@ -238,8 +251,7 @@ const Login = () => {
         );
 
         throw new Error(
-          error.message ||
-            "Failed to send verification code."
+          await getFunctionErrorMessage(error, "Failed to send verification code.")
         );
       }
 
@@ -327,8 +339,7 @@ const Login = () => {
         );
 
         throw new Error(
-          error.message ||
-            "Failed to verify verification code."
+          await getFunctionErrorMessage(error, "Failed to verify the code.")
         );
       }
 
