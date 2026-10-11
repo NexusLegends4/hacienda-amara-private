@@ -3,6 +3,7 @@ import { supabase } from "../utils/supabase";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiBell, FiCalendar, FiCopy, FiRefreshCw, FiUser } from "react-icons/fi";
+import { QRCodeSVG } from "qrcode.react";
 
 const CustomerNotifications = () => {
 	const { reservationToken } = useParams();
@@ -150,6 +151,16 @@ const CustomerNotifications = () => {
 										<p className="text-xs sm:text-sm text-base-content/65">{reservation.check_in}</p>
 									</div>
 								</div>
+
+								{reservation.status === "confirmed" && (
+									<div className="mt-4 sm:mt-6 flex flex-col items-center rounded-xl sm:rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 text-center flex-shrink-0">
+										<p className="text-xs font-semibold uppercase tracking-wider text-base-content/50">Check-in QR</p>
+										<div className="mt-3 rounded-2xl bg-white p-2 shadow-sm">
+											<QRCodeSVG value={`${window.location.origin}/customer-notifications/${reservationToken}`} size={176} includeMargin title="Booking check-in QR" />
+										</div>
+										<p className="mt-3 text-xs text-base-content/60">Show this QR to the resort staff when you arrive so they can verify your booking.</p>
+									</div>
+								)}
 
 								<div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl bg-black/5 p-3 sm:p-4 flex-shrink-0">
 									<p className="text-xs font-semibold uppercase tracking-wider text-base-content/50">
