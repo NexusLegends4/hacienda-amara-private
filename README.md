@@ -17,30 +17,31 @@ If you are developing a production application, we recommend using TypeScript wi
 
 ## Supabase Chat Media Setup
 
-To make chat photos and videos visible on different devices, the app uploads them to Supabase Storage.
+Chat messages and media are stored in Supabase so clients, guests, staff, and admins can revisit a conversation. Guest chats use Supabase anonymous sign-in; guests do not need to create a visible account. Enable **Anonymous Sign-Ins** in Supabase **Authentication → Sign In / Providers**.
 
-1. Open `supabase/20260406_chat_media.sql` and run it in the Supabase SQL editor.
-2. In the Supabase dashboard, open `Edge Functions` and deploy a new function named `cleanup-chat-media`.
-3. Paste the TypeScript from `supabase/functions/cleanup-chat-media/index.ts` into the function editor, then deploy it.
-4. Open `supabase/20260406_chat_media_cleanup.sql`, replace `<YOUR_SUPABASE_ANON_KEY>` with your public anon key, and run it in the Supabase SQL editor.
-5. If you want a different bucket name, set `VITE_SUPABASE_CHAT_MEDIA_BUCKET` in your `.env` file.
+1. Run `supabase/20260406_chat_media.sql` and the existing chat message migrations, including `supabase/20261004_staff_chat_access.sql`.
+2. Run `supabase/20261012_staff_admin_totp_mfa.sql` and `supabase/20261012_staff_email_otp_auth.sql` if they have not already been applied.
+3. Run `supabase/20261013_secure_chat_media.sql`. It makes the `chat-media` bucket private and restricts access to the conversation owner and verified staff/admin users.
+4. Keep the bucket name `chat-media`. The app accepts JPEG, PNG, WebP, and GIF images up to 10 MB, plus MP4 and WebM videos up to 50 MB. Supabase Storage also enforces a 50 MB maximum.
+5. Configure the existing scheduled cleanup job if you want to remove old chat media automatically.
 
-Example:
-
-```env
-VITE_SUPABASE_CHAT_MEDIA_BUCKET=chat-media
-```
-
-If the bucket is missing or not writable yet, photo/video sending will fail instead of posting a private-only preview, so the chat stays honest about what other devices can see.
-
-The cleanup job removes chat messages and uploaded media older than 24 hours, so the chat does not keep photos and videos forever.
+The cleanup job removes chat messages and uploaded media older than 24 hours. Uploads use signed URLs; video playback includes the browser's play/pause, timeline, and volume controls. If private storage or anonymous sign-in is not configured, the chat shows an error rather than claiming media was sent successfully.
 
 ## Staff and Admin Email or Authenticator Verification
 
 After password or Google sign-in, staff and admins can choose either a six-digit code from an authenticator app or a one-time email code. Authenticator codes use Supabase TOTP. Email codes use Supabase Auth passwordless email sign-in; they do not require Brevo or custom OTP Edge Functions, but do require a verified account email and Supabase Auth email delivery to be configured. Email verification is less phishing-resistant than TOTP.
 
 1. In Supabase **Authentication → Sign In / Providers**, enable email sign-in and configure email delivery. For reliable delivery to Gmail and other recipients, configure a verified SMTP sender under the Auth SMTP settings.
-2. In **Authentication → Email Templates → Magic Link**, make sure the template displays the numeric token using `{{ .Token }}`. The login screen asks users to enter this six-digit code.
+2. In **Authentication → Email Templates → Magic Link**, replace the default link-based template (which uses `{{ .ConfirmationURL }}`) with a code-based template. For example:
+
+   ```html
+   <h2>Your Hacienda Amara sign-in code</h2>
+   <p>Enter this code in the sign-in screen:</p>
+   <h1>{{ .Token }}</h1>
+   <p>If you did not request this code, you can ignore this email.</p>
+   ```
+
+   Save the template. The login screen asks users to enter this numeric code; it cannot turn a Magic Link email into a code on its own.
 3. In Supabase **Authentication settings**, enable the **Authenticator App (TOTP)** factor if staff/admins should also be able to use authenticator apps.
 4. Run `supabase/20261012_staff_admin_totp_mfa.sql` followed by `supabase/20261012_staff_email_otp_auth.sql` in the Supabase SQL Editor. The follow-up migration permits staff/admin RLS access for either AAL2 TOTP or a verified email OTP session; ordinary password-only AAL1 sessions remain blocked. The service-role Vercel endpoints accept the same two verified methods.
 5. Deploy the updated frontend and API. At sign-in, staff/admins choose **Use authenticator app** or **Send a code to your account email**. Email code sign-in does not create new users.

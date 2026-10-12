@@ -1,5 +1,5 @@
 import { supabase } from "../utils/supabase";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 
@@ -7,130 +7,87 @@ const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState(null);
+  const callbackStarted = useRef(false);
 
   useEffect(() => {
+    if (callbackStarted.current) return;
+    callbackStarted.current = true;
+
     const handleAuthCallback = async () => {
-      console.log("AuthCallback: Starting OAuth callback");
-      
-      // Get the auth code from URL query params OR hash fragment
-      // Supabase sometimes returns OAuth response in fragment (implicit flow)
-      let code = searchParams.get("code");
-      
-      if (!code && window.location.hash) {
-        // Try to get code from URL fragment (after #)
-        const hashParams = new URLSearchParams(window.location.hash.slice(1));
-        code = hashParams.get("code");
-        console.log("AuthCallback: Got code from hash fragment:", !!code);
-      }
-      
-      const next = searchParams.get("next");
-
-      if (!code) {
-        console.error("AuthCallback: No auth code in callback URL (query or hash)");
-        navigate("/log-in?error=oauth_no_code");
-        return;
-      }
-
       try {
-        console.log("AuthCallback: Exchanging code for session");
-        // Use exchangeCodeForSession with the full search params
-        // Supabase client automatically retrieves PKCE verifier from localStorage
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const callbackError = searchParams.get("error_description") ||
+          searchParams.get("error") ||
+          searchParams.get("error_code") ||
+          hashParams.get("error_description");
+        if (callbackError) throw new Error("Google authentication was cancelled or could not be completed.");
 
-        if (exchangeError) {
-          console.error("AuthCallback: Exchange error:", exchangeError);
-          
-          // Fallback: try to get session directly (in case PKCE already handled)
-          console.log("AuthCallback: Trying fallback getSession");
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError || !session) {
-            console.error("AuthCallback: No session after fallback:", sessionError);
-            navigate("/log-in?error=oauth_failed");
-            return;
-          }
-          
-          console.log("AuthCallback: Session recovered via fallback:", !!session);
+        const code = searchParams.get("code") || hashParams.get("code");
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
         }
 
-        // Wait a bit for session to be fully established
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Verify session exists
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("AuthCallback: Final session check:", !!session);
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        const session = sessionData.session;
         if (!session) {
-          console.error("AuthCallback: No session after exchange");
-          navigate("/log-in?error=oauth_no_session");
-          return;
+          throw new Error("No Google sign-in session was established.");
         }
 
-        // Fetch user profile to determine role and redirect accordingly
-        console.log("AuthCallback: Fetching user profile for role-based redirect, user id:", session.user.id);
-        const { data: profile, error: profileError } = await supabase
+        const { data: existingProfile, error: profileError } = await supabase
           .from("profiles")
-          .select("role, firstname, lastname")
+          .select("role, deleted_at")
           .eq("id", session.user.id)
-          .single();
+          .maybeSingle();
+        if (profileError) throw profileError;
 
-        if (profileError) {
-          console.error("AuthCallback: Profile fetch error:", profileError);
-          
-          // Profile doesn't exist - create it for new Google users
-          if (profileError.code === 'PGRST116') { // No rows returned
-            console.log("AuthCallback: Profile not found, creating new profile for Google user");
-            
-            const newProfile = {
+        let profile = existingProfile;
+        if (!profile) {
+          const fullName = String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || "").trim();
+          const [firstname = "", ...lastnameParts] = fullName.split(/\s+/);
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
               id: session.user.id,
               email: session.user.email,
-              firstname: session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0] || 'User',
-              lastname: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-              role: 'client', // Default role for new Google users
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            
-            const { error: insertError } = await supabase
+              firstname: session.user.user_metadata?.given_name || firstname || session.user.email?.split("@")[0] || "User",
+              lastname: session.user.user_metadata?.family_name || lastnameParts.join(" "),
+              role: "client",
+            })
+            .select("role, deleted_at")
+            .single();
+
+          if (insertError) {
+            const { data: racedProfile, error: rereadError } = await supabase
               .from("profiles")
-              .insert(newProfile);
-            
-            if (insertError) {
-              console.error("AuthCallback: Failed to create profile:", insertError);
-              navigate("/");
-              return;
-            }
-            
-            console.log("AuthCallback: Created new profile for Google user, role: client");
-            // Redirect to home for new client users
-            navigate("/");
-            return;
+              .select("role, deleted_at")
+              .eq("id", session.user.id)
+              .maybeSingle();
+            if (rereadError || !racedProfile) throw insertError;
+            profile = racedProfile;
+          } else {
+            profile = insertedProfile;
           }
-          
-          // Other profile errors - redirect to home
-          console.error("AuthCallback: Profile error, redirecting to home");
-          navigate("/");
-          return;
         }
 
-        console.log("AuthCallback: User role:", profile?.role);
-        
-        // Role-based redirect
-        let redirectPath = "/";
-        if (["admin", "staff"].includes(profile?.role)) {
-          redirectPath = "/log-in?oauth=true";
-        } else if (profile?.role === "client") {
-          redirectPath = "/"; // Customer home
+        if (profile.deleted_at) {
+          throw new Error("This account is unavailable. Please contact an administrator.");
+        }
+        if (!["admin", "staff", "client"].includes(profile.role)) {
+          throw new Error("This account has an invalid role. Please contact an administrator.");
         }
 
-        console.log("AuthCallback: OAuth successful, redirecting to:", redirectPath);
-        navigate(redirectPath);
-      } catch (err) {
-        console.error("AuthCallback: Unexpected error:", err);
-        navigate("/log-in?error=oauth_exception");
+        navigate(["admin", "staff"].includes(profile.role) ? "/log-in?oauth=true" : "/", { replace: true });
+      } catch (callbackError) {
+        console.error("Google sign-in account validation failed:", callbackError);
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) console.error("Unable to clear the failed Google sign-in session:", signOutError);
+        setError("Google sign-in could not be completed for this account. Please try the sign-in method already linked to it, or contact an administrator.");
       }
     };
 
-    handleAuthCallback();
+    void handleAuthCallback();
   }, [navigate, searchParams]);
 
   if (error) {

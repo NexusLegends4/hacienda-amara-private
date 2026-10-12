@@ -17,30 +17,51 @@ const ResetPassword = () => {
 	const [status, setStatus] = useState("");
 
 	useEffect(() => {
+		let cancelled = false;
 		const verifyRecoveryToken = async () => {
-			const params = new URLSearchParams(window.location.search);
-			const tokenHash = params.get("token_hash");
-			const type = params.get("type");
+			try {
+				const params = new URLSearchParams(window.location.search);
+				const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+				const tokenHash = params.get("token_hash");
+				const type = params.get("type") || hashParams.get("type");
+				const callbackError = params.get("error_description") || hashParams.get("error_description");
 
-			if (!tokenHash || type !== "recovery") {
-				setError("This password reset link is invalid or has expired.");
-				setIsVerifying(false);
-				return;
+				if (callbackError || (type && type !== "recovery")) {
+					throw new Error("This password reset link is invalid or has expired. Request a new link and try again.");
+				}
+
+				if (tokenHash && type === "recovery") {
+					const { error: verifyError } = await supabase.auth.verifyOtp({
+						token_hash: tokenHash,
+						type: "recovery",
+					});
+					if (verifyError) throw verifyError;
+				} else if (params.has("code")) {
+					const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.get("code"));
+					if (exchangeError) throw exchangeError;
+				} else if (type !== "recovery") {
+					throw new Error("This password reset link is invalid or has expired. Request a new link and try again.");
+				}
+
+				const { data, error: sessionError } = await supabase.auth.getSession();
+				if (sessionError) throw sessionError;
+				if (!data.session) {
+					throw new Error("This password reset link is invalid or has expired. Request a new link and try again.");
+				}
+			} catch (verifyError) {
+				console.error("Password reset link verification failed:", verifyError);
+				if (!cancelled) {
+					setError(verifyError.message || "This password reset link is invalid or has expired. Request a new link and try again.");
+				}
+			} finally {
+				if (!cancelled) setIsVerifying(false);
 			}
-
-			const { error: verifyError } = await supabase.auth.verifyOtp({
-				token_hash: tokenHash,
-				type: "recovery",
-			});
-
-			if (verifyError) {
-				setError("This password reset link is invalid or has expired.");
-			}
-
-			setIsVerifying(false);
 		};
 
 		void verifyRecoveryToken();
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
 	const handleSubmit = async (event) => {
@@ -59,20 +80,22 @@ const ResetPassword = () => {
 		}
 
 		setIsSubmitting(true);
-		const { error: updateError } = await supabase.auth.updateUser({
-			password,
-		});
+		try {
+			const { error: updateError } = await supabase.auth.updateUser({
+				password,
+			});
+			if (updateError) throw updateError;
 
-		setIsSubmitting(false);
-		if (updateError) {
+			setStatus("Your password has been updated.");
+			setPassword("");
+			setConfirmPassword("");
+			window.setTimeout(() => navigate("/log-in"), 1500);
+		} catch (updateError) {
+			console.error("Password update failed:", updateError);
 			setError(updateError.message || "Unable to update your password.");
-			return;
+		} finally {
+			setIsSubmitting(false);
 		}
-
-		setStatus("Your password has been updated.");
-		setPassword("");
-		setConfirmPassword("");
-		window.setTimeout(() => navigate("/log-in"), 1500);
 	};
 
 	if (isVerifying) {

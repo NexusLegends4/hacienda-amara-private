@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiBarChart2, FiRefreshCw, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import MainLayout from "../layouts/MainLayout";
 import { SessionContext } from "../contexts/SessionContext";
+import { supabase } from "../utils/supabase";
 
 const formatMonth = (month, options = { month: "long", year: "numeric" }) =>
 	new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString("en-US", {
@@ -105,9 +106,9 @@ const BookingAnalytics = () => {
 	const [error, setError] = useState("");
 	const profileRole = profile?.role;
 
-	const loadAnalytics = useCallback(async () => {
+	const loadAnalytics = useCallback(async (showLoading = true) => {
 		if (!session?.access_token) return;
-		setLoading(true);
+		if (showLoading) setLoading(true);
 		setError("");
 
 		try {
@@ -123,7 +124,7 @@ const BookingAnalytics = () => {
 		} catch (loadError) {
 			setError(loadError.message || "Unable to load booking analytics.");
 		} finally {
-			setLoading(false);
+			if (showLoading) setLoading(false);
 		}
 	}, [session?.access_token]);
 
@@ -136,7 +137,30 @@ const BookingAnalytics = () => {
 			navigate("/", { replace: true });
 			return;
 		}
-		if (["admin", "staff"].includes(profileRole)) loadAnalytics();
+		if (!["admin", "staff"].includes(profileRole)) return undefined;
+
+		loadAnalytics();
+		const channel = supabase
+			.channel("booking-analytics-live")
+			.on(
+				"postgres_changes",
+				{ event: "*", schema: "public", table: "reservations" },
+				() => void loadAnalytics(false),
+			)
+			.subscribe();
+		const refreshTimer = window.setInterval(() => void loadAnalytics(false), 60_000);
+		const refreshOnFocus = () => {
+			if (document.visibilityState === "visible") void loadAnalytics(false);
+		};
+		window.addEventListener("focus", refreshOnFocus);
+		document.addEventListener("visibilitychange", refreshOnFocus);
+
+		return () => {
+			window.clearInterval(refreshTimer);
+			window.removeEventListener("focus", refreshOnFocus);
+			document.removeEventListener("visibilitychange", refreshOnFocus);
+			void supabase.removeChannel(channel);
+		};
 	}, [session, profileRole, navigate, loadAnalytics]);
 
 	const extremes = useMemo(() => {

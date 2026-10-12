@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { useNavigate, NavLink } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
@@ -6,6 +6,7 @@ import { supabase } from "../utils/supabase";
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend } from "react-icons/fi";
+import { buildChatMediaPath, validateChatMedia } from "../utils/chat-media";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
@@ -13,7 +14,8 @@ const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-
 const LEGACY_CUSTOMER_CONVERSATION_KEY = "customer";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
-const CHAT_MEDIA_BUCKET = import.meta.env.VITE_SUPABASE_CHAT_MEDIA_BUCKET || "chat-media";
+const CHAT_MEDIA_BUCKET = "chat-media";
+const EMPTY_MESSAGES = [];
 const CHAT_BACKEND_CONFIGURED = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 const HACIENDA_AMARA_ADDRESS =
 	"B30 L12 Itneg Street Phase 3 Amityville Bgry. San Jose, Rodriguez, Rizal, Philippines, 1860";
@@ -127,7 +129,8 @@ const getCustomerConversationKey = () => {
 	return conversationKey;
 };
 
-const getConversationKey = (profile) => profile?.id || getCustomerConversationKey();
+const getConversationKey = (profile, session) =>
+	profile?.id || session?.user?.id || getCustomerConversationKey();
 
 const getBotReply = (text) => {
 	const lowerText = text.toLowerCase().trim();
@@ -473,29 +476,75 @@ const mediaInlineClassName =
 
 const mediaViewerClassName = "max-h-[80vh] w-full bg-slate-950 object-contain";
 
-const getSafeFileExtension = (name = "", mimeType = "") => {
-	const nameParts = String(name).split(".");
-	if (nameParts.length > 1) {
-		return nameParts.pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "";
+const signedUrlIsFresh = (url) => {
+	try {
+		const token = new URL(url).searchParams.get("token");
+		const payload = token?.split(".")[1];
+		if (!payload) return false;
+		const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+		const claims = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
+		return Number(claims.exp) > Math.floor(Date.now() / 1000) + 600;
+	} catch {
+		return false;
 	}
-
-	if (mimeType.includes("/")) {
-		const [, subtype] = mimeType.split("/");
-		return subtype.toLowerCase().replace(/[^a-z0-9]/g, "") || "";
-	}
-
-	return "";
 };
 
-const buildStoragePath = (messageId, attachment) => {
-	const extension = getSafeFileExtension(attachment.name, attachment.mimeType);
-	const fileName = String(attachment.name || attachment.kind || "media")
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "") || attachment.kind || "media";
-	const suffix = extension ? `.${extension}` : "";
+const refreshSignedAttachment = async (attachment) => {
+	if (!attachment?.path || !attachment?.bucket || signedUrlIsFresh(attachment.url)) {
+		return attachment;
+	}
 
-	return `messages/${messageId}/${attachment.id || getMessageId()}-${fileName}${suffix}`;
+	const { data, error } = await supabase.storage
+		.from(attachment.bucket)
+		.createSignedUrl(attachment.path, 24 * 60 * 60);
+	if (error) throw error;
+	return { ...attachment, url: data.signedUrl };
+};
+
+const refreshSignedMessage = async (message) => ({
+	...message,
+	attachments: await Promise.all(
+		(message.attachments || []).map(refreshSignedAttachment),
+	),
+});
+
+const ChatVideo = ({ attachment, source }) => {
+	const [loading, setLoading] = useState(true);
+	const [failed, setFailed] = useState(false);
+
+	if (failed || !source) {
+		return (
+			<p role="alert" className="rounded-xl bg-slate-900 p-4 text-sm text-white">
+				This video could not be played. It may have expired, be corrupted, or use an unsupported format.
+			</p>
+		);
+	}
+
+	return (
+		<div>
+			{loading && (
+				<div role="status" className="flex items-center justify-center gap-2 bg-slate-900 p-3 text-xs text-white">
+					<span className="loading loading-spinner loading-sm" /> Loading video…
+				</div>
+			)}
+			<video
+				controls
+				playsInline
+				preload="metadata"
+				className={mediaInlineClassName}
+				src={source}
+				onLoadedMetadata={() => setLoading(false)}
+				onCanPlay={() => setLoading(false)}
+				onError={() => {
+					setLoading(false);
+					setFailed(true);
+				}}
+			>
+				<source src={source} type={attachment.mimeType || "video/mp4"} />
+			</video>
+			<p className="sr-only">Video controls include playback, timeline, and volume.</p>
+		</div>
+	);
 };
 
 const formatTime = (value) => {
@@ -661,13 +710,13 @@ const toDbPayload = (message) => ({
 });
 
 const Chat = ({ presentation = "page", onClose }) => {
-	const { profile } = useContext(SessionContext);
+	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const isBubble = presentation === "bubble";
 	const isAdmin = profile?.role === "admin";
 	const isStaff = profile?.role === "staff";
 	const isAdminOrStaff = isAdmin || isStaff;
-	const conversationKey = getConversationKey(profile);
+	const conversationKey = getConversationKey(profile, session);
 	const displayName = getDisplayName(profile);
 	const display = getUserLabel(profile);
 
@@ -677,7 +726,6 @@ const [adminAvailable, setAdminAvailable] = useState(() => {
 		const saved = localStorage.getItem(ADMIN_AVAILABILITY_KEY);
 		return saved ? saved === "true" : true;
 	});
-const [presenceOnline, setPresenceOnline] = useState(false);
 const [adminOnline, setAdminOnline] = useState(false);
 const [staffOnline, setStaffOnline] = useState(false);
 const [historyByConversation, setHistoryByConversation] = useState(() => {
@@ -690,8 +738,9 @@ const [historyByConversation, setHistoryByConversation] = useState(() => {
 	const [selectedMedia, setSelectedMedia] = useState(null);
 const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
+  const [chatAuthError, setChatAuthError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshedAt, setRefreshedAt] = useState(null);
   const [error, setError] = useState("");
   const [showRefreshToast, setShowRefreshToast] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -705,7 +754,42 @@ const [isSending, setIsSending] = useState(false);
 	const dbAvailableRef = useRef(true);
 	const isRefreshingHistoryRef = useRef(false);
 
-	const activeMessages = historyByConversation[activeConversationKey] || [];
+	useEffect(() => {
+		if (!CHAT_BACKEND_CONFIGURED || session) {
+			setChatAuthReady(true);
+			return undefined;
+		}
+
+		let cancelled = false;
+		setChatAuthReady(false);
+		const ensureGuestSession = async () => {
+			try {
+				const { data, error: sessionError } = await supabase.auth.getSession();
+				if (sessionError) throw sessionError;
+				if (!data.session) {
+					const { error: signInError } = await supabase.auth.signInAnonymously();
+					if (signInError) throw signInError;
+				}
+				if (!cancelled) setChatAuthError("");
+			} catch (authError) {
+				console.error("Unable to start secure guest chat:", authError);
+				if (!cancelled) {
+					setChatAuthError("Guest chat is unavailable because secure sign-in could not be started.");
+					setError("Guest chat could not start securely. Please try again later.");
+					setChatAuthReady(true);
+				}
+			} finally {
+				if (!cancelled) setChatAuthReady(true);
+			}
+		};
+
+		void ensureGuestSession();
+		return () => {
+			cancelled = true;
+		};
+	}, [session]);
+
+	const activeMessages = historyByConversation[activeConversationKey] || EMPTY_MESSAGES;
 	const activeThreadName =
 		activeMessages.slice().reverse().find((message) => message.senderName)?.senderName ||
 		(isAdminOrStaff ? "Customer" : displayName);
@@ -787,25 +871,19 @@ const canReply = !isAdminOrStaff || adminAvailable;
 	};
 
 	const persistMessage = async (message) => {
-		if (!CHAT_BACKEND_CONFIGURED || !dbAvailableRef.current) return;
+		if (!CHAT_BACKEND_CONFIGURED) return;
+		if (!dbAvailableRef.current) {
+			throw new Error("Chat history storage is unavailable. Please try again later.");
+		}
 
-		try {
-			const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
-			if (dbError) {
-				const text = `${dbError.message || ""} ${dbError.details || ""}`.toLowerCase();
-				if (text.includes("does not exist") || text.includes("relation")) {
-					dbAvailableRef.current = false;
-				}
-			}
-		} catch (dbError) {
-			const text = `${dbError?.message || ""}`.toLowerCase();
-			if (text.includes("does not exist") || text.includes("relation")) {
-				dbAvailableRef.current = false;
-			}
+		const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
+		if (dbError) {
+			console.error("Unable to save chat message:", dbError);
+			throw new Error("Your message could not be saved. Please try again.");
 		}
 	};
 
-	const refreshFromDb = async () => {
+	const refreshFromDb = useCallback(async () => {
 		if (!CHAT_BACKEND_CONFIGURED) return false;
 		if (!dbAvailableRef.current) return false;
 		isRefreshingHistoryRef.current = true;
@@ -822,13 +900,16 @@ const canReply = !isAdminOrStaff || adminAvailable;
 				if (text.includes("does not exist") || text.includes("relation")) {
 					dbAvailableRef.current = false;
 				}
+				setError("Chat history could not be loaded. Please refresh and try again.");
 
 				return false;
 			}
 
 			const grouped = {};
-			(data || []).forEach((row) => {
-				const message = normalizeDbMessage(row);
+			const hydratedMessages = await Promise.all(
+				(data || []).map((row) => refreshSignedMessage(normalizeDbMessage(row))),
+			);
+			hydratedMessages.forEach((message) => {
 				grouped[message.conversationKey] = grouped[message.conversationKey] || [];
 				const hasMessage = grouped[message.conversationKey].some((item) => item.id === message.id);
 				if (!hasMessage) {
@@ -860,12 +941,14 @@ const nextSnapshot = isAdminOrStaff
 		setHistoryByConversation(nextSnapshot);
 
 		return nextSnapshot;
-		} catch {
+		} catch (historyError) {
+			console.error("Unable to refresh chat history or media access:", historyError);
+			setError("Chat history or media could not be loaded securely. Please refresh and try again.");
 			return false;
 		} finally {
 			isRefreshingHistoryRef.current = false;
 		}
-	};
+	}, [conversationKey, isAdminOrStaff]);
 
 	useEffect(() => {
 		const profileIds = new Set([...activeMessagesProfiles, ...sidebarProfiles]);
@@ -923,7 +1006,6 @@ const nextSnapshot = isAdminOrStaff
 			}
 
 			setError("");
-			setRefreshedAt(Date.now());
 			pendingScrollToBottomRef.current = true;
 			shouldStickToBottomRef.current = true;
 
@@ -950,22 +1032,46 @@ const clearCurrentChat = async () => {
 
     const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
 
-    setHistoryByConversation((current) => {
-      const next = { ...current };
-      delete next[targetConversationKey];
+      if (CHAT_BACKEND_CONFIGURED && dbAvailableRef.current) {
+        try {
+          const { data: rows, error: readError } = await supabase
+            .from("chat_messages")
+            .select("id, content")
+            .eq("conversation_key", targetConversationKey);
+          if (readError) throw readError;
+
+          const paths = (rows || []).flatMap((row) =>
+            decodeMessageContent(row.content).attachments
+              .filter((attachment) => attachment?.bucket === CHAT_MEDIA_BUCKET && attachment.path)
+              .map((attachment) => attachment.path),
+          );
+          if (paths.length > 0) {
+            const { error: mediaError } = await supabase.storage
+              .from(CHAT_MEDIA_BUCKET)
+              .remove([...new Set(paths)]);
+            if (mediaError) throw mediaError;
+          }
+
+          const { error: deleteError } = await supabase
+            .from("chat_messages")
+            .delete()
+            .eq("conversation_key", targetConversationKey);
+          if (deleteError) throw deleteError;
+        } catch (deleteError) {
+          console.error("Unable to clear saved chat history:", deleteError);
+          setError("Chat history could not be cleared. Please try again.");
+          return;
+        }
+      }
+
+      setHistoryByConversation((current) => {
+        const next = { ...current };
+        delete next[targetConversationKey];
       return next;
     });
 
     setPrompt("");
     clearDraftAttachment();
-
-    if (dbAvailableRef.current) {
-      try {
-        await supabase.from("chat_messages").delete().eq("conversation_key", targetConversationKey);
-      } catch {
-        // If delete fails, the local view still clears immediately.
-      }
-    }
   };
 
   const cancelClearChat = () => {
@@ -973,16 +1079,19 @@ const clearCurrentChat = async () => {
   };
 
 	useEffect(() => {
+		if (!chatAuthReady) return undefined;
 		setLoading(true);
 		setError("");
 		pendingScrollToBottomRef.current = true;
 
 		const initialize = async () => {
-			if (profile) {
+			if (profile || session) {
 				const loaded = await refreshFromDb();
 				if (!loaded) {
 					const stored = readHistory();
-					setHistoryByConversation(stored);
+					setHistoryByConversation(
+						isAdminOrStaff ? stored : { [conversationKey]: stored[conversationKey] || [] },
+					);
 				}
 			} else {
 				// Clear chat history for guests on page refresh
@@ -1008,8 +1117,11 @@ const clearCurrentChat = async () => {
 			setLoading(false);
 		};
 
-		initialize();
-	}, [conversationKey, isAdminOrStaff, profile]);
+		void initialize();
+		return () => {
+			setLoading(true);
+		};
+	}, [chatAuthReady, conversationKey, isAdminOrStaff, profile, refreshFromDb, session]);
 
 	useEffect(() => {
 		pendingScrollToBottomRef.current = true;
@@ -1027,7 +1139,7 @@ const clearCurrentChat = async () => {
 	}, [activeConversationKey, historyByConversation, isAdminOrStaff]);
 
 	useEffect(() => {
-		if (!profile) return undefined;
+		if (!session) return undefined;
 
 		const interval = window.setInterval(() => {
 			refreshFromDb();
@@ -1036,10 +1148,10 @@ const clearCurrentChat = async () => {
 		return () => {
 			window.clearInterval(interval);
 		};
-	}, [conversationKey, isAdminOrStaff, profile]);
+	}, [conversationKey, isAdminOrStaff, refreshFromDb, session]);
 
 	useEffect(() => {
-		if (!profile || typeof window === "undefined") return undefined;
+		if (!session || typeof window === "undefined") return undefined;
 
 		const handleFocus = () => {
 			if (document.visibilityState === "visible") {
@@ -1054,10 +1166,10 @@ const clearCurrentChat = async () => {
 			window.removeEventListener("focus", handleFocus);
 			document.removeEventListener("visibilitychange", handleFocus);
 		};
-	}, [profile]);
+	}, [refreshFromDb, session]);
 
 	useEffect(() => {
-		if (!profile) return undefined;
+		if (!session) return undefined;
 
 		const channel = supabase.channel(BROADCAST_CHANNEL);
 		channelRef.current = channel;
@@ -1069,27 +1181,7 @@ const clearCurrentChat = async () => {
 			const hasStaff = entries.some((entry) => entry.role === "staff" && entry.available);
 			setAdminOnline(hasAdmin);
 			setStaffOnline(hasStaff);
-			setPresenceOnline(hasAdmin || hasStaff);
 		};
-
-		channel.on("broadcast", { event: "message" }, ({ payload }) => {
-			if (!payload?.id || !payload?.conversationKey) return;
-			if (isRefreshingHistoryRef.current) return;
-
-			console.log("📥 Broadcast received:", payload.conversationKey, payload.senderRole, payload.senderName);
-			setHistoryByConversation((current) => {
-				const existing = current[payload.conversationKey] || [];
-				if (existing.some((item) => item.id === payload.id)) {
-					return current;
-				}
-
-				return upsertConversationHistory(current, payload);
-			});
-
-			if (!isAdminOrStaff && payload.conversationKey === conversationKey) {
-				setActiveConversationKey(conversationKey);
-			}
-		});
 
 		channel.on(
 			"postgres_changes",
@@ -1179,7 +1271,7 @@ const clearCurrentChat = async () => {
 						role: isAdmin ? "admin" : "staff",
 						available: true,
 						name: displayName,
-						profileId: profile.id,
+						profileId: session.user.id,
 					});
 				}
 			} else {
@@ -1187,8 +1279,6 @@ const clearCurrentChat = async () => {
 					role: "client",
 					available: true,
 					name: displayName,
-					profileId: profile.id,
-					conversationKey,
 				});
 			}
 		});
@@ -1197,7 +1287,7 @@ const clearCurrentChat = async () => {
 			channel.unsubscribe();
 			channelRef.current = null;
 		};
-	}, [adminAvailable, conversationKey, displayName, isAdminOrStaff, profile]);
+	}, [adminAvailable, conversationKey, displayName, isAdmin, isAdminOrStaff, profile, session]);
 
 	useEffect(() => {
 		if (!isAdminOrStaff) return;
@@ -1216,17 +1306,16 @@ const clearCurrentChat = async () => {
 						role: isAdmin ? "admin" : "staff",
 						available: true,
 						name: displayName,
-						profileId: profile.id,
+						profileId: session?.user?.id,
 					});
 				} else {
 					await channel.untrack();
 				}
-				setPresenceOnline(adminAvailable);
 			} catch {
 				// The chat still works even if presence tracking is temporarily unavailable.
 			}
 		})();
-	}, [adminAvailable, displayName, isAdminOrStaff, profile]);
+	}, [adminAvailable, displayName, isAdmin, isAdminOrStaff, profile, session]);
 
 	useEffect(() => {
 		if (loading) return;
@@ -1246,49 +1335,70 @@ const clearCurrentChat = async () => {
 		attachments = draftAttachments,
 	) => {
 		const messageId = getMessageId();
-		const uploadDraftAttachment = async (attachment) => {
-			if (!attachment?.file) {
-				return {
-					id: attachment?.id || getMessageId(),
-					kind: attachment?.kind || "image",
-					name: attachment?.name || "Attached media",
-					mimeType: attachment?.mimeType || "application/octet-stream",
-					url: getAttachmentSource(attachment),
-				};
-			}
-
-			const storagePath = buildStoragePath(messageId, attachment);
-			const { error: uploadError } = await supabase.storage
+		const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
+		const uploadedPaths = [];
+		const uploadedAttachments = [];
+		const removeUploaded = async () => {
+			if (uploadedPaths.length === 0) return;
+			const { error: removalError } = await supabase.storage
 				.from(CHAT_MEDIA_BUCKET)
-				.upload(storagePath, attachment.file, {
-					contentType: attachment.mimeType || attachment.file.type || undefined,
-					upsert: false,
-				});
-
-			if (uploadError) {
-				throw new Error(uploadError.message || "Unable to upload chat media.");
+				.remove(uploadedPaths);
+			if (removalError) {
+				console.error("Unable to remove chat media after a failed send:", removalError);
 			}
-
-			const { data } = supabase.storage.from(CHAT_MEDIA_BUCKET).getPublicUrl(storagePath);
-			return {
-				id: attachment.id || getMessageId(),
-				kind: attachment.kind,
-				name: attachment.name,
-				mimeType: attachment.mimeType,
-				url: data.publicUrl,
-				path: storagePath,
-				bucket: CHAT_MEDIA_BUCKET,
-			};
 		};
 
-		const uploadedAttachments = Array.isArray(attachments)
-			? await Promise.all(attachments.map((attachment) => uploadDraftAttachment(attachment)))
-			: [];
+		try {
+			for (const attachment of Array.isArray(attachments) ? attachments : []) {
+				if (!attachment?.file) {
+					uploadedAttachments.push({
+						id: attachment?.id || getMessageId(),
+						kind: attachment?.kind || "image",
+						name: attachment?.name || "Attached media",
+						mimeType: attachment?.mimeType || "application/octet-stream",
+						url: getAttachmentSource(attachment),
+					});
+					continue;
+				}
+
+				if (!CHAT_BACKEND_CONFIGURED || !session?.user?.id) {
+					throw new Error("Sign-in is required before uploading persistent chat media.");
+				}
+
+				const storagePath = buildChatMediaPath(targetConversationKey, messageId, attachment);
+				const { error: uploadError } = await supabase.storage
+					.from(CHAT_MEDIA_BUCKET)
+					.upload(storagePath, attachment.file, {
+						contentType: attachment.mimeType || attachment.file.type,
+						upsert: false,
+					});
+				if (uploadError) throw uploadError;
+				uploadedPaths.push(storagePath);
+
+				const { data: signedData, error: signedError } = await supabase.storage
+					.from(CHAT_MEDIA_BUCKET)
+					.createSignedUrl(storagePath, 24 * 60 * 60);
+				if (signedError) throw signedError;
+
+				uploadedAttachments.push({
+					id: attachment.id || getMessageId(),
+					kind: attachment.kind,
+					name: attachment.name,
+					mimeType: attachment.mimeType,
+					url: signedData.signedUrl,
+					path: storagePath,
+					bucket: CHAT_MEDIA_BUCKET,
+				});
+			}
+		} catch (uploadError) {
+			await removeUploaded();
+			throw new Error(uploadError.message || "Unable to upload chat media.");
+		}
 
 		const message = {
 			id: messageId,
-			conversationKey: isAdminOrStaff ? activeConversationKey : conversationKey,
-			senderId: profile?.id || "guest",
+			conversationKey: targetConversationKey,
+			senderId: session?.user?.id || profile?.id || "guest",
 			senderRole,
 			senderName: displayName,
 			content,
@@ -1296,17 +1406,13 @@ const clearCurrentChat = async () => {
 			createdAt: new Date().toISOString(),
 		};
 
-		mergeMessage(message);
-		await persistMessage(message);
-
-		const channel = channelRef.current;
-		if (channel) {
-			await channel.send({
-				type: "broadcast",
-				event: "message",
-				payload: message,
-			});
+		try {
+			await persistMessage(message);
+		} catch (persistError) {
+			await removeUploaded();
+			throw persistError;
 		}
+		mergeMessage(message);
 
 		return message;
 	};
@@ -1316,8 +1422,11 @@ const clearCurrentChat = async () => {
 		event.target.value = "";
 
 		if (!file) return;
-		if (kind === "image" && !file.type.startsWith("image/")) return;
-		if (kind === "video" && !file.type.startsWith("video/")) return;
+		const validationError = validateChatMedia(file, kind);
+		if (validationError) {
+			setError(validationError);
+			return;
+		}
 
 		try {
 			const attachment = {
@@ -1335,7 +1444,8 @@ const clearCurrentChat = async () => {
 				return next;
 			});
 			setError("");
-		} catch {
+		} catch (attachmentError) {
+			console.error("Unable to prepare chat attachment:", attachmentError);
 			setError("Unable to attach the selected file.");
 		}
 	};
@@ -1361,6 +1471,14 @@ const clearCurrentChat = async () => {
 		
 		if (!trimmed && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
+		if (chatAuthError) {
+			setError(chatAuthError);
+			return;
+		}
+		if (!chatAuthReady || (CHAT_BACKEND_CONFIGURED && !session)) {
+			setError("Chat is still connecting securely. Please wait a moment and try again.");
+			return;
+		}
 		if (isAdminOrStaff && !canReply) return;
 
 		setError("");
@@ -1418,21 +1536,19 @@ const clearCurrentChat = async () => {
 				};
 
 				window.setTimeout(async () => {
-					pendingScrollToBottomRef.current = true;
-					mergeMessage(botMessage);
-					await persistMessage(botMessage);
-					const channel = channelRef.current;
-					if (channel) {
-						await channel.send({
-							type: "broadcast",
-							event: "message",
-							payload: botMessage,
-						});
+					try {
+						await persistMessage(botMessage);
+						pendingScrollToBottomRef.current = true;
+						mergeMessage(botMessage);
+					} catch (botError) {
+						console.error("Unable to save the chat assistant reply:", botError);
+						setError("Your message was sent, but the automatic reply could not be saved.");
 					}
 				}, 650);
 			}
-		} catch {
-			setError("Unable to send media right now. Please try again.");
+		} catch (sendError) {
+			console.error("Unable to send chat message:", sendError);
+			setError(sendError?.message || "Unable to send your message. Please try again.");
 		} finally {
 			setIsSending(false);
 		}
@@ -1528,15 +1644,7 @@ const clearCurrentChat = async () => {
 							{attachments.map((attachment) => (
 								<div key={attachment.id || getAttachmentSource(attachment)} className="overflow-hidden rounded-2xl border border-white/20 bg-black/5">
 									{attachment.kind === "video" ? (
-										<video
-											controls
-											playsInline
-											preload="metadata"
-											className={mediaInlineClassName}
-											src={getAttachmentSource(attachment)}
-										>
-											<source src={getAttachmentSource(attachment)} type={attachment.mimeType || "video/mp4"} />
-										</video>
+										<ChatVideo attachment={attachment} source={getAttachmentSource(attachment)} />
 									) : (
 										<button
 											type="button"
@@ -1982,6 +2090,17 @@ const chatContent = (
 											{error}
 										</div>
 									)}
+									{chatAuthError && (
+										<div role="alert" className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+											{chatAuthError} Enable Anonymous Sign-Ins in Supabase Authentication, then reload this page.
+										</div>
+									)}
+									{isSending && draftAttachments.length > 0 && (
+										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+											<span>Uploading media securely…</span>
+											<progress className="progress progress-warning w-24" aria-label="Media upload in progress" />
+										</div>
+									)}
 
 									<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
 										Press Enter to send. Shift + Enter for a new line.
@@ -1994,7 +2113,7 @@ const chatContent = (
 										<input
 											ref={photoInputRef}
 											type="file"
-											accept="image/*"
+											accept="image/jpeg,image/png,image/webp,image/gif"
 											capture="environment"
 											className="hidden"
 											onChange={(event) => handleAttachmentSelection(event, "image")}
@@ -2002,7 +2121,7 @@ const chatContent = (
 										<input
 											ref={videoInputRef}
 											type="file"
-											accept="video/*"
+											accept="video/mp4,video/webm"
 											className="hidden"
 											onChange={(event) => handleAttachmentSelection(event, "video")}
 										/>
@@ -2011,7 +2130,7 @@ const chatContent = (
 											<button
 												type="button"
 												onClick={() => photoInputRef.current?.click()}
-												disabled={loading || isSending || (isAdminOrStaff && !adminAvailable)}
+												disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Photo
@@ -2019,7 +2138,7 @@ const chatContent = (
 											<button
 												type="button"
 												onClick={() => videoInputRef.current?.click()}
-												disabled={loading || isSending || (isAdminOrStaff && !adminAvailable)}
+												disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Video
@@ -2076,14 +2195,14 @@ const chatContent = (
 														: "Write a message..."
 												}
 												rows={1}
-												disabled={isSending || (isAdminOrStaff && !adminAvailable)}
+												disabled={!chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "min-h-11 max-h-24 w-full resize-none bg-transparent text-[0.8125rem] leading-5 text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed" : "max-h-28 w-full resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"}
 											/>
 										</div>
 
 										<button
 											type="submit"
-											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || isSending || (isAdminOrStaff && !adminAvailable)}
+											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
 											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
 											aria-label="Send message"
 											title={isBubble ? "Send message" : undefined}
@@ -2120,15 +2239,7 @@ const chatContent = (
 						</button>
 
 						{selectedMedia.kind === "video" ? (
-							<video
-								controls
-								autoPlay
-								playsInline
-								className={mediaViewerClassName}
-								src={getAttachmentSource(selectedMedia)}
-							>
-								<source src={getAttachmentSource(selectedMedia)} type={selectedMedia.mimeType || "video/mp4"} />
-							</video>
+							<ChatVideo attachment={selectedMedia} source={getAttachmentSource(selectedMedia)} />
 						) : (
 							<img
 								src={getAttachmentSource(selectedMedia)}

@@ -14,19 +14,13 @@ import {
 import MainLayout from "../layouts/MainLayout";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
+import { evaluateBooking, parseBookingQr } from "../utils/booking-qr";
 
 const READER_ID = "qr-reader";
 const FILE_READER_ID = "qr-file-reader";
-const UUID_ONLY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
-
-// Today's date in the resort's timezone (YYYY-MM-DD), so validation does not
-// shift by a day depending on the scanning device's own timezone.
-const manilaToday = () =>
-	new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
 
 // Checks the things that make the camera impossible BEFORE we try to start it.
 const getCompatibility = () => {
@@ -79,77 +73,6 @@ const describeCameraError = (err) => {
 		return "The camera needs a secure connection. Open this site using https://.";
 	}
 	return `The camera couldn't be started${raw ? ` (${raw})` : ""}. Press Try Again, or use “Scan from image”.`;
-};
-
-// Decide what a scanned QR contains.
-//  - Guest booking link:   https://<site>/customer-notifications/<reservation-id>
-//  - Bare reservation id:  <reservation-id>
-//  - Event link (legacy):  https://<site>/view-event/<event-id>
-const parseQr = (raw) => {
-	const text = String(raw ?? "").trim();
-	if (!text) return { type: "unknown" };
-
-	if (UUID_ONLY.test(text)) return { type: "booking", id: text };
-
-	if (/^https?:\/\//i.test(text)) {
-		let url;
-		try {
-			url = new URL(text);
-		} catch {
-			return { type: "unknown" };
-		}
-
-		const bookingMatch = url.pathname.match(/^\/customer-notifications\/([^/]+)/);
-		if (bookingMatch) {
-			const id = decodeURIComponent(bookingMatch[1]);
-			if (UUID_ONLY.test(id)) return { type: "booking", id };
-		}
-
-		const eventMatch = url.pathname.match(/^\/(?:view|edit)-event\/([^/]+)/);
-		if (eventMatch) return { type: "event", id: eventMatch[1], search: url.search };
-	}
-
-	return { type: "unknown" };
-};
-
-// Turn a reservation row into a clear verdict for the person at the gate.
-const evaluateBooking = (reservation) => {
-	const status = String(reservation.status || "pending").toLowerCase();
-	const today = manilaToday();
-
-	if (status === "cancelled" || status === "rejected") {
-		return {
-			tone: "error",
-			title: "Booking cancelled",
-			detail: "This reservation was cancelled or declined. Do not admit.",
-		};
-	}
-	if (status !== "confirmed") {
-		return {
-			tone: "warning",
-			title: "Not accepted yet",
-			detail: "This booking is still pending. Accept it in Manage Reservations before admitting the guest.",
-		};
-	}
-	if (today < reservation.check_in) {
-		return {
-			tone: "warning",
-			title: "Too early",
-			detail: `This booking is confirmed but starts on ${reservation.check_in}.`,
-		};
-	}
-	if (today > reservation.check_out) {
-		return {
-			tone: "error",
-			title: "Booking expired",
-			detail: `This booking ended on ${reservation.check_out}.`,
-		};
-	}
-	return {
-		tone: "success",
-		title: "Valid booking",
-		detail: "Confirmed and scheduled for today.",
-	};
 };
 
 const reservationGuestName = (reservation) =>
@@ -219,49 +142,59 @@ const ScanQr = () => {
 	const processScan = useCallback(
 		async (rawText) => {
 			setPhase("checking");
-			const parsed = parseQr(rawText);
+			try {
+				const parsed = parseBookingQr(rawText);
 
-			if (parsed.type === "event") {
-				navigate(`/view-event/${parsed.id}${parsed.search}`);
-				return;
-			}
-
-			if (parsed.type === "booking") {
-				const { data, error } = await supabase
-					.from("reservations")
-					.select(
-						"id, guest_name, guest_email, guest_phone, check_in, check_out, room_type, guests, total_price, status, profiles(firstname, lastname)",
-					)
-					.eq("id", parsed.id)
-					.maybeSingle();
-
-				if (error) {
-					setResult({
-						kind: "error",
-						title: "Couldn't check this booking",
-						detail: `The server returned an error: ${error.message}. Check your connection and scan again.`,
-					});
-				} else if (!data) {
-					setResult({
-						kind: "error",
-						title: "Booking not found",
-						detail:
-							"No reservation matches this QR code. It may have been deleted, it may not be from this system, or your account may not have permission to view it.",
-					});
-				} else {
-					setResult({ kind: "booking", reservation: data, verdict: evaluateBooking(data) });
+				if (parsed.type === "event") {
+					navigate(`/view-event/${parsed.id}${parsed.search}`);
+					return;
 				}
-				setPhase("result");
-				return;
-			}
 
-			setResult({
-				kind: "error",
-				title: "Unrecognized QR code",
-				detail: "This isn't a Hacienda Amara booking code. Ask the guest to open their reservation page and show the QR code there.",
-				raw: String(rawText ?? "").slice(0, 120),
-			});
-			setPhase("result");
+				if (parsed.type === "booking") {
+					const { data, error } = await supabase
+						.from("reservations")
+						.select(
+							"id, guest_name, guest_email, guest_phone, check_in, check_out, room_type, guests, total_price, status, profiles(firstname, lastname)",
+						)
+						.eq("id", parsed.id)
+						.maybeSingle();
+
+					if (error) {
+						setResult({
+							kind: "error",
+							title: "Couldn't check this booking",
+							detail: `The server returned an error: ${error.message}. Check your connection and scan again.`,
+						});
+					} else if (!data) {
+						setResult({
+							kind: "error",
+							title: "Booking not found",
+							detail:
+								"No reservation matches this QR code. It may have been deleted, it may not be from this system, or your account may not have permission to view it.",
+						});
+					} else {
+						setResult({ kind: "booking", reservation: data, verdict: evaluateBooking(data) });
+					}
+					setPhase("result");
+					return;
+				}
+
+				setResult({
+					kind: "error",
+					title: "Unrecognized QR code",
+					detail: "This isn't a Hacienda Amara booking code. Ask the guest to open their reservation page and show the QR code there.",
+					raw: String(rawText ?? "").slice(0, 120),
+				});
+				setPhase("result");
+			} catch (error) {
+				console.error("Unable to process scanned QR code:", error);
+				setResult({
+					kind: "error",
+					title: "Couldn't check this booking",
+					detail: "An unexpected error occurred while checking the QR code. Check your connection and try again.",
+				});
+				setPhase("result");
+			}
 		},
 		[navigate],
 	);

@@ -255,7 +255,7 @@ function App() {
 
 	// Profile
 	useEffect(() => {
-		if (!session) return;
+		if (!session || session.user.is_anonymous) return;
 
 		const fetchProfile = async () => {
 			const { data, error } = await supabase

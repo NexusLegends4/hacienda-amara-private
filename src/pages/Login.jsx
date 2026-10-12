@@ -263,17 +263,19 @@ const Login = () => {
 
   const handleOAuthLogin = async (provider) => {
     setLoginError("");
-
-    const { error } =
-      await supabase.auth.signInWithOAuth({
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-
-    if (error) {
-      setLoginError(error.message);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Google sign-in could not be started:", error);
+      setLoginError(error?.message || "Unable to start Google sign-in. Please try again.");
+      setIsSubmitting(false);
     }
   };
 
@@ -785,6 +787,14 @@ const Login = () => {
                         className="w-full"
                       />
                     </label>
+                    <div className="text-right">
+                      <Link
+                        to="/forgot-password"
+                        className="text-sm font-semibold text-amber-800 underline-offset-4 hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
                   </div>
 
                   {lockoutUntil && lockoutUntil > Date.now() && (

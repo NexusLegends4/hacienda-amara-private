@@ -26,22 +26,23 @@ const ForgotPassword = () => {
 		}
 
 		setIsSubmitting(true);
-		const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-			email.trim(),
-			{
-				redirectTo: `${window.location.origin}/reset-password`,
-			},
-		);
+		try {
+			const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+				email.trim(),
+				{
+					redirectTo: `${window.location.origin}/reset-password`,
+				},
+			);
+			if (resetError) throw resetError;
 
-		if (resetError) {
-			setError(resetError.message || "Unable to send a password reset link.");
+			setStatus("If an account exists for this email, a password reset link has been sent.");
+			setEmail("");
+		} catch (resetError) {
+			console.error("Password reset request failed:", resetError);
+			setError("We couldn't process the request right now. Please try again later.");
+		} finally {
 			setIsSubmitting(false);
-			return;
 		}
-
-		setStatus("If an account exists for this email, a password reset link has been sent.");
-		setEmail("");
-		setIsSubmitting(false);
 	};
 
 	return (
