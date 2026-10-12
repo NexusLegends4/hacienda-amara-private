@@ -1,4 +1,4 @@
-import { hasAal2Claim } from "./utils/auth.js";
+import { hasStaffVerificationClaim } from "./utils/auth.js";
 
 const allowedStatuses = new Set(["confirmed", "cancelled"]);
 
@@ -19,7 +19,7 @@ const getAdminUser = async (request) => {
 	if (!userResponse.ok) return null;
 
 	const user = await userResponse.json();
-	if (!hasAal2Claim(accessToken)) return null;
+	if (!hasStaffVerificationClaim(accessToken)) return null;
 
 	const profileResponse = await fetch(
 		`${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role&limit=1`,

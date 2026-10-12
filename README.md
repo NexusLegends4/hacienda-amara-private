@@ -35,14 +35,16 @@ If the bucket is missing or not writable yet, photo/video sending will fail inst
 
 The cleanup job removes chat messages and uploaded media older than 24 hours, so the chat does not keep photos and videos forever.
 
-## Staff and Admin Authenticator MFA
+## Staff and Admin Email or Authenticator Verification
 
-Staff and admin accounts use Supabase Auth's built-in TOTP MFA instead of email OTPs. Users can enroll with Google Authenticator, Microsoft Authenticator, or another compatible authenticator app; no Brevo API key or custom OTP Edge Function is needed.
+After password or Google sign-in, staff and admins can choose either a six-digit code from an authenticator app or a one-time email code. Authenticator codes use Supabase TOTP. Email codes use Supabase Auth passwordless email sign-in; they do not require Brevo or custom OTP Edge Functions, but do require a verified account email and Supabase Auth email delivery to be configured. Email verification is less phishing-resistant than TOTP.
 
-1. In Supabase **Authentication settings**, enable the **Authenticator App (TOTP)** factor and make sure MFA verification is enabled.
-2. Deploy the updated frontend, then run `supabase/20261012_staff_admin_totp_mfa.sql` in the Supabase SQL Editor. This migration requires AAL2 for staff/admin access to RLS-protected public tables while still allowing a user to read their own profile during enrollment. The service-role Vercel endpoints for staff account creation and reservation notifications also require an AAL2 access token.
-3. On their next sign-in, staff and admins scan the displayed QR code with their authenticator app and enter the generated code. Later sign-ins ask for a fresh code.
-4. After the updated frontend is live, delete the old `create-login-otp` and `verify-login-otp` Edge Functions in Supabase and remove the old Brevo function secrets. Keep the historical `20261007_login_otps_table.sql` migration; after both old functions are deleted, the unused `login_otps` table can be dropped separately if desired.
+1. In Supabase **Authentication → Sign In / Providers**, enable email sign-in and configure email delivery. For reliable delivery to Gmail and other recipients, configure a verified SMTP sender under the Auth SMTP settings.
+2. In **Authentication → Email Templates → Magic Link**, make sure the template displays the numeric token using `{{ .Token }}`. The login screen asks users to enter this six-digit code.
+3. In Supabase **Authentication settings**, enable the **Authenticator App (TOTP)** factor if staff/admins should also be able to use authenticator apps.
+4. Run `supabase/20261012_staff_admin_totp_mfa.sql` followed by `supabase/20261012_staff_email_otp_auth.sql` in the Supabase SQL Editor. The follow-up migration permits staff/admin RLS access for either AAL2 TOTP or a verified email OTP session; ordinary password-only AAL1 sessions remain blocked. The service-role Vercel endpoints accept the same two verified methods.
+5. Deploy the updated frontend and API. At sign-in, staff/admins choose **Use authenticator app** or **Send a code to your account email**. Email code sign-in does not create new users.
+6. After confirming both options work in production, remove any retired custom OTP Edge Functions and their Brevo secrets if they are no longer used.
 
 Before treating MFA as enforced for all database access, run this audit in the Supabase SQL Editor and review any returned tables. The migration does not enable RLS on other tables because doing so without their intended access policies can break the app:
 
@@ -56,7 +58,7 @@ where n.nspname = 'public'
 order by c.relname;
 ```
 
-Users who lose access to their authenticator app will need an administrator to remove/reset their MFA factor in Supabase Auth before they can enroll again. The setup key is a secret; users should not share or store it in public notes.
+Users who cannot access their email or authenticator app will need an administrator to help restore account access. Authenticator setup keys are secrets; users should not share or store them in public notes. Supabase's default email service may be restricted or rate-limited; use a configured SMTP provider if codes do not arrive reliably.
 
 ## Guest Reservation Email Notifications
 
@@ -99,4 +101,4 @@ GROQ_API_KEY=your_groq_api_key
 
 In Vercel, open the project **Settings → Environment Variables**, add `GROQ_API_KEY` with your Groq API key, and select the environments where you deploy (Production, and Preview if applicable). Keep it server-side—do not use the `VITE_` prefix. Redeploy after saving environment variables so the serverless function receives the new value, then refresh Booking Analytics. If the key is missing or Groq is unavailable, historical analytics still load and the dashboard shows a forecast-specific message.
 
-The endpoint only accepts staff/admin access tokens with AAL2 MFA completed. It sends monthly booking counts—not guest names or contact details—to Groq for a forecast. Predictions are estimates, not guarantees. Keep all three values server-side; never prefix the service role key or Groq key with `VITE_`.
+The endpoint only accepts staff/admin access tokens verified with TOTP or email OTP. It sends monthly booking counts—not guest names or contact details—to Groq for a forecast. Predictions are estimates, not guarantees. Keep all three values server-side; never prefix the service role key or Groq key with `VITE_`.

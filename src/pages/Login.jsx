@@ -2,6 +2,7 @@ import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
+import { hasStaffVerificationClaim } from "../utils/staff-auth";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 
@@ -23,6 +24,10 @@ const Login = () => {
   const [lockoutUntil, setLockoutUntil] = useState(null);
 
   const [showMfa, setShowMfa] = useState(false);
+  const [showMethodChoice, setShowMethodChoice] = useState(false);
+  const [showEmailOtp, setShowEmailOtp] = useState(false);
+  const [emailOtpAddress, setEmailOtpAddress] = useState("");
+  const [emailOtpNotice, setEmailOtpNotice] = useState("");
   const [mfaMode, setMfaMode] = useState("challenge");
   const [mfaFactorId, setMfaFactorId] = useState("");
   const [mfaQrCode, setMfaQrCode] = useState("");
@@ -110,6 +115,7 @@ const Login = () => {
       }
 
       localStorage.setItem(MFA_PENDING_KEY, "true");
+      setShowMethodChoice(false);
       setMfaCode("");
       setShowMfa(true);
     } catch (error) {
@@ -120,9 +126,94 @@ const Login = () => {
     }
   }, []);
 
+  const continueWithEmailOtp = async () => {
+    setIsSubmitting(true);
+    setLoginError("");
+    setMfaError("");
+    let signedOut = false;
+
+    try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      const email = sessionData.session?.user?.email;
+      if (!email) {
+        throw new Error("Your account does not have an email address for verification.");
+      }
+
+      setEmailOtpAddress(email);
+      setEmailOtpNotice("");
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      signedOut = true;
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (otpError) throw otpError;
+
+      localStorage.setItem(MFA_PENDING_KEY, "true");
+      setMfaCode("");
+      setShowMethodChoice(false);
+      setShowEmailOtp(true);
+    } catch (error) {
+      console.error("Email OTP request failed:", error);
+      const message = error?.message || "Unable to send a sign-in code to your email.";
+      if (signedOut) {
+        localStorage.removeItem(MFA_PENDING_KEY);
+        setShowMethodChoice(false);
+        setMfaError("");
+        setLoginError(message);
+      } else {
+        setMfaError(message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async (event) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(mfaCode)) {
+      setMfaError("Enter the 6-digit code sent to your email.");
+      return;
+    }
+
+    setMfaLoading(true);
+    setMfaError("");
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: emailOtpAddress,
+        token: mfaCode,
+        type: "email",
+      });
+      if (error) throw error;
+      if (
+        !data.session?.access_token ||
+        !hasStaffVerificationClaim(data.session.access_token)
+      ) {
+        await supabase.auth.signOut();
+        throw new Error("Email verification did not complete. Request a new code and try again.");
+      }
+
+      localStorage.removeItem(MFA_PENDING_KEY);
+      setMfaCode("");
+      setShowEmailOtp(false);
+      setEmailOtpNotice("");
+      navigate("/");
+    } catch (error) {
+      console.error("Email OTP verification failed:", error);
+      setMfaError(error?.message || "That email code is invalid or expired.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
   const mfaTriggeredRef = useRef(false);
   useEffect(() => {
-    if (!isOAuthFlow || showMfa || isSubmitting || mfaLoading || mfaTriggeredRef.current) return;
+    if (!isOAuthFlow || showMfa || showMethodChoice || showEmailOtp || isSubmitting || mfaLoading || mfaTriggeredRef.current) return;
     mfaTriggeredRef.current = true;
 
     const continueOAuthMfa = async () => {
@@ -144,7 +235,9 @@ const Login = () => {
           navigate("/");
           return;
         }
-        await startMfa();
+        setEmailOtpAddress(session.user.email || "");
+        localStorage.setItem(MFA_PENDING_KEY, "true");
+        setShowMethodChoice(true);
       } catch (error) {
         console.error("OAuth MFA setup error:", error);
         const { error: signOutError } = await supabase.auth.signOut();
@@ -158,7 +251,7 @@ const Login = () => {
     };
 
     continueOAuthMfa();
-  }, [isOAuthFlow, showMfa, isSubmitting, mfaLoading, navigate, startMfa]);
+  }, [isOAuthFlow, showMfa, showMethodChoice, showEmailOtp, isSubmitting, mfaLoading, navigate]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);
@@ -209,15 +302,37 @@ const Login = () => {
 
       localStorage.removeItem(MFA_PENDING_KEY);
       setShowMfa(false);
+      setShowMethodChoice(false);
+      setShowEmailOtp(false);
+      setEmailOtpNotice("");
       setMfaCode("");
       setMfaQrCode("");
       setMfaSecret("");
+      setEmailOtpAddress("");
       navigate("/");
     } catch (error) {
       console.error("Authenticator verification error:", error);
       setMfaError(error?.message || "Incorrect authenticator code. Try again.");
     } finally {
       setMfaLoading(false);
+    }
+  };
+
+  const handleResendEmailOtp = async () => {
+    setIsSubmitting(true);
+    setMfaError("");
+    setEmailOtpNotice("");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailOtpAddress,
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      setEmailOtpNotice("A new code was sent. Check your email.");
+    } catch (error) {
+      setMfaError(error?.message || "Unable to resend the email code.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -233,11 +348,15 @@ const Login = () => {
 
     localStorage.removeItem(MFA_PENDING_KEY);
     setShowMfa(false);
+    setShowMethodChoice(false);
+    setShowEmailOtp(false);
+    setEmailOtpNotice("");
     setMfaCode("");
     setMfaError("");
     setMfaFactorId("");
     setMfaQrCode("");
     setMfaSecret("");
+    setEmailOtpAddress("");
     setLoginError("");
     navigate("/log-in", { replace: true });
   };
@@ -418,26 +537,15 @@ const Login = () => {
         return;
       }
 
-      // Authenticator MFA is required for staff and admin accounts.
+      // Staff and admins must complete either TOTP or email OTP verification.
       if (!["staff", "admin"].includes(profileData?.role)) {
         navigate("/");
         return;
       }
 
-      try {
-        await startMfa();
-      } catch (error) {
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-          console.error("Unable to sign out after MFA setup failure:", signOutError);
-        }
-        localStorage.removeItem(MFA_PENDING_KEY);
-        setShowMfa(false);
-        setLoginError(
-          error?.message ||
-            "Unable to set up authenticator verification. Please try again."
-        );
-      }
+      localStorage.setItem(MFA_PENDING_KEY, "true");
+      setEmailOtpAddress(data.user.email || profileData.email || "");
+      setShowMethodChoice(true);
 
     } catch (error) {
       console.error(
@@ -522,7 +630,84 @@ const Login = () => {
               backdrop-blur-xl
             "
           >
-            {!showMfa ? (
+            {showMethodChoice ? (
+              <>
+                <div className="text-center">
+                  <div className="text-5xl mb-4">✓</div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                    Verify Your Sign In
+                  </h1>
+                  <p className="mt-2 text-sm sm:text-base text-slate-700">
+                    Choose an authenticator code or a one-time code sent to your account email.
+                  </p>
+                </div>
+                {mfaError && <div className="mt-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm" role="alert">{mfaError}</div>}
+                <div className="mt-7 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => startMfa().catch(() => {})}
+                    disabled={mfaLoading || isSubmitting}
+                    className="btn btn-black h-12 min-h-12 w-full rounded-full"
+                  >
+                    {mfaLoading ? <span className="loading loading-spinner loading-sm" /> : null}
+                    Use authenticator app
+                  </button>
+                  <button
+                    type="button"
+                    onClick={continueWithEmailOtp}
+                    disabled={mfaLoading || isSubmitting}
+                    className="btn h-12 min-h-12 w-full rounded-full"
+                  >
+                    {isSubmitting ? <span className="loading loading-spinner loading-sm" /> : null}
+                    Send a code to {emailOtpAddress || "your account email"}
+                  </button>
+                </div>
+                <p className="mt-4 text-center text-xs leading-5 text-slate-600">
+                  Email codes are valid for one sign-in. Check your inbox and spam folder.
+                </p>
+                <div className="mt-5 text-center">
+                  <button type="button" onClick={handleCancelMfa} disabled={isSubmitting || mfaLoading} className="btn btn-ghost btn-sm rounded-full">Cancel Login</button>
+                </div>
+              </>
+            ) : showEmailOtp ? (
+              <>
+                <div className="text-center">
+                  <div className="text-5xl mb-4">@</div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                    Check Your Email
+                  </h1>
+                  <p className="mt-2 text-sm sm:text-base text-slate-700">
+                    Enter the 6-digit sign-in code sent to <strong>{emailOtpAddress}</strong>.
+                  </p>
+                </div>
+                {mfaError && <div className="mt-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm" role="alert">{mfaError}</div>}
+                {emailOtpNotice && <div className="mt-5 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm" role="status">{emailOtpNotice}</div>}
+                <form onSubmit={handleVerifyEmailOtp} className="mt-6">
+                  <label htmlFor="login-email-otp-code" className="mb-2 block text-sm font-bold text-slate-800">6-digit email code</label>
+                  <input
+                    id="login-email-otp-code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code"
+                    maxLength={6} pattern="[0-9]{6}" placeholder="000000" value={mfaCode}
+                    onChange={(event) => { setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6)); setMfaError(""); }}
+                    className="input input-bordered w-full h-14 rounded-2xl text-center text-2xl tracking-[0.5em] font-bold" autoFocus required
+                  />
+                  <button type="submit" disabled={mfaLoading || mfaCode.length !== 6} className="btn btn-black mt-5 h-12 min-h-12 w-full rounded-full">
+                    {mfaLoading ? <span className="loading loading-spinner loading-sm" /> : null}
+                    Verify Email & Sign In
+                  </button>
+                </form>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleResendEmailOtp}
+                    disabled={isSubmitting || mfaLoading}
+                    className="btn btn-ghost btn-sm rounded-full"
+                  >
+                    {isSubmitting ? "Sending..." : "Resend code"}
+                  </button>
+                  <button type="button" onClick={handleCancelMfa} disabled={mfaLoading || isSubmitting} className="btn btn-ghost btn-sm rounded-full">Cancel Login</button>
+                </div>
+              </>
+            ) : !showMfa ? (
               <>
                 <div className="mb-4">
                   <button

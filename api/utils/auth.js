@@ -1,4 +1,4 @@
-export function hasAal2Claim(accessToken) {
+export function hasStaffVerificationClaim(accessToken) {
   const tokenParts = accessToken.split(".");
   if (tokenParts.length !== 3) return false;
 
@@ -6,7 +6,13 @@ export function hasAal2Claim(accessToken) {
     const claims = JSON.parse(
       Buffer.from(tokenParts[1], "base64url").toString("utf8"),
     );
-    return claims.aal === "aal2";
+    if (claims.aal === "aal2") return true;
+
+    return (
+      claims.aal === "aal1" &&
+      Array.isArray(claims.amr) &&
+      claims.amr.some((method) => method?.method === "otp")
+    );
   } catch {
     return false;
   }

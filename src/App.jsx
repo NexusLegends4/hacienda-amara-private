@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
+import { hasStaffVerificationClaim } from "./utils/staff-auth";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 
 import BookingQr from "./pages/BookingQr.jsx";
@@ -65,16 +66,18 @@ const clearChatData = async (profile) => {
 const THEME_STORAGE_KEY = "theme";
 
 // Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
+const MotionDiv = motion.div;
+
 function PageTransition({ children }) {
 	return (
-		<motion.div
+		<MotionDiv
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: -20 }}
 			transition={{ duration: 0.3, ease: "easeOut" }}
 		>
 			{children}
-		</motion.div>
+		</MotionDiv>
 	);
 }
 
@@ -205,7 +208,7 @@ function App() {
 		localStorage.removeItem("otp_pending");
 	}, []);
 
-	// Keep staff and admins in the MFA flow until they complete verification.
+	// Keep staff and admins in the verification flow until TOTP or email OTP succeeds.
 	useEffect(() => {
 		const mfaPending = localStorage.getItem(MFA_PENDING_KEY) === "true";
 		const isLoginPage = location.pathname === "/log-in";
@@ -227,14 +230,16 @@ function App() {
 		}
 
 		let cancelled = false;
-		const requireMfa = async () => {
+		const requireStaffVerification = async () => {
 			const { data, error } =
 				await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 			if (cancelled) return;
 
 			if (error) {
-				console.error("Unable to check staff MFA assurance level:", error);
+				console.error("Unable to check staff assurance level:", error);
 			}
+
+			if (hasStaffVerificationClaim(session.access_token)) return;
 
 			if (error || data.currentLevel !== "aal2") {
 				localStorage.setItem(MFA_PENDING_KEY, "true");
@@ -242,7 +247,7 @@ function App() {
 			}
 		};
 
-		requireMfa();
+		requireStaffVerification();
 		return () => {
 			cancelled = true;
 		};

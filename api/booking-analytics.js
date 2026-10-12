@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { hasAal2Claim } from "./utils/auth.js";
+import { hasStaffVerificationClaim } from "./utils/auth.js";
 import {
   countBookingsByMonth,
   DISPLAY_MONTHS,
@@ -18,7 +18,7 @@ const json = (body, status = 200) => Response.json(body, { status });
 async function getStaffUser(request, supabaseUrl, serviceRoleKey) {
   const authorization = request.headers.get("authorization") || "";
   const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
-  if (!accessToken || !hasAal2Claim(accessToken)) return null;
+  if (!accessToken || !hasStaffVerificationClaim(accessToken)) return null;
 
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
