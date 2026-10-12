@@ -3,11 +3,19 @@ import {
   countBookingsByMonth,
   getForecastMonths,
   getRecentMonths,
+  isBookingAnalyticsAdmin,
   isMissingHistoricalBookingsTable,
   parseBookingForecast,
 } from "../booking-analytics";
 
 describe("booking analytics helpers", () => {
+  it("allows analytics only for administrator profiles", () => {
+    expect(isBookingAnalyticsAdmin("admin")).toBe(true);
+    expect(isBookingAnalyticsAdmin("staff")).toBe(false);
+    expect(isBookingAnalyticsAdmin("client")).toBe(false);
+    expect(isBookingAnalyticsAdmin(null)).toBe(false);
+  });
+
   it("builds a continuous month series across year boundaries", () => {
     expect(getRecentMonths(new Date("2026-01-12T00:00:00Z"), 3)).toEqual([
       "2025-11",

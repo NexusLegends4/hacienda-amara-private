@@ -8,6 +8,7 @@ import {
   isMissingHistoricalBookingsTable,
   getRecentMonths,
   HISTORY_MONTHS,
+  isBookingAnalyticsAdmin,
   parseBookingForecast,
 } from "./utils/booking-analytics.js";
 
@@ -15,7 +16,7 @@ const GROQ_MODEL = "llama-3.1-8b-instant";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
-async function getStaffUser(request, supabaseUrl, serviceRoleKey) {
+async function getAdminUser(request, supabaseUrl, serviceRoleKey) {
   const authorization = request.headers.get("authorization") || "";
   const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
   if (!accessToken || !hasStaffVerificationClaim(accessToken)) return null;
@@ -41,7 +42,7 @@ async function getStaffUser(request, supabaseUrl, serviceRoleKey) {
   if (!profileResponse.ok) return null;
 
   const profiles = await profileResponse.json();
-  return ["admin", "staff"].includes(profiles[0]?.role) ? user : null;
+  return isBookingAnalyticsAdmin(profiles[0]?.role) ? user : null;
 }
 
 async function predictBookings(history, expectedMonths, apiKey) {
@@ -104,9 +105,9 @@ export async function POST(request) {
   }
 
   try {
-    const user = await getStaffUser(request, supabaseUrl, serviceRoleKey);
+    const user = await getAdminUser(request, supabaseUrl, serviceRoleKey);
     if (!user) {
-      return json({ error: "Staff or administrator access with MFA is required." }, 403);
+      return json({ error: "Administrator access with MFA is required." }, 403);
     }
 
     const historicalMonths = getRecentMonths(new Date(), HISTORY_MONTHS);

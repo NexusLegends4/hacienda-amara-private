@@ -2,6 +2,10 @@ export const HISTORY_MONTHS = 36;
 export const DISPLAY_MONTHS = 12;
 export const FORECAST_MONTHS = 3;
 
+export function isBookingAnalyticsAdmin(role) {
+  return role === "admin";
+}
+
 export function isMissingHistoricalBookingsTable(error) {
   return (
     error?.code === "PGRST205" &&

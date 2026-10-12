@@ -133,11 +133,11 @@ const BookingAnalytics = () => {
 			navigate("/log-in", { replace: true });
 			return;
 		}
-		if (profileRole && !["admin", "staff"].includes(profileRole)) {
+		if (profileRole && profileRole !== "admin") {
 			navigate("/", { replace: true });
 			return;
 		}
-		if (!["admin", "staff"].includes(profileRole)) return undefined;
+		if (profileRole !== "admin") return undefined;
 
 		loadAnalytics();
 		const channel = supabase
@@ -190,7 +190,7 @@ const BookingAnalytics = () => {
 					<header className="flex flex-col gap-4 rounded-[1.5rem] border border-black/5 bg-white/75 p-6 shadow-xl backdrop-blur sm:flex-row sm:items-end sm:justify-between sm:rounded-[2rem] md:p-8">
 						<div>
 							<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
-								{profile?.role === "staff" ? "Staff Dashboard" : "Admin Dashboard"}
+								Admin Dashboard
 							</p>
 							<h1 className="mt-3 flex items-center gap-3 text-3xl font-black tracking-tight text-base-content md:text-4xl">
 								<FiBarChart2 aria-hidden="true" />
