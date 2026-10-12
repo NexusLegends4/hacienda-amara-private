@@ -44,12 +44,13 @@ const NavBar = () => {
 	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
-	// Check if OTP verification is pending
-	const isOtpPending = () => localStorage.getItem("otp_pending") === "true";
+	// Keep navigation locked until staff/admin MFA is complete.
+	const isMfaPending = () =>
+		localStorage.getItem("hacienda_staff_mfa_pending") === "true";
 
-	// Wrapper to prevent navigation when OTP is pending
+	// Wrapper to prevent navigation while MFA is pending.
 	const handleNav = (to) => (event) => {
-		if (isOtpPending()) {
+		if (isMfaPending()) {
 			event.preventDefault();
 			return;
 		}

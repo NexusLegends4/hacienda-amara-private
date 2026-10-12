@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { hasAal2Claim } from "./utils/auth.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -16,6 +17,8 @@ const getAdminUser = async (request) => {
   if (!authResponse.ok) return null;
 
   const user = await authResponse.json();
+  if (!hasAal2Claim(accessToken)) return null;
+
   const profileResponse = await fetch(
     `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role&limit=1`,
     { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },

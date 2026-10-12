@@ -43,6 +43,7 @@ import ManageAnnouncements from "./pages/ManageAnnouncements";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
+const MFA_PENDING_KEY = "hacienda_staff_mfa_pending";
 
 const clearChatData = async (profile) => {
 	if (typeof window !== "undefined") {
@@ -175,7 +176,6 @@ function App() {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((event, nextSession) => {
 			console.log("event", event);
-			console.log("session", nextSession);
 			if (event === "PASSWORD_RECOVERY") {
 				if (nextSession) {
 					setSession(nextSession);
@@ -184,9 +184,12 @@ function App() {
 			} else if (event === "SIGNED_OUT") {
 				setSession(null);
 				setProfile(null);
-				localStorage.removeItem("otp_pending");
+				localStorage.removeItem(MFA_PENDING_KEY);
 			} else if (nextSession) {
 				setSession(nextSession);
+				setProfile((currentProfile) =>
+					currentProfile?.id === nextSession.user.id ? currentProfile : null,
+				);
 			}
 		});
 
@@ -195,15 +198,53 @@ function App() {
 		};
 	}, [navigate]);
 
-	// Route guard: prevent navigation away from login page when OTP is pending
 	useEffect(() => {
-		const otpPending = localStorage.getItem("otp_pending") === "true";
-		const isLoginPage = window.location.pathname === "/log-in";
+		// Clear pending email-OTP state left behind by the retired login flow.
+		localStorage.removeItem("otp_pending");
+	}, []);
 
-		if (session && otpPending && !isLoginPage) {
-			navigate("/log-in", { replace: true });
+	// Keep staff and admins in the MFA flow until they complete verification.
+	useEffect(() => {
+		const mfaPending = localStorage.getItem(MFA_PENDING_KEY) === "true";
+		const isLoginPage = location.pathname === "/log-in";
+
+		if (session && mfaPending && !isLoginPage) {
+			navigate("/log-in?oauth=true", { replace: true });
 		}
-	}, [session, navigate]);
+	}, [session, location.pathname, navigate]);
+
+	useEffect(() => {
+		if (
+			!session ||
+			!profile ||
+			profile.id !== session.user.id ||
+			!["staff", "admin"].includes(profile.role) ||
+			["/log-in", "/auth/callback", "/reset-password"].includes(location.pathname)
+		) {
+			return;
+		}
+
+		let cancelled = false;
+		const requireMfa = async () => {
+			const { data, error } =
+				await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+			if (cancelled) return;
+
+			if (error) {
+				console.error("Unable to check staff MFA assurance level:", error);
+			}
+
+			if (error || data.currentLevel !== "aal2") {
+				localStorage.setItem(MFA_PENDING_KEY, "true");
+				navigate("/log-in?oauth=true", { replace: true });
+			}
+		};
+
+		requireMfa();
+		return () => {
+			cancelled = true;
+		};
+	}, [session, profile, location.pathname, navigate]);
 
 	// Profile
 	useEffect(() => {

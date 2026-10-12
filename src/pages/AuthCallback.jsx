@@ -10,11 +10,7 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      console.log("AuthCallback: Starting OAuth callback", { 
-        href: window.location.href,
-        search: window.location.search,
-        hash: window.location.hash
-      });
+      console.log("AuthCallback: Starting OAuth callback");
       
       // Get the auth code from URL query params OR hash fragment
       // Supabase sometimes returns OAuth response in fragment (implicit flow)
@@ -120,10 +116,8 @@ const AuthCallback = () => {
         
         // Role-based redirect
         let redirectPath = "/";
-        if (profile?.role === "admin") {
-          redirectPath = "/admin-reservations"; // Admin dashboard
-        } else if (profile?.role === "staff") {
-          redirectPath = "/admin-reservations"; // Staff calendar
+        if (["admin", "staff"].includes(profile?.role)) {
+          redirectPath = "/log-in?oauth=true";
         } else if (profile?.role === "client") {
           redirectPath = "/"; // Customer home
         }

@@ -2,7 +2,7 @@ import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 
 const MAX_ATTEMPTS = 5;
@@ -10,7 +10,7 @@ const LOCKOUT_MINUTES = 5;
 const ATTEMPTS_KEY = "hacienda-login-attempts";
 const LOCKOUT_KEY = "hacienda-login-lockout";
 
-const OTP_RESEND_SECONDS = 60;
+const MFA_PENDING_KEY = "hacienda_staff_mfa_pending";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,12 +22,14 @@ const Login = () => {
   const [attempts, setAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState(null);
 
-  const [showOtp, setShowOtp] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
+  const [showMfa, setShowMfa] = useState(false);
+  const [mfaMode, setMfaMode] = useState("challenge");
+  const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaQrCode, setMfaQrCode] = useState("");
+  const [mfaSecret, setMfaSecret] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState("");
+  const [mfaLoading, setMfaLoading] = useState(false);
 
   useEffect(() => {
     const storedAttempts = parseInt(
@@ -72,80 +74,91 @@ const Login = () => {
     return () => clearInterval(interval);
   }, [lockoutUntil]);
 
-  // Auto-trigger OTP for OAuth flow
-  const otpTriggeredRef = useRef(false);
+  const startMfa = useCallback(async () => {
+    setMfaLoading(true);
+    setMfaError("");
+    try {
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
 
-  useEffect(() => {
-    console.log("OAuth flow check:", { isOAuthFlow, showOtp, isSubmitting, otpLoading, otpTriggered: otpTriggeredRef.current });
-    if (isOAuthFlow && !showOtp && !isSubmitting && !otpLoading && !otpTriggeredRef.current) {
-      otpTriggeredRef.current = true;
-      const triggerOtp = async () => {
-        console.log("Triggering OTP for OAuth flow");
-        setIsSubmitting(true);
-        setLoginError("");
-
-        try {
-          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-          console.log("Session check:", { sessionData: !!sessionData?.session, sessionError });
-          if (sessionError || !sessionData?.session?.access_token) {
-            throw new Error("No active session found. Please try logging in again.");
-          }
-
-          const { data: oauthProfile, error: oauthProfileError } = await supabase
-            .from("profiles")
-            .select("email, role, deleted_at")
-            .eq("id", sessionData.session.user.id)
-            .single();
-
-          if (oauthProfileError || oauthProfile?.deleted_at) {
-            throw new Error("Unable to load your account. Please try logging in again.");
-          }
-
-          if (!["staff", "admin"].includes(oauthProfile?.role)) {
-            navigate("/");
-            return;
-          }
-
-          setOtpEmail(oauthProfile.email || sessionData.session.user.email || "");
-          setShowOtp(true);
-
-          const otpSent = await sendLoginOTP();
-          console.log("OTP sent result:", otpSent);
-          if (!otpSent) {
-            setShowOtp(false);
-            throw new Error("Failed to send verification code.");
-          }
-
-        } catch (error) {
-          console.error("OAuth OTP error:", error);
-          setLoginError(error?.message || "Unable to send verification code. Please try again.");
-          navigate("/log-in?error=oauth_otp_failed");
-        } finally {
-          setIsSubmitting(false);
-        }
-      };
-
-      triggerOtp();
-    }
-  }, [isOAuthFlow, showOtp, otpLoading, navigate]);
-
-  useEffect(() => {
-    if (resendCountdown <= 0) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setResendCountdown((current) => {
-        if (current <= 1) {
-          return 0;
+      const verifiedFactor = factors.totp[0];
+      if (verifiedFactor) {
+        setMfaMode("challenge");
+        setMfaFactorId(verifiedFactor.id);
+        setMfaQrCode("");
+        setMfaSecret("");
+      } else {
+        const unverifiedFactors = factors.all.filter(
+          (factor) => factor.factor_type === "totp" && factor.status === "unverified"
+        );
+        for (const factor of unverifiedFactors) {
+          const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          if (unenrollError) throw unenrollError;
         }
 
-        return current - 1;
-      });
-    }, 1000);
+        const { data: enrollment, error: enrollError } = await supabase.auth.mfa.enroll({
+          factorType: "totp",
+          issuer: "Hacienda Amara",
+          friendlyName: "Hacienda Amara staff sign-in",
+        });
+        if (enrollError) throw enrollError;
 
-    return () => clearInterval(interval);
-  }, [resendCountdown]);
+        setMfaMode("enroll");
+        setMfaFactorId(enrollment.id);
+        setMfaQrCode(enrollment.totp.qr_code);
+        setMfaSecret(enrollment.totp.secret);
+      }
+
+      localStorage.setItem(MFA_PENDING_KEY, "true");
+      setMfaCode("");
+      setShowMfa(true);
+    } catch (error) {
+      setMfaError(error?.message || "Unable to set up authenticator verification. Please try again.");
+      throw error;
+    } finally {
+      setMfaLoading(false);
+    }
+  }, []);
+
+  const mfaTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!isOAuthFlow || showMfa || isSubmitting || mfaLoading || mfaTriggeredRef.current) return;
+    mfaTriggeredRef.current = true;
+
+    const continueOAuthMfa = async () => {
+      setIsSubmitting(true);
+      setLoginError("");
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.user) throw new Error("No active login session was found. Please try again.");
+
+        const { data: oauthProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role, deleted_at")
+          .eq("id", session.user.id)
+          .single();
+        if (profileError || oauthProfile?.deleted_at) throw new Error("Unable to load your account. Please try again.");
+
+        if (!["staff", "admin"].includes(oauthProfile?.role)) {
+          localStorage.removeItem(MFA_PENDING_KEY);
+          navigate("/");
+          return;
+        }
+        await startMfa();
+      } catch (error) {
+        console.error("OAuth MFA setup error:", error);
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) console.error("Unable to sign out after MFA setup failure:", signOutError);
+        localStorage.removeItem(MFA_PENDING_KEY);
+        setLoginError(error?.message || "Unable to set up authenticator verification. Please try again.");
+        navigate("/log-in", { replace: true });
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    continueOAuthMfa();
+  }, [isOAuthFlow, showMfa, isSubmitting, mfaLoading, navigate, startMfa]);
 
   const formatLockoutTime = (milliseconds) => {
     const minutes = Math.ceil(milliseconds / 60000);
@@ -171,222 +184,62 @@ const Login = () => {
     }
   };
 
-  /*
-   * CREATE AND SEND OTP
-   *
-   * The Edge Function:
-   * 1. Gets the currently authenticated user.
-   * 2. Generates a 6-digit OTP.
-   * 3. Saves the hashed OTP to login_otps.
-   * 4. Sends the actual OTP through Brevo.
-   */
-  const sendLoginOTP = async () => {
-    try {
-      setOtpLoading(true);
-      setOtpError("");
-
-      const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        throw sessionError;
-      }
-
-      const accessToken =
-        sessionData?.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error(
-          "Your login session could not be found."
-        );
-      }
-
-      const {
-        data,
-        error,
-      } = await supabase.functions.invoke(
-        "create-login-otp",
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (error) {
-        console.error(
-          "Create OTP error:",
-          error
-        );
-
-        let functionError;
-        if (error.context instanceof Response) {
-          try {
-            functionError = await error.context.clone().json();
-          } catch (responseError) {
-            console.error(
-              "Unable to read create OTP error response:",
-              responseError
-            );
-          }
-        }
-
-        throw new Error(
-          functionError?.error ||
-            error.message ||
-            "Failed to send verification code."
-        );
-      }
-
-      if (!data?.success) {
-        throw new Error(
-          data?.error ||
-            "Failed to send verification code."
-        );
-      }
-
-      setOtp("");
-      setResendCountdown(
-        OTP_RESEND_SECONDS
-      );
-
-      return true;
-    } catch (error) {
-      console.error(
-        "OTP sending error:",
-        error
-      );
-
-      setOtpError(
-        error?.message ||
-          "Unable to send verification code."
-      );
-
-      return false;
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (event) => {
+  const handleVerifyMfa = async (event) => {
     event.preventDefault();
-
-    if (!/^\d{6}$/.test(otp)) {
-      setOtpError(
-        "Please enter the 6-digit verification code."
-      );
+    if (!/^\d{6}$/.test(mfaCode)) {
+      setMfaError("Enter the 6-digit code from your authenticator app.");
       return;
     }
 
     try {
-      setOtpLoading(true);
-      setOtpError("");
+      setMfaLoading(true);
+      setMfaError("");
+      const { error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId: mfaFactorId,
+        code: mfaCode,
+      });
+      if (error) throw error;
 
-      const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        throw sessionError;
+      const { data: assurance, error: assuranceError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assuranceError) throw assuranceError;
+      if (assurance.currentLevel !== "aal2") {
+        throw new Error("Authenticator verification did not complete. Please try again.");
       }
 
-      const accessToken =
-        sessionData?.session?.access_token;
-
-      if (!accessToken) {
-        throw new Error(
-          "Your login session has expired. Please log in again."
-        );
-      }
-
-      const {
-        data,
-        error,
-      } = await supabase.functions.invoke(
-        "verify-login-otp",
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: {
-            otp,
-          },
-        }
-      );
-
-      if (error) {
-        console.error(
-          "Verify OTP error:",
-          error
-        );
-
-        throw new Error(
-          error.message ||
-            "Failed to verify verification code."
-        );
-      }
-
-      if (!data?.success) {
-        throw new Error(
-          data?.error ||
-            "Incorrect verification code."
-        );
-      }
-
-      setShowOtp(false);
-      setOtp("");
-      setOtpError("");
-      setResendCountdown(0);
-
-      localStorage.removeItem("otp_pending");
-
+      localStorage.removeItem(MFA_PENDING_KEY);
+      setShowMfa(false);
+      setMfaCode("");
+      setMfaQrCode("");
+      setMfaSecret("");
       navigate("/");
     } catch (error) {
-      console.error(
-        "OTP verification error:",
-        error
-      );
-
-      setOtpError(
-        error?.message ||
-          "Incorrect verification code."
-      );
+      console.error("Authenticator verification error:", error);
+      setMfaError(error?.message || "Incorrect authenticator code. Try again.");
     } finally {
-      setOtpLoading(false);
+      setMfaLoading(false);
     }
   };
 
-  const handleResendOTP = async () => {
-    if (
-      resendCountdown > 0 ||
-      otpLoading
-    ) {
+  const handleCancelMfa = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error("Sign out error:", error);
+      setMfaError(error?.message || "Unable to cancel login.");
       return;
     }
 
-    await sendLoginOTP();
-  };
-
-  const handleCancelOTP = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error(
-        "Sign out error:",
-        error
-      );
-    }
-
-    setShowOtp(false);
-    setOtp("");
-    setOtpError("");
-    setResendCountdown(0);
+    localStorage.removeItem(MFA_PENDING_KEY);
+    setShowMfa(false);
+    setMfaCode("");
+    setMfaError("");
+    setMfaFactorId("");
+    setMfaQrCode("");
+    setMfaSecret("");
     setLoginError("");
-
-    localStorage.removeItem("otp_pending");
+    navigate("/log-in", { replace: true });
   };
 
   const handleSubmit = async (event) => {
@@ -565,44 +418,26 @@ const Login = () => {
         return;
       }
 
-      // Email OTP is required for staff and admin accounts.
+      // Authenticator MFA is required for staff and admin accounts.
       if (!["staff", "admin"].includes(profileData?.role)) {
         navigate("/");
         return;
       }
 
-      setOtpEmail(profileData?.email || data.user.email || "");
-      setShowOtp(true);
-
-      /*
-       * PASSWORD IS CORRECT
-       *
-       * Now send the OTP through:
-       *
-       * Login.jsx
-       *     ↓
-       * create-login-otp
-       *     ↓
-       * Brevo
-       *     ↓
-       * User's email
-       */
-      const otpSent =
-        await sendLoginOTP();
-
-      if (!otpSent) {
-        setShowOtp(false);
-        await supabase.auth.signOut();
-
+      try {
+        await startMfa();
+      } catch (error) {
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          console.error("Unable to sign out after MFA setup failure:", signOutError);
+        }
+        localStorage.removeItem(MFA_PENDING_KEY);
+        setShowMfa(false);
         setLoginError(
-          "We could not send the verification code. Please try again."
+          error?.message ||
+            "Unable to set up authenticator verification. Please try again."
         );
-
-        setIsSubmitting(false);
-        return;
       }
-
-      localStorage.setItem("otp_pending", "true");
 
     } catch (error) {
       console.error(
@@ -687,7 +522,7 @@ const Login = () => {
               backdrop-blur-xl
             "
           >
-            {!showOtp ? (
+            {!showMfa ? (
               <>
                 <div className="mb-4">
                   <button
@@ -891,172 +726,40 @@ const Login = () => {
             ) : (
               <>
                 <div className="text-center">
-                  <div className="text-5xl mb-4">
-                    📧
-                  </div>
-
-                  <h1
-                    className="
-                      text-2xl
-                      sm:text-3xl
-                      md:text-4xl
-                      font-black
-                      tracking-tight
-                      text-slate-900
-                    "
-                  >
-                    Verify Your Login
+                  <div className="text-5xl mb-4">{mfaMode === "enroll" ? "1" : "2"}</div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                    {mfaMode === "enroll" ? "Set Up Authenticator" : "Authenticator Verification"}
                   </h1>
-
                   <p className="mt-2 text-sm sm:text-base text-slate-700">
-                    We sent a 6-digit verification code to {otpEmail || "your email"}.
+                    {mfaMode === "enroll" ? "Scan this QR code with Google Authenticator, Microsoft Authenticator, or another authenticator app." : "Enter the current 6-digit code from your authenticator app."}
                   </p>
                 </div>
-
-                {otpError && (
-                  <div
-                    className="
-                      mt-5
-                      p-3
-                      rounded-xl
-                      bg-rose-50
-                      border
-                      border-rose-200
-                      text-rose-700
-                      text-sm
-                    "
-                  >
-                    {otpError}
+                {mfaError && <div className="mt-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm" role="alert">{mfaError}</div>}
+                {mfaMode === "enroll" && (
+                  <div className="mt-6 text-center">
+                    <img src={mfaQrCode} alt="Authenticator app setup QR code" className="mx-auto h-48 w-48 rounded-lg border border-slate-200 bg-white p-2" />
+                    <p className="mt-4 text-sm text-slate-700">If you cannot scan the QR code, enter this setup key manually:</p>
+                    <p className="mt-2 break-all rounded-lg bg-slate-100 p-3 font-mono text-sm font-semibold tracking-wider" aria-label="Authenticator setup key">{mfaSecret}</p>
                   </div>
                 )}
-
-                <form
-                  onSubmit={handleVerifyOTP}
-                  className="mt-6"
-                >
-                  <label
-                    htmlFor="login-otp"
-                    className="
-                      block
-                      mb-2
-                      text-sm
-                      font-bold
-                      text-slate-800
-                    "
-                  >
-                    Verification Code
-                  </label>
-
+                <form onSubmit={handleVerifyMfa} className="mt-6">
+                  <label htmlFor="login-mfa-code" className="mb-2 block text-sm font-bold text-slate-800">6-digit authenticator code</label>
                   <input
-                    id="login-otp"
-                    name="otp"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    pattern="[0-9]{6}"
-                    placeholder="000000"
-                    value={otp}
-                    onChange={(event) => {
-                      const value =
-                        event.target.value
-                          .replace(
-                            /\D/g,
-                            ""
-                          )
-                          .slice(0, 6);
-
-                      setOtp(value);
-                      setOtpError("");
-                    }}
-                    className="
-                      input
-                      input-bordered
-                      w-full
-                      h-14
-                      rounded-2xl
-                      text-center
-                      text-2xl
-                      tracking-[0.5em]
-                      font-bold
-                    "
-                    autoFocus
-                    required
+                    id="login-mfa-code" name="code" type="text" inputMode="numeric" autoComplete="one-time-code"
+                    maxLength={6} pattern="[0-9]{6}" placeholder="000000" value={mfaCode}
+                    onChange={(event) => { setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6)); setMfaError(""); }}
+                    className="input input-bordered w-full h-14 rounded-2xl text-center text-2xl tracking-[0.5em] font-bold" autoFocus required
                   />
-
                   <p className="mt-3 text-center text-xs sm:text-sm text-slate-600">
-                    The verification code expires in 5 minutes.
+                    {mfaMode === "enroll" ? "Enter a code from the app to finish setup. The app generates a new code every 30 seconds." : "Your authenticator app generates a new code every 30 seconds."}
                   </p>
-
-                  <button
-                    type="submit"
-                    disabled={
-                      otpLoading ||
-                      otp.length !== 6
-                    }
-                    className="
-                      btn
-                      btn-black
-                      mt-5
-                      h-12
-                      min-h-12
-                      w-full
-                      rounded-full
-                    "
-                  >
-                    {otpLoading ? (
-                      <>
-                        <span className="loading loading-spinner loading-sm" />
-                        {otp.length === 6 ? "Verifying..." : "Sending code..."}
-                      </>
-                    ) : (
-                      "Verify Code"
-                    )}
+                  <button type="submit" disabled={mfaLoading || mfaCode.length !== 6 || !mfaFactorId} className="btn btn-black mt-5 h-12 min-h-12 w-full rounded-full">
+                    {mfaLoading ? <span className="loading loading-spinner loading-sm" /> : null}
+                    {mfaMode === "enroll" ? "Finish Setup & Sign In" : "Verify & Sign In"}
                   </button>
                 </form>
-
-                <div className="text-center mt-5">
-                  <button
-                    type="button"
-                    onClick={
-                      handleResendOTP
-                    }
-                    disabled={
-                      resendCountdown >
-                        0 ||
-                      otpLoading
-                    }
-                    className="
-                      text-sm
-                      font-semibold
-                      text-slate-700
-                      hover:underline
-                      disabled:opacity-50
-                      disabled:no-underline
-                    "
-                  >
-                    {resendCountdown > 0
-                      ? `Resend code in ${resendCountdown}s`
-                      : "Resend verification code"}
-                  </button>
-                </div>
-
-                <div className="text-center mt-4">
-                  <button
-                    type="button"
-                    onClick={
-                      handleCancelOTP
-                    }
-                    disabled={otpLoading}
-                    className="
-                      btn
-                      btn-ghost
-                      btn-sm
-                      rounded-full
-                    "
-                  >
-                    Cancel Login
-                  </button>
+                <div className="mt-5 text-center">
+                  <button type="button" onClick={handleCancelMfa} disabled={mfaLoading} className="btn btn-ghost btn-sm rounded-full">Cancel Login</button>
                 </div>
               </>
             )}

@@ -35,6 +35,29 @@ If the bucket is missing or not writable yet, photo/video sending will fail inst
 
 The cleanup job removes chat messages and uploaded media older than 24 hours, so the chat does not keep photos and videos forever.
 
+## Staff and Admin Authenticator MFA
+
+Staff and admin accounts use Supabase Auth's built-in TOTP MFA instead of email OTPs. Users can enroll with Google Authenticator, Microsoft Authenticator, or another compatible authenticator app; no Brevo API key or custom OTP Edge Function is needed.
+
+1. In Supabase **Authentication settings**, enable the **Authenticator App (TOTP)** factor and make sure MFA verification is enabled.
+2. Deploy the updated frontend, then run `supabase/20261012_staff_admin_totp_mfa.sql` in the Supabase SQL Editor. This migration requires AAL2 for staff/admin access to RLS-protected public tables while still allowing a user to read their own profile during enrollment. The service-role Vercel endpoints for staff account creation and reservation notifications also require an AAL2 access token.
+3. On their next sign-in, staff and admins scan the displayed QR code with their authenticator app and enter the generated code. Later sign-ins ask for a fresh code.
+4. After the updated frontend is live, delete the old `create-login-otp` and `verify-login-otp` Edge Functions in Supabase and remove the old Brevo function secrets. Keep the historical `20261007_login_otps_table.sql` migration; after both old functions are deleted, the unused `login_otps` table can be dropped separately if desired.
+
+Before treating MFA as enforced for all database access, run this audit in the Supabase SQL Editor and review any returned tables. The migration does not enable RLS on other tables because doing so without their intended access policies can break the app:
+
+```sql
+select n.nspname as schema_name, c.relname as table_name
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relkind in ('r', 'p')
+  and not c.relrowsecurity
+order by c.relname;
+```
+
+Users who lose access to their authenticator app will need an administrator to remove/reset their MFA factor in Supabase Auth before they can enroll again. The setup key is a secret; users should not share or store it in public notes.
+
 ## Guest Reservation Email Notifications
 
 Run `supabase/20260907_guest_reservation_notifications.sql` in the Supabase SQL Editor. For guests without an account to receive accepted or rejected reservation emails through Mailtrap, add these Vercel environment variables:
