@@ -1,5 +1,4 @@
--- Allow staff/admin authorization after a verified Supabase magic-link OTP.
--- Run after 20261012_staff_email_otp_auth.sql in the Supabase SQL Editor.
+-- Restore the staff verification claim check to the pre-magic-link behavior.
 
 create or replace function public.has_staff_verification()
 returns boolean
@@ -11,10 +10,7 @@ as $$
 		auth.jwt() ->> 'aal' = 'aal2'
 		or (
 			auth.jwt() ->> 'aal' = 'aal1'
-			and (
-				coalesce(auth.jwt() -> 'amr', '[]'::jsonb) @> '[{"method":"otp"}]'::jsonb
-				or coalesce(auth.jwt() -> 'amr', '[]'::jsonb) @> '[{"method":"magiclink"}]'::jsonb
-			)
+			and coalesce(auth.jwt() -> 'amr', '[]'::jsonb) @> '[{"method":"otp"}]'::jsonb
 		);
 $$;
 
