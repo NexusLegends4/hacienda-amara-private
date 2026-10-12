@@ -85,7 +85,9 @@ The service role key is server-only and must never be exposed as a `VITE_` varia
 
 ## Booking Analytics and AI Forecast
 
-Staff and administrators can open **Booking Analytics** from the navigation menu. It compares the last 12 completed months of reservation requests, highlights the highest and lowest months, and forecasts the next 3 months using aggregated counts from up to 36 months of Supabase reservation history. Pending, confirmed, and cancelled requests are included; the chart is based on `created_at` (when a request was submitted), not the stay's check-in date.
+Staff and administrators can open **Booking Analytics** from the navigation menu. It compares the last 12 completed months of bookings, highlights the highest and lowest months, and forecasts the next 3 months using aggregated counts from up to 36 months of Supabase reservation history. It combines live reservations with imported schedule entries and groups by booking/check-in date. Pending, confirmed, and cancelled live reservations are included. Incomplete and future months are excluded from historical totals and AI training.
+
+To import the provided date/package schedule, run `supabase/20261012_historical_bookings_import.sql` in the Supabase SQL Editor. It creates a restricted `historical_bookings` table and inserts 666 package/date entries (276 overnight, 202 day tour, 188 night tour). If a date lists multiple packages, each package is stored as one booking. The SQL is safe to run more than once and does not invent guest names, contact details, prices, or statuses. The provided schedule has no January 2026 entries; those dates will count as zero unless you add data for that month.
 
 Configure these server-side Vercel environment variables for the `/api/booking-analytics` endpoint:
 

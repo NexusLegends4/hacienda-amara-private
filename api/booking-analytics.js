@@ -114,26 +114,33 @@ export async function POST(request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const records = [];
+    const currentMonthStart = `${new Date().toISOString().slice(0, 7)}-01`;
     const pageSize = 1000;
 
-    for (let offset = 0; ; offset += pageSize) {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select("created_at")
-        .gte("created_at", `${firstMonth}-01T00:00:00.000Z`)
-        .lte("created_at", new Date().toISOString())
-        .order("created_at", { ascending: true })
-        .range(offset, offset + pageSize - 1);
+    for (const source of [
+      { table: "historical_bookings", dateColumn: "booking_date" },
+      { table: "reservations", dateColumn: "check_in" },
+    ]) {
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from(source.table)
+          .select(source.dateColumn)
+          .gte(source.dateColumn, `${firstMonth}-01`)
+          .lt(source.dateColumn, currentMonthStart)
+          .order(source.dateColumn, { ascending: true })
+          .range(offset, offset + pageSize - 1);
 
-      if (error) throw error;
-      records.push(...data);
-      if (data.length < pageSize) break;
+        if (error) throw error;
+        records.push(...data);
+        if (data.length < pageSize) break;
+      }
     }
 
     const fullHistory = countBookingsByMonth(records, historicalMonths);
-    const history = fullHistory.slice(0, -1).slice(-DISPLAY_MONTHS);
+    const completedHistory = fullHistory.slice(0, -1);
+    const history = completedHistory.slice(-DISPLAY_MONTHS);
     const forecastMonths = getForecastMonths(new Date(), FORECAST_MONTHS);
-    const hasHistoricalBookings = fullHistory.some((month) => month.bookings > 0);
+    const hasHistoricalBookings = completedHistory.some((month) => month.bookings > 0);
     let forecast = {
       predictions: [],
       summary: "There is no reservation history yet, so an AI forecast cannot be generated.",
@@ -143,7 +150,7 @@ export async function POST(request) {
     if (hasHistoricalBookings) {
       try {
         forecast = await predictBookings(
-          fullHistory,
+          completedHistory,
           forecastMonths,
           process.env.GROQ_API_KEY,
         );
@@ -160,7 +167,7 @@ export async function POST(request) {
       forecastError,
       generatedAt: new Date().toISOString(),
       includesStatuses: ["pending", "confirmed", "cancelled"],
-      basedOn: "Reservation request creation date (created_at), not check-in date.",
+      basedOn: "Booking date (check_in). Only completed months are included in historical counts and AI training.",
     });
   } catch (error) {
     console.error("Booking analytics failed:", error);

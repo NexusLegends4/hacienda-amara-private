@@ -32,7 +32,8 @@ export function countBookingsByMonth(records, months) {
   const counts = new Map(months.map((month) => [month, 0]));
 
   for (const record of records) {
-    const month = record.created_at?.slice(0, 7);
+    const date = record.booking_date || record.check_in || record.created_at;
+    const month = date?.slice(0, 7);
     if (counts.has(month)) counts.set(month, counts.get(month) + 1);
   }
 

@@ -23,7 +23,7 @@ describe("booking analytics helpers", () => {
     ]);
   });
 
-  it("counts bookings by created month and includes empty months", () => {
+  it("counts records by month and includes empty months", () => {
     const months = ["2026-01", "2026-02", "2026-03"];
     const series = countBookingsByMonth(
       [
@@ -38,6 +38,23 @@ describe("booking analytics helpers", () => {
     expect(series).toEqual([
       { month: "2026-01", bookings: 2 },
       { month: "2026-02", bookings: 0 },
+      { month: "2026-03", bookings: 1 },
+    ]);
+  });
+
+  it("counts imported and live bookings by their booking date", () => {
+    const months = ["2026-02", "2026-03"];
+    expect(
+      countBookingsByMonth(
+        [
+          { booking_date: "2026-02-13" },
+          { check_in: "2026-02-14" },
+          { check_in: "2026-03-02" },
+        ],
+        months,
+      ),
+    ).toEqual([
+      { month: "2026-02", bookings: 2 },
       { month: "2026-03", bookings: 1 },
     ]);
   });

@@ -252,7 +252,7 @@ const BookingAnalytics = () => {
 									<BookingChart history={analytics.history} predictions={forecast?.predictions || []} />
 								</div>
 								<p className="mt-2 text-xs leading-5 text-base-content/55">
-									Counts use reservation request creation date. All booking statuses are included; this measures demand, not stays by check-in date.
+									Counts are grouped by booking/check-in date. All live reservation statuses are included; imported schedule entries count as bookings.
 								</p>
 							</section>
 
