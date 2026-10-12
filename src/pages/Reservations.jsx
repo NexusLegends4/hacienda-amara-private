@@ -20,35 +20,23 @@ const isWeekendOrHoliday = (dateStr) => {
 const isPhilippinePhoneNumber = (phone) => /^(?:09\d{9}|639\d{9})$/.test(phone);
 
 const Reservations = () => {
-	const { profile, session } = useContext(SessionContext);
+	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [packages, setPackages] = useState([]);
 	const [packageLoading, setPackageLoading] = useState(true);
 	const [date, setDate] = useState("");
 	const [guests, setGuests] = useState(20);
-	const [guestName, setGuestName] = useState(null);
-	const [guestEmail, setGuestEmail] = useState(null);
-	const [guestPhone, setGuestPhone] = useState(null);
+	const [guestName, setGuestName] = useState("");
+	const [guestEmail, setGuestEmail] = useState("");
+	const [guestPhone, setGuestPhone] = useState("");
 	const [selectedPackageId, setSelectedPackageId] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [reservedBookings, setReservedBookings] = useState([]);
 	const [reservationConflict, setReservationConflict] = useState(false);
 	const [cancelDate, setCancelDate] = useState("");
-	const [cancelEmail, setCancelEmail] = useState(null);
-	const [cancelPhone, setCancelPhone] = useState(null);
+	const [cancelEmail, setCancelEmail] = useState("");
+	const [cancelPhone, setCancelPhone] = useState("");
 	const [cancelling, setCancelling] = useState(false);
-
-	const profileFullName = [profile?.firstname, profile?.lastname]
-		.filter(Boolean)
-		.join(" ")
-		.trim();
-	const profileEmail = profile?.email || session?.user?.email || "";
-	const profilePhone = String(profile?.contact_number || "").replace(/\D/g, "").slice(0, 12);
-	const reservationName = guestName ?? profileFullName;
-	const reservationEmail = guestEmail ?? profileEmail;
-	const reservationPhone = guestPhone ?? profilePhone;
-	const bookingEmail = cancelEmail ?? profileEmail;
-	const bookingPhone = cancelPhone ?? profilePhone;
 
 	useEffect(() => {
 		if (["admin", "staff"].includes(profile?.role)) {
@@ -148,15 +136,15 @@ const Reservations = () => {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		if (pricing <= 0 || isDateReserved) { alert("Please select an available date."); return; }
-		if (!isPhilippinePhoneNumber(reservationPhone.trim())) {
+		if (!isPhilippinePhoneNumber(guestPhone.trim())) {
 			alert("Please enter a valid Philippine mobile number: 09XXXXXXXXX or 639XXXXXXXXX.");
 			return;
 		}
 		setLoading(true);
 		const { data: reservationId, error } = await supabase.rpc("create_guest_reservation", {
-			reservation_guest_name: reservationName.trim(),
-			reservation_guest_email: reservationEmail.trim(),
-			reservation_guest_phone: reservationPhone.trim(),
+			reservation_guest_name: guestName.trim(),
+			reservation_guest_email: guestEmail.trim(),
+			reservation_guest_phone: guestPhone.trim(),
 			reservation_check_in: date,
 			reservation_check_out: checkOutDate,
 			reservation_room_type: roomType,
@@ -181,8 +169,8 @@ const Reservations = () => {
 		setCancelling(true);
 
 		const { data, error } = await supabase.rpc("cancel_guest_reservation", {
-			reservation_email: bookingEmail.trim(),
-			reservation_phone: bookingPhone.trim(),
+			reservation_email: cancelEmail.trim(),
+			reservation_phone: cancelPhone.trim(),
 			reservation_check_in: cancelDate,
 		});
 
@@ -234,19 +222,22 @@ const Reservations = () => {
 					</div>
 
 					<div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-xl backdrop-blur sm:rounded-[2rem] md:p-10">
+						<div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+							No account is needed. Enter your contact details to submit a reservation, and resort staff will contact you.
+						</div>
 						<form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1fr_0.8fr]">
 							<div className="space-y-6">
 								<div className="grid gap-4 sm:grid-cols-2">
 									<div className="form-control sm:col-span-2 mb-4">
-										<label className="label-text font-bold mb-4 block">Full Name</label> <input type="text" className="input input-bordered rounded-2xl px-4 py-3" value={reservationName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
+										<label className="label-text font-bold mb-4 block">Full Name</label> <input type="text" className="input input-bordered rounded-2xl px-4 py-3" value={guestName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Email Address</label>
-										<input type="email" className="input input-bordered rounded-2xl px-4" value={reservationEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
+										<input type="email" className="input input-bordered rounded-2xl px-4" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
-										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl px-4" value={reservationPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
+										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl px-4" value={guestPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
 										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
 									</div>
 								</div>
@@ -355,11 +346,11 @@ const Reservations = () => {
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking email</label>
-								<input type="email" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking email" value={bookingEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
+								<input type="email" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking email" value={cancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
-								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking phone" value={bookingPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking phone" value={cancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
 							<div className="lg:col-start-4 lg:row-span-3 self-end pt-12 md:col-span-3 lg:col-span-1">
 								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full">
