@@ -17,6 +17,9 @@ If you are developing a production application, we recommend using TypeScript wi
 
 ## Supabase Chat Media Setup
 
+To store the optional contact number shown in Edit Profile, run
+`supabase/20261012_profile_contact_number.sql` in the Supabase SQL Editor.
+
 Chat messages and media are stored in Supabase so clients, guests, staff, and admins can revisit a conversation. Guest chats use Supabase anonymous sign-in; guests do not need to create a visible account. Enable **Anonymous Sign-Ins** in Supabase **Authentication → Sign In / Providers**.
 
 1. Run `supabase/20260406_chat_media.sql` and the existing chat message migrations, including `supabase/20261004_staff_chat_access.sql`.

@@ -84,6 +84,12 @@ const Profile = () => {
 								<span className="font-medium text-white">Email:</span>{" "}
 								{profile?.email}
 							</p>
+							{profile?.contact_number && (
+								<p>
+									<span className="font-medium text-white">Contact Number:</span>{" "}
+									{profile.contact_number}
+								</p>
+							)}
 							<div className="pt-2">
 								<Link
 									to="/edit-profile"

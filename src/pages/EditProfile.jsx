@@ -5,7 +5,7 @@ import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
-import { FiUser, FiMail, FiShield } from "react-icons/fi";
+import { FiUser, FiMail, FiShield, FiPhone } from "react-icons/fi";
 import DOMPurify from "dompurify";
 
 const EditProfile = () => {
@@ -109,6 +109,7 @@ const EditProfile = () => {
 			firstname: DOMPurify.sanitize(formData.get("firstname")),
 			lastname: DOMPurify.sanitize(formData.get("lastname")),
 			email: DOMPurify.sanitize(formData.get("email")),
+			contact_number: DOMPurify.sanitize(formData.get("contact_number") || ""),
 		};
 
 		const { data: profileData, error: profileError } = await supabase
@@ -117,6 +118,7 @@ const EditProfile = () => {
 				firstname: signupForm.firstname,
 				lastname: signupForm.lastname,
 				email: signupForm.email.trim(),
+				contact_number: signupForm.contact_number.trim(),
 			})
 			.eq("id", session.user.id)
 			.select()
@@ -170,6 +172,19 @@ const EditProfile = () => {
 										Email address
 									</p>
 									<p className="font-semibold text-base-content">{profile?.email}</p>
+								</div>
+							</div>
+							<div className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white/80 px-4 py-4">
+								<div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+									<FiPhone />
+								</div>
+								<div>
+									<p className="text-xs uppercase tracking-[0.18em] text-base-content/50">
+										Contact number
+									</p>
+									<p className="font-semibold text-base-content">
+										{profile?.contact_number || "Not provided"}
+									</p>
 								</div>
 							</div>
 							<div className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white/80 px-4 py-4">
@@ -283,6 +298,14 @@ const EditProfile = () => {
 								label="Email"
 								type="email"
 								defaultValue={profile?.email}
+							/>
+
+							<Input
+								name="contact_number"
+								placeholder="Enter your contact number"
+								label="Contact Number"
+								type="tel"
+								defaultValue={profile?.contact_number}
 							/>
 
 							<div className="rounded-2xl bg-base-200/80 px-4 py-4 text-sm leading-6 text-base-content/70">
