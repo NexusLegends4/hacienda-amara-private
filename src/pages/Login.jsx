@@ -237,8 +237,21 @@ const Login = () => {
           error
         );
 
+        let functionError;
+        if (error.context instanceof Response) {
+          try {
+            functionError = await error.context.clone().json();
+          } catch (responseError) {
+            console.error(
+              "Unable to read create OTP error response:",
+              responseError
+            );
+          }
+        }
+
         throw new Error(
-          error.message ||
+          functionError?.error ||
+            error.message ||
             "Failed to send verification code."
         );
       }

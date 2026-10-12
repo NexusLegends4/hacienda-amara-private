@@ -87,6 +87,14 @@ serve(async (req) => {
       })
     }
 
+    const recipientEmail = profile.email || user.email
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: 'No email address is configured for this account' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     if (!BREVO_API_KEY) {
       console.error('BREVO_API_KEY not configured')
       return new Response(JSON.stringify({ error: 'Email service is not configured (missing BREVO_API_KEY)' }), {
@@ -103,7 +111,7 @@ serve(async (req) => {
       .from('login_otps')
       .insert({
         user_id: user.id,
-        email: profile.email,
+        email: recipientEmail,
         otp_hash: otpHash,
         expires_at: expiresAt,
       })
@@ -116,10 +124,10 @@ serve(async (req) => {
       })
     }
 
-    const emailSent = await sendOTPEmail(profile.email, otp)
+    const emailSent = await sendOTPEmail(recipientEmail, otp)
     if (!emailSent) {
       await adminClient.from('login_otps').delete().eq('user_id', user.id).eq('verified', false)
-      return new Response(JSON.stringify({ error: 'Failed to send verification email' }), {
+      return new Response(JSON.stringify({ error: 'Email provider rejected the message. Check the create-login-otp function logs and Brevo sender configuration.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
