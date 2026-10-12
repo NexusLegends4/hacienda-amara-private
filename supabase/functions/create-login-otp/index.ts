@@ -51,6 +51,14 @@ serve(async (req) => {
       }
     )
 
+    // login_otps is locked to the service role by RLS, so the OTP rows must be
+    // written/read with a service-role client. The user is still authenticated
+    // above with their own JWT, so this is safe.
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -79,11 +87,19 @@ serve(async (req) => {
       })
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    if (!BREVO_API_KEY) {
+      console.error('BREVO_API_KEY not configured')
+      return new Response(JSON.stringify({ error: 'Email service is not configured (missing BREVO_API_KEY)' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const otp = (crypto.getRandomValues(new Uint32Array(1))[0] % 900000 + 100000).toString()
     const otpHash = await hashOTP(otp)
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000).toISOString()
 
-    const { error: insertError } = await supabaseClient
+    const { error: insertError } = await adminClient
       .from('login_otps')
       .insert({
         user_id: user.id,
@@ -102,7 +118,7 @@ serve(async (req) => {
 
     const emailSent = await sendOTPEmail(profile.email, otp)
     if (!emailSent) {
-      await supabaseClient.from('login_otps').delete().eq('user_id', user.id).eq('verified', false)
+      await adminClient.from('login_otps').delete().eq('user_id', user.id).eq('verified', false)
       return new Response(JSON.stringify({ error: 'Failed to send verification email' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

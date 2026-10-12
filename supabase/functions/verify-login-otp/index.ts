@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Rate limiting
+// Rate limiting for code verification requests.
 const RATE_LIMIT_WINDOW_MS = 60000
 const RATE_LIMIT_MAX_REQUESTS = 10
 const rateLimitMap = new Map<string, number[]>()
@@ -46,6 +46,14 @@ serve(async (req) => {
       }
     )
 
+    // login_otps is locked to the service role by RLS, so the OTP rows must be
+    // written/read with a service-role client. The user is still authenticated
+    // above with their own JWT, so this is safe.
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -66,7 +74,7 @@ serve(async (req) => {
 
     const otpHash = await hashOTP(otp)
 
-    const { data: otpRecord, error: otpError } = await supabaseClient
+    const { data: otpRecord, error: otpError } = await adminClient
       .from('login_otps')
       .select('id, otp_hash, expires_at, attempts')
       .eq('user_id', user.id)
@@ -84,7 +92,7 @@ serve(async (req) => {
     }
 
     if (otpRecord.attempts >= 5) {
-      await supabaseClient.from('login_otps').update({ verified: true }).eq('id', otpRecord.id)
+      await adminClient.from('login_otps').update({ verified: true }).eq('id', otpRecord.id)
       return new Response(JSON.stringify({ error: 'Too many attempts. Please request a new code.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -92,7 +100,7 @@ serve(async (req) => {
     }
 
     if (otpRecord.otp_hash !== otpHash) {
-      await supabaseClient
+      await adminClient
         .from('login_otps')
         .update({ attempts: otpRecord.attempts + 1 })
         .eq('id', otpRecord.id)
@@ -103,7 +111,7 @@ serve(async (req) => {
       })
     }
 
-    await supabaseClient
+    await adminClient
       .from('login_otps')
       .update({ verified: true })
       .eq('id', otpRecord.id)
