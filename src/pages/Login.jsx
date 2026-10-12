@@ -2,8 +2,7 @@ import Input from "../components/Form/Input";
 import MainLayout from "../layouts/MainLayout";
 import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
-import { useContext, useEffect, useState, useRef } from "react";
-import { SessionContext } from "../contexts/SessionContext.jsx";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 
 const MAX_ATTEMPTS = 5;
@@ -14,7 +13,6 @@ const LOCKOUT_KEY = "hacienda-login-lockout";
 const OTP_RESEND_SECONDS = 60;
 
 const Login = () => {
-  const { profile } = useContext(SessionContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isOAuthFlow = searchParams.get("oauth") === "true";
@@ -73,20 +71,6 @@ const Login = () => {
 
     return () => clearInterval(interval);
   }, [lockoutUntil]);
-
-  useEffect(() => {
-    console.log("Login: Profile effect triggered", { profile: !!profile, isSubmitting, showOtp });
-    if (profile && !showOtp && !isSubmitting && !isOAuthFlow) {
-      console.log("Login: Redirecting to home");
-      navigate("/");
-    }
-  }, [
-    profile,
-    showOtp,
-    isSubmitting,
-    isOAuthFlow,
-    navigate,
-  ]);
 
   // Auto-trigger OTP for OAuth flow
   const otpTriggeredRef = useRef(false);
