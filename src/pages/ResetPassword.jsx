@@ -4,11 +4,6 @@ import { supabase } from "../utils/supabase";
 import { useEffect, useState } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
-import {
-	findVerifiedTotpFactor,
-	isAal2PasswordUpdateError,
-	requiresTotpVerification,
-} from "../utils/password-reset";
 
 const ResetPassword = () => {
 	const navigate = useNavigate();
@@ -16,9 +11,6 @@ const ResetPassword = () => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [mfaCode, setMfaCode] = useState("");
-	const [mfaFactorId, setMfaFactorId] = useState("");
-	const [requiresMfa, setRequiresMfa] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [error, setError] = useState("");
@@ -57,26 +49,6 @@ const ResetPassword = () => {
 					throw new Error("This password reset link is invalid or has expired. Request a new link and try again.");
 				}
 
-				const { data: assurance, error: assuranceError } =
-					await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-				if (assuranceError) throw assuranceError;
-				if (requiresTotpVerification(assurance)) {
-					const { data: factors, error: factorsError } =
-						await supabase.auth.mfa.listFactors();
-					if (factorsError) throw factorsError;
-
-					const verifiedFactor = findVerifiedTotpFactor(factors);
-					if (!verifiedFactor) {
-						throw new Error(
-							"This account requires authenticator verification to reset its password, but no verified authenticator is available. Contact an administrator for help.",
-						);
-					}
-
-					if (!cancelled) {
-						setMfaFactorId(verifiedFactor.id);
-						setRequiresMfa(true);
-					}
-				}
 			} catch (verifyError) {
 				console.error("Password reset link verification failed:", verifyError);
 				if (!cancelled) {
@@ -108,70 +80,40 @@ const ResetPassword = () => {
 			return;
 		}
 
-		if (requiresMfa && !/^\d{6}$/.test(mfaCode)) {
-			setError("Enter the 6-digit code from your authenticator app.");
-			return;
-		}
-
 		setIsSubmitting(true);
 		try {
-			if (requiresMfa) {
-				const { error: challengeError } =
-					await supabase.auth.mfa.challengeAndVerify({
-						factorId: mfaFactorId,
-						code: mfaCode,
-					});
-				if (challengeError) throw challengeError;
-
-				const { data: assurance, error: assuranceError } =
-					await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-				if (assuranceError) throw assuranceError;
-				if (assurance.currentLevel !== "aal2") {
-					throw new Error(
-						"Authenticator verification did not complete. Check the current code and try again.",
-					);
-				}
+			const { data, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError) throw sessionError;
+			if (!data.session?.access_token) {
+				throw new Error("Your password reset link has expired. Request a new one and try again.");
 			}
 
-			const { error: updateError } = await supabase.auth.updateUser({
-				password,
+			const response = await fetch("/api/reset-password", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${data.session.access_token}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ password }),
 			});
-			if (updateError) throw updateError;
+			const result = await response.json();
+			if (!response.ok) {
+				throw new Error(result.error || "Unable to update your password.");
+			}
 
 			setStatus("Your password has been updated.");
 			setPassword("");
 			setConfirmPassword("");
-			setMfaCode("");
+			const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+			if (signOutError) {
+				console.error("Password changed but sign-out failed:", signOutError);
+				setStatus("Your password has been updated. Please log out on your devices and sign in with your new password.");
+				return;
+			}
 			window.setTimeout(() => navigate("/log-in"), 1500);
 		} catch (updateError) {
 			console.error("Password update failed:", updateError);
-			if (isAal2PasswordUpdateError(updateError)) {
-				try {
-					const { data: factors, error: factorsError } =
-						await supabase.auth.mfa.listFactors();
-					if (factorsError) throw factorsError;
-
-					const verifiedFactor = findVerifiedTotpFactor(factors);
-					if (verifiedFactor) {
-						setMfaFactorId(verifiedFactor.id);
-						setRequiresMfa(true);
-						setError(
-							"Your account requires authenticator verification before the password can be changed. Enter the 6-digit code and submit again.",
-						);
-					} else {
-						setError(
-							"This account requires authenticator verification to reset its password, but no verified authenticator is available. Contact an administrator for help.",
-						);
-					}
-				} catch (factorError) {
-					console.error("Unable to load password reset MFA factors:", factorError);
-					setError(
-						"We couldn't verify your authenticator. Please reload the reset link and try again.",
-					);
-				}
-			} else {
-				setError(updateError.message || "Unable to update your password.");
-			}
+			setError(updateError.message || "Unable to update your password.");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -260,32 +202,9 @@ const ResetPassword = () => {
 								</div>
 							</label>
 
-							{requiresMfa && (
-								<label className="fieldset">
-									<span className="fieldset-legend">Authenticator code</span>
-									<input
-										type="text"
-										inputMode="numeric"
-										autoComplete="one-time-code"
-										maxLength={6}
-										pattern="[0-9]{6}"
-										value={mfaCode}
-										onChange={(event) =>
-											setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-										}
-										className="input input-bordered w-full"
-										placeholder="Enter your 6-digit code"
-										disabled={isSubmitting}
-									/>
-									<span className="label text-sm text-slate-600">
-										Verify your identity with the authenticator app linked to this account.
-									</span>
-								</label>
-							)}
-
 							<button
 								type="submit"
-								disabled={isSubmitting || (requiresMfa && mfaCode.length !== 6)}
+								disabled={isSubmitting}
 								className="btn btn-black h-12 min-h-12 w-full rounded-full px-6 text-sm md:text-base"
 							>
 								{isSubmitting ? <span className="loading loading-spinner" /> : <SendIcon className="text-base" />}
