@@ -31,6 +31,8 @@ The cleanup job removes chat messages and uploaded media older than 24 hours. Up
 
 After password or Google sign-in, staff and admins can choose either a six-digit code from an authenticator app or a one-time email code. Authenticator codes use Supabase TOTP. Email codes use Supabase Auth passwordless email sign-in; they do not require Brevo or custom OTP Edge Functions, but do require a verified account email and Supabase Auth email delivery to be configured. Email verification is less phishing-resistant than TOTP.
 
+When an account with a verified TOTP factor resets its password, Supabase requires AAL2 before accepting the password change. The reset page therefore asks for a current authenticator code after the recovery link is verified. The recovery email alone does not bypass the account's MFA requirement.
+
 1. In Supabase **Authentication → Sign In / Providers**, enable email sign-in and configure email delivery. For reliable delivery to Gmail and other recipients, configure a verified SMTP sender under the Auth SMTP settings.
 2. In **Authentication → Email Templates → Magic Link**, replace the default link-based template (which uses `{{ .ConfirmationURL }}`) with a code-based template. For example:
 
