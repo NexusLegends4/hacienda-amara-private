@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
 import LoginIcon from "./icons/LoginIcon";
-import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo, FiCalendar } from "react-icons/fi";
+import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo, FiCalendar, FiBarChart2 } from "react-icons/fi";
 
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
@@ -209,6 +209,7 @@ const NavBar = () => {
 							        <li><a href="#" onClick={handleNav("/edit-package")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Edit Packages</a></li>
 							        <li><a href="#" onClick={handleNav("/manage-clients")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Manage Clients</a></li>
 							        <li><a href="#" onClick={handleNav("/manage-reservations")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Manage Reservations</a></li>
+							        <li><NavLink to="/booking-analytics" onClick={closeMobile} className="rounded-xl px-3 py-2 hover:bg-base-200 block"><FiBarChart2 /> Booking Analytics</NavLink></li>
 							        <li><a href="#" onClick={handleNav("/scan-qr")} className="rounded-xl px-3 py-2 hover:bg-base-200 block">Scan QR</a></li>
 							    </ul>
 							</div>}
@@ -227,15 +228,26 @@ const NavBar = () => {
 							</>
 						)}
 {profile?.role === "staff" && (
-							<NavLink to="/admin-reservations" onClick={closeMobile} className={({ isActive }) => [
-								"inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
-								isActive
+	<>
+	<NavLink to="/admin-reservations" onClick={closeMobile} className={({ isActive }) => [
+		"inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
+		isActive
 									? "border-black bg-black text-white shadow-md"
 									: "border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200",
 							].join(" ")}>
 								<FiCalendar className="w-4 h-4" />
 								Calendar
 							</NavLink>
+							<NavLink to="/booking-analytics" onClick={closeMobile} className={({ isActive }) => [
+								"inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200",
+								isActive
+									? "border-black bg-black text-white shadow-md"
+									: "border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200",
+							].join(" ")}>
+								<FiBarChart2 className="w-4 h-4" />
+								Analytics
+							</NavLink>
+							</>
 						)}
 
 						{profile?.role === "client" && (
@@ -373,6 +385,7 @@ const NavBar = () => {
 													{profile?.role === "staff" && <>
 										<div className="border-t border-base-200 my-2" />
 										<NavLink to="/admin-reservations" className={mobileLinkClass} onClick={closeMobile}>Calendar</NavLink>
+										<NavLink to="/booking-analytics" className={mobileLinkClass} onClick={closeMobile}>Booking Analytics</NavLink>
 										<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
 										</>}
 													</>

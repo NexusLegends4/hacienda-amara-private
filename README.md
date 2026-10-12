@@ -82,3 +82,17 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 The service role key is server-only and must never be exposed as a `VITE_` variable.
+
+## Booking Analytics and AI Forecast
+
+Staff and administrators can open **Booking Analytics** from the navigation menu. It compares the last 12 completed months of reservation requests, highlights the highest and lowest months, and forecasts the next 3 months using aggregated counts from up to 36 months of Supabase reservation history. Pending, confirmed, and cancelled requests are included; the chart is based on `created_at` (when a request was submitted), not the stay's check-in date.
+
+Configure these server-side Vercel environment variables for the `/api/booking-analytics` endpoint:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+GROQ_API_KEY=your_groq_api_key
+```
+
+The endpoint only accepts staff/admin access tokens with AAL2 MFA completed. It sends monthly booking counts—not guest names or contact details—to Groq for a forecast. Predictions are estimates, not guarantees. Keep all three values server-side; never prefix the service role key or Groq key with `VITE_`.

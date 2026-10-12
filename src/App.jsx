@@ -39,6 +39,7 @@ import AuthCallback from "./pages/AuthCallback";
 import RoomPricing from "./pages/RoomPricing";
 import FacebookQr from "./pages/FacebookQr";
 import ManageAnnouncements from "./pages/ManageAnnouncements";
+import BookingAnalytics from "./pages/BookingAnalytics";
 
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
 const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
@@ -117,6 +118,7 @@ const routes = [
 	{ path: "/room-pricing", element: <RoomPricing /> },
 	{ path: "/facebook-qr", element: <FacebookQr /> },
 	{ path: "/manage-announcements", element: <ManageAnnouncements /> },
+	{ path: "/booking-analytics", element: <BookingAnalytics /> },
 ];
 
 function App() {
