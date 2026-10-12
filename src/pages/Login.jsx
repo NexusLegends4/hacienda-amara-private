@@ -13,25 +13,6 @@ const LOCKOUT_KEY = "hacienda-login-lockout";
 
 const MFA_PENDING_KEY = "hacienda_staff_mfa_pending";
 
-const requestStaffEmailOtp = async () => {
-  const { error } = await supabase.functions.invoke("send-staff-email-otp");
-  if (!error) return;
-
-  let message = error.message;
-  if (error.context instanceof Response) {
-    try {
-      const responseBody = await error.context.clone().json();
-      if (typeof responseBody.error === "string") {
-        message = responseBody.error;
-      }
-    } catch {
-      // Keep the Functions client message when the response is not JSON.
-    }
-  }
-
-  throw new Error(message || "Unable to send a sign-in code to your email.");
-};
-
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -164,7 +145,11 @@ const Login = () => {
       setEmailOtpAddress(email);
       setEmailOtpNotice("");
 
-      await requestStaffEmailOtp();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+      if (otpError) throw otpError;
 
       localStorage.setItem(MFA_PENDING_KEY, "true");
       setMfaCode("");
@@ -199,7 +184,7 @@ const Login = () => {
       const { data, error } = await supabase.auth.verifyOtp({
         email: emailOtpAddress,
         token: mfaCode,
-        type: "magiclink",
+        type: "email",
       });
       if (error) throw error;
       if (data.user?.id !== expectedUserId) {
@@ -344,7 +329,11 @@ const Login = () => {
     setMfaError("");
     setEmailOtpNotice("");
     try {
-      await requestStaffEmailOtp();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailOtpAddress,
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
       setEmailOtpNotice("A new code was sent. Check your email.");
     } catch (error) {
       setMfaError(error?.message || "Unable to resend the email code.");

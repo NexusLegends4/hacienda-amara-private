@@ -17,14 +17,6 @@ describe("hasStaffVerificationClaim", () => {
     ).toBe(true);
   });
 
-  it("accepts verified magic-link OTP sign-in at AAL1", () => {
-    expect(
-      hasStaffVerificationClaim(
-        createToken({ aal: "aal1", amr: [{ method: "magiclink" }] }),
-      ),
-    ).toBe(true);
-  });
-
   it("rejects password and OAuth AAL1 sessions", () => {
     expect(
       hasStaffVerificationClaim(

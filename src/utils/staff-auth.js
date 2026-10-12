@@ -14,9 +14,7 @@ export function hasStaffVerificationClaim(accessToken) {
 			claims.aal === "aal2" ||
 			(claims.aal === "aal1" &&
 				Array.isArray(claims.amr) &&
-				claims.amr.some((method) =>
-					["otp", "magiclink"].includes(method?.method),
-				))
+				claims.amr.some((method) => method?.method === "otp"))
 		);
 	} catch {
 		return false;
