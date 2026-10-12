@@ -1,485 +1,389 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import {
 	FiAlertTriangle,
 	FiCamera,
 	FiCheckCircle,
 	FiClock,
+	FiImage,
 	FiLock,
 	FiRefreshCw,
-	FiSearch,
-	FiUpload,
 	FiXCircle,
 } from "react-icons/fi";
 import MainLayout from "../layouts/MainLayout";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
-import { parseScannedQr } from "../utils/qrParser";
 
 const READER_ID = "qr-reader";
 const FILE_READER_ID = "qr-file-reader";
-const CAMERA_STORAGE_KEY = "scan-qr-camera-id";
+const UUID_ONLY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const readSavedCamera = () => {
-	try {
-		return localStorage.getItem(CAMERA_STORAGE_KEY) || null;
-	} catch {
-		return null;
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+// Today's date in the resort's timezone (YYYY-MM-DD), so validation does not
+// shift by a day depending on the scanning device's own timezone.
+const manilaToday = () =>
+	new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+
+// Checks the things that make the camera impossible BEFORE we try to start it.
+const getCompatibility = () => {
+	const ua = navigator.userAgent || "";
+	const inAppBrowser = /FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\/|; wv\)/i.test(ua);
+
+	if (!window.isSecureContext) {
+		return {
+			inAppBrowser,
+			blocking:
+				"The camera needs a secure connection. Open this site using https:// (http://localhost also works while testing).",
+		};
 	}
+
+	if (!navigator.mediaDevices?.getUserMedia) {
+		return {
+			inAppBrowser,
+			blocking:
+				"This browser can't access the camera. Please use the latest Chrome, Edge, Firefox or Safari.",
+		};
+	}
+
+	return { inAppBrowser, blocking: null };
 };
 
-const saveCamera = (id) => {
-	try {
-		if (id) localStorage.setItem(CAMERA_STORAGE_KEY, id);
-		else localStorage.removeItem(CAMERA_STORAGE_KEY);
-	} catch {
-		// Storage can be unavailable (private mode); the choice just won't be remembered.
-	}
-};
+// html5-qrcode rejects with a plain STRING ("Error getting userMedia, error =
+// NotAllowedError: ...") for camera failures, not an Error object, so we
+// classify by text and also support real DOMExceptions.
+const errorText = (err) =>
+	typeof err === "string" ? err : `${err?.name || ""} ${err?.message || ""}`.trim();
 
-const IN_APP_BROWSER_RE = /FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|; wv\)/i;
+const isPermissionDenied = (err) => /NotAllowed|Permission|denied/i.test(errorText(err));
 
-// Turns whatever the browser / html5-qrcode throws into something a staff member can act on.
 const describeCameraError = (err) => {
-	const raw = err?.name ? `${err.name}: ${err.message || ""}` : String(err ?? "");
-	const inApp = IN_APP_BROWSER_RE.test(navigator.userAgent || "");
+	const raw = errorText(err);
 
-	if (/NotAllowed|Permission|denied|dismissed/i.test(raw)) {
-		return {
-			title: "Camera permission is blocked",
-			detail: "The browser did not allow this page to use the camera.",
-			steps: [
-				"Tap or click the lock / camera icon beside the web address and set Camera to Allow.",
-				"On iPhone/iPad: Settings → Safari → Camera → Ask or Allow. On Android: Chrome → Site settings → Camera.",
-				"Then press Retry Camera (or reload the page).",
-				...(inApp ? ["You are in an in-app browser (Messenger, Facebook, Instagram…). Open this page in Chrome or Safari instead."] : []),
-			],
-		};
+	if (isPermissionDenied(err)) {
+		return "Camera permission is blocked. Click the lock/camera icon in the address bar, set Camera to Allow, then press Try Again. On iPhone: Settings → Safari → Camera. On Windows/macOS also check that your browser is allowed to use the camera in the system privacy settings.";
 	}
-	if (/NotFound|DevicesNotFound|no camera|Requested device not found/i.test(raw)) {
-		return {
-			title: "No camera found",
-			detail: "This device did not report any camera.",
-			steps: [
-				"Plug in or enable the webcam, then press Retry Camera.",
-				"Check that no privacy shutter or system setting is turning the camera off.",
-				"No camera? Use the photo upload or manual code entry below instead.",
-			],
-		};
+	if (/NotFound|DevicesNotFound|Requested device not found|no camera/i.test(raw)) {
+		return "No camera was found on this device. Plug in a webcam, or use “Scan from image” below.";
 	}
-	if (/NotReadable|TrackStart|Could not start video|in use|Starting videoinput failed/i.test(raw)) {
-		return {
-			title: "The camera is busy",
-			detail: "Another app or browser tab is already using the camera.",
-			steps: [
-				"Close other apps or tabs that use the camera (Zoom, Teams, Meet, another browser).",
-				"Then press Retry Camera.",
-			],
-		};
+	if (/NotReadable|TrackStart|Could not start video|in use/i.test(raw)) {
+		return "The camera is busy or can't be opened. Close other apps or tabs that use it (Zoom, Meet, another browser), then press Try Again.";
 	}
 	if (/Overconstrained|Constraint/i.test(raw)) {
+		return "This camera doesn't support the requested mode. Choose a different camera from the list, or use “Scan from image”.";
+	}
+	if (/secure|https/i.test(raw)) {
+		return "The camera needs a secure connection. Open this site using https://.";
+	}
+	return `The camera couldn't be started${raw ? ` (${raw})` : ""}. Press Try Again, or use “Scan from image”.`;
+};
+
+// Decide what a scanned QR contains.
+//  - Guest booking link:   https://<site>/customer-notifications/<reservation-id>
+//  - Bare reservation id:  <reservation-id>
+//  - Event link (legacy):  https://<site>/view-event/<event-id>
+const parseQr = (raw) => {
+	const text = String(raw ?? "").trim();
+	if (!text) return { type: "unknown" };
+
+	if (UUID_ONLY.test(text)) return { type: "booking", id: text };
+
+	if (/^https?:\/\//i.test(text)) {
+		let url;
+		try {
+			url = new URL(text);
+		} catch {
+			return { type: "unknown" };
+		}
+
+		const bookingMatch = url.pathname.match(/^\/customer-notifications\/([^/]+)/);
+		if (bookingMatch) {
+			const id = decodeURIComponent(bookingMatch[1]);
+			if (UUID_ONLY.test(id)) return { type: "booking", id };
+		}
+
+		const eventMatch = url.pathname.match(/^\/(?:view|edit)-event\/([^/]+)/);
+		if (eventMatch) return { type: "event", id: eventMatch[1], search: url.search };
+	}
+
+	return { type: "unknown" };
+};
+
+// Turn a reservation row into a clear verdict for the person at the gate.
+const evaluateBooking = (reservation) => {
+	const status = String(reservation.status || "pending").toLowerCase();
+	const today = manilaToday();
+
+	if (status === "cancelled" || status === "rejected") {
 		return {
-			title: "That camera isn't available",
-			detail: "The selected camera could not be started.",
-			steps: ["Pick a different camera from the list below, or press Retry Camera."],
+			tone: "error",
+			title: "Booking cancelled",
+			detail: "This reservation was cancelled or declined. Do not admit.",
 		};
 	}
-	if (/Security|secure context|insecure|https/i.test(raw)) {
+	if (status !== "confirmed") {
 		return {
-			title: "Camera needs a secure (HTTPS) connection",
-			detail: "Browsers only allow camera access on HTTPS pages or on localhost.",
-			steps: ["Open the site using its https:// address. A plain http:// address on a network IP will not work."],
+			tone: "warning",
+			title: "Not accepted yet",
+			detail: "This booking is still pending. Accept it in Manage Reservations before admitting the guest.",
 		};
 	}
-	if (/not supported|NotSupported|Camera streaming not supported/i.test(raw)) {
+	if (today < reservation.check_in) {
 		return {
-			title: "This browser can't use the camera here",
-			detail: "Camera streaming isn't supported by this browser or webview.",
-			steps: [
-				"Use a current version of Chrome, Edge, Firefox or Safari.",
-				...(inApp ? ["Open the page outside of the in-app browser."] : []),
-				"Or use the photo upload / manual code entry below.",
-			],
+			tone: "warning",
+			title: "Too early",
+			detail: `This booking is confirmed but starts on ${reservation.check_in}.`,
+		};
+	}
+	if (today > reservation.check_out) {
+		return {
+			tone: "error",
+			title: "Booking expired",
+			detail: `This booking ended on ${reservation.check_out}.`,
 		};
 	}
 	return {
-		title: "The camera could not be started",
-		detail: raw.trim() || "Unknown camera error.",
-		steps: [
-			"Press Retry Camera.",
-			"If it keeps failing, reload the page or try another browser.",
-			"You can still check a booking with the photo upload or manual code entry below.",
-		],
+		tone: "success",
+		title: "Valid booking",
+		detail: "Confirmed and scheduled for today.",
 	};
 };
 
-const formatDateTime = (value) => {
-	if (!value) return "-";
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) return String(value);
-	return date.toLocaleString("en-PH", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-	});
-};
+const reservationGuestName = (reservation) =>
+	`${reservation.profiles?.firstname || ""} ${reservation.profiles?.lastname || ""}`.trim() ||
+	reservation.guest_name ||
+	"Guest";
 
-const toneStyles = {
-	success: { box: "border-emerald-200 bg-emerald-50 text-emerald-900", icon: FiCheckCircle },
-	warning: { box: "border-amber-200 bg-amber-50 text-amber-900", icon: FiClock },
-	error: { box: "border-rose-200 bg-rose-50 text-rose-900", icon: FiXCircle },
-	info: { box: "border-sky-200 bg-sky-50 text-sky-900", icon: FiAlertTriangle },
-};
-
-const validityOutcome = (row) => {
-	switch (row.validity) {
-		case "valid":
-			return { tone: "success", title: "Valid booking", message: "Confirmed and inside the booked schedule. Guest can be checked in." };
-		case "not_yet":
-			return { tone: "warning", title: "Booking is not active yet", message: `Confirmed, but the schedule starts ${formatDateTime(row.starts_at)}.` };
-		case "expired":
-			return { tone: "error", title: "Booking has expired", message: `The schedule ended ${formatDateTime(row.ends_at)}.` };
-		case "pending":
-			return { tone: "warning", title: "Booking not approved yet", message: "Status is pending. Approve it under Manage Reservations before check-in." };
-		case "cancelled":
-			return { tone: "error", title: "Booking was cancelled or declined", message: "Do not check this guest in." };
-		default:
-			return { tone: "info", title: "Booking found", message: `Status: ${row.status}.` };
+const safeStop = async (scanner) => {
+	try {
+		if (scanner.isScanning) await scanner.stop();
+	} catch {
+		// Already stopped.
+	}
+	try {
+		scanner.clear();
+	} catch {
+		// Nothing to clear.
 	}
 };
 
-// Looks up a reservation by id / access token. Returns { row } | { notFound } | { error }.
-const lookupReservation = async (id) => {
-	const { data, error } = await supabase.rpc("validate_reservation_qr", { reservation_token: id });
-	if (error) {
-		if (error.code === "42501") {
-			return { error: { title: "Not allowed", message: "Your account is not allowed to validate bookings. Sign in as staff or admin." } };
-		}
-		if (error.code === "PGRST202" || /does not exist|could not find the function/i.test(error.message || "")) {
-			return { error: { title: "Booking validation is not set up", message: "The server is missing validate_reservation_qr. Run supabase/20261011_validate_reservation_qr.sql in the Supabase SQL editor." } };
-		}
-		return { error: { title: "Could not check the booking", message: error.message || "The server returned an error. Check your connection and try again." } };
-	}
-	if (!data?.length) return { notFound: true };
-	return { row: data[0] };
+const TONE_STYLES = {
+	success: {
+		box: "border-emerald-200 bg-emerald-50 text-emerald-900",
+		Icon: FiCheckCircle,
+	},
+	warning: {
+		box: "border-amber-200 bg-amber-50 text-amber-900",
+		Icon: FiClock,
+	},
+	error: {
+		box: "border-rose-200 bg-rose-50 text-rose-900",
+		Icon: FiXCircle,
+	},
 };
 
-// Looks up an event. Returns { event } | { notFound } | { error }.
-const lookupEvent = async (id) => {
-	const { data, error } = await supabase.from("events").select("id, title").eq("id", id).maybeSingle();
-	if (error) {
-		// 22P02 = id is not valid for the column type, i.e. no such event.
-		if (error.code === "22P02") return { notFound: true };
-		return { error: { title: "Could not check the event", message: error.message || "The server returned an error." } };
-	}
-	if (!data) return { notFound: true };
-	return { event: data };
-};
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
 const ScanQr = () => {
 	const navigate = useNavigate();
 	const { session, profile } = useContext(SessionContext);
-	const allowed = ["admin", "staff"].includes(profile?.role);
 
-	const [phase, setPhase] = useState("starting"); // starting | scanning | error | working | done
-	const [failure, setFailure] = useState(null);
-	const [outcome, setOutcome] = useState(null);
+	const compat = useMemo(getCompatibility, []);
+	const canScan = ["admin", "staff"].includes(profile?.role);
+
+	const [authWait, setAuthWait] = useState(true);
+	const [cameraOn, setCameraOn] = useState(true);
+	const [attempt, setAttempt] = useState(0);
+	const [phase, setPhase] = useState("starting"); // starting | scanning | checking | result | error
+	const [cameraError, setCameraError] = useState(null);
 	const [cameras, setCameras] = useState([]);
-	const [cameraId, setCameraId] = useState(null);
-	const [permission, setPermission] = useState(null);
-	const [manualCode, setManualCode] = useState("");
-	const [graceOver, setGraceOver] = useState(false);
+	const [selectedCameraId, setSelectedCameraId] = useState("");
+	const [result, setResult] = useState(null);
+	const [showHelp, setShowHelp] = useState(false);
 
-	const phaseRef = useRef("starting");
-	const scannerRef = useRef(null);
-	const seqRef = useRef(0);
-	const chainRef = useRef(Promise.resolve());
-	const handledRef = useRef(false);
-	const fileInputRef = useRef(null);
+	// Chains camera start/stop so React StrictMode's double-mount (and quick
+	// retries) can never leave two scanners fighting over one container.
+	const lifecycleRef = useRef(Promise.resolve());
 
-	const updatePhase = useCallback((next) => {
-		phaseRef.current = next;
-		setPhase(next);
-	}, []);
-
+	// Give the auth session a moment to load before showing "please log in".
 	useEffect(() => {
-		const timer = window.setTimeout(() => setGraceOver(true), 1500);
+		const timer = window.setTimeout(() => setAuthWait(false), 1500);
 		return () => window.clearTimeout(timer);
 	}, []);
 
-	const stopScanner = useCallback(async () => {
-		const qr = scannerRef.current;
-		scannerRef.current = null;
-		if (!qr) return;
-		try {
-			await qr.stop();
-		} catch {
-			// Already stopped or never started.
-		}
-		try {
-			qr.clear();
-		} catch {
-			// Nothing to clear.
-		}
-	}, []);
+	const processScan = useCallback(
+		async (rawText) => {
+			setPhase("checking");
+			const parsed = parseQr(rawText);
 
-	// Decodes -> classifies -> validates. Used by camera, photo upload and manual entry.
-	const handleDecoded = useCallback(
-		async (decodedText) => {
-			updatePhase("working");
-			setFailure(null);
-			setOutcome(null);
+			if (parsed.type === "event") {
+				navigate(`/view-event/${parsed.id}${parsed.search}`);
+				return;
+			}
 
-			const parsed = parseScannedQr(decodedText, window.location.origin);
-			const fail = (title, message, tone = "error") => {
-				setOutcome({ tone, title, message });
-				updatePhase("done");
-			};
+			if (parsed.type === "booking") {
+				const { data, error } = await supabase
+					.from("reservations")
+					.select(
+						"id, guest_name, guest_email, guest_phone, check_in, check_out, room_type, guests, total_price, status, profiles(firstname, lastname)",
+					)
+					.eq("id", parsed.id)
+					.maybeSingle();
 
-			try {
-				switch (parsed.type) {
-					case "event": {
-						const result = await lookupEvent(parsed.id);
-						if (result.error) return fail(result.error.title, result.error.message);
-						if (result.notFound) return fail("Event not found", "This QR points to an event that no longer exists.");
-						navigate(`/view-event/${result.event.id}?scan=1`);
-						return;
-					}
-					case "reservation":
-					case "uuid": {
-						const result = await lookupReservation(parsed.id);
-						if (result.error) return fail(result.error.title, result.error.message);
-						if (result.row) {
-							setOutcome({ ...validityOutcome(result.row), reservation: result.row });
-							updatePhase("done");
-							return;
-						}
-						if (parsed.type === "uuid") {
-							const eventResult = await lookupEvent(parsed.id);
-							if (eventResult.event) {
-								navigate(`/view-event/${eventResult.event.id}?scan=1`);
-								return;
-							}
-						}
-						return fail("No booking found", "Nothing matches this code. It may be invalid, mistyped, or from a different system.");
-					}
-					case "text": {
-						const result = await lookupEvent(parsed.id);
-						if (result.event) {
-							navigate(`/view-event/${result.event.id}?scan=1`);
-							return;
-						}
-						if (result.error) return fail(result.error.title, result.error.message);
-						return fail("Unrecognized QR code", "This code is not a Hacienda Amara booking or event.");
-					}
-					case "booking":
-						return fail(
-							"This is the public booking QR",
-							"This code opens the reservation page for guests. It is not a booking confirmation. Ask the guest to show the QR on their reservation page.",
-							"info",
-						);
-					case "external":
-						return fail("Link to another website", `This QR points outside Hacienda Amara (${parsed.url}), so it was not opened.`, "warning");
-					default:
-						return fail("Unrecognized QR code", "This code is not a Hacienda Amara booking or event.");
+				if (error) {
+					setResult({
+						kind: "error",
+						title: "Couldn't check this booking",
+						detail: `The server returned an error: ${error.message}. Check your connection and scan again.`,
+					});
+				} else if (!data) {
+					setResult({
+						kind: "error",
+						title: "Booking not found",
+						detail:
+							"No reservation matches this QR code. It may have been deleted, it may not be from this system, or your account may not have permission to view it.",
+					});
+				} else {
+					setResult({ kind: "booking", reservation: data, verdict: evaluateBooking(data) });
 				}
-			} catch (err) {
-				const offline = /fetch|network/i.test(String(err?.message || err));
-				fail(
-					offline ? "No connection" : "Something went wrong",
-					offline ? "Could not reach the server. Check the internet connection and scan again." : "Unexpected error while checking this code. Please scan again.",
-				);
-			}
-		},
-		[navigate, updatePhase],
-	);
-
-	const doStart = useCallback(
-		async (seq, preferredId, allowRetry = true) => {
-			if (seq !== seqRef.current) return;
-			await stopScanner();
-			if (seq !== seqRef.current) return;
-
-			handledRef.current = false;
-			setFailure(null);
-			updatePhase("starting");
-
-			const showFailure = (err) => {
-				if (seq !== seqRef.current) return;
-				setFailure(describeCameraError(err));
-				updatePhase("error");
-			};
-
-			if (!window.isSecureContext) {
-				showFailure("SecurityError: insecure context");
-				return;
-			}
-			if (!navigator.mediaDevices?.getUserMedia) {
-				showFailure("NotSupportedError: Camera streaming not supported");
+				setPhase("result");
 				return;
 			}
 
-			let found;
-			try {
-				// Also triggers the browser's permission prompt and unlocks device labels.
-				found = await Html5Qrcode.getCameras();
-			} catch (err) {
-				showFailure(err);
-				return;
-			}
-			if (seq !== seqRef.current) return;
-			if (!found?.length) {
-				showFailure("NotFoundError: no camera");
-				return;
-			}
-			setCameras(found);
-
-			const wanted = preferredId ?? readSavedCamera();
-			const saved = found.find((camera) => camera.id === wanted);
-			const rear = found.find((camera) => /back|rear|environment/i.test(camera.label || ""));
-			const chosen = saved || rear || (found.length === 1 ? found[0] : null);
-			setCameraId(chosen ? chosen.id : null);
-
-			const qr = new Html5Qrcode(READER_ID, {
-				verbose: false,
-				formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-				experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+			setResult({
+				kind: "error",
+				title: "Unrecognized QR code",
+				detail: "This isn't a Hacienda Amara booking code. Ask the guest to open their reservation page and show the QR code there.",
+				raw: String(rawText ?? "").slice(0, 120),
 			});
-			scannerRef.current = qr;
-
-			try {
-				await qr.start(
-					chosen ? chosen.id : { facingMode: "environment" },
-					{
-						fps: 10,
-						qrbox: (width, height) => {
-							const size = Math.max(50, Math.floor(Math.min(width, height) * 0.7));
-							return { width: size, height: size };
-						},
-					},
-					(decodedText) => {
-						if (handledRef.current) return;
-						handledRef.current = true;
-						void stopScanner().then(() => handleDecoded(decodedText));
-					},
-					() => {
-						// Per-frame "no QR in view" callback. Intentionally ignored.
-					},
-				);
-			} catch (err) {
-				if (scannerRef.current === qr) scannerRef.current = null;
-				if (seq !== seqRef.current) return;
-				// A remembered camera may have been unplugged. Fall back to automatic selection once.
-				if (allowRetry && chosen && /Overconstrained|NotFound|Constraint/i.test(String(err?.name || err))) {
-					saveCamera(null);
-					await doStart(seq, "__auto__", false);
-					return;
-				}
-				showFailure(err);
-				return;
-			}
-
-			if (seq !== seqRef.current) {
-				// Page was left (or restarted) while the camera was spinning up.
-				if (scannerRef.current === qr) scannerRef.current = null;
-				try {
-					await qr.stop();
-					qr.clear();
-				} catch {
-					// ignore
-				}
-				return;
-			}
-			updatePhase("scanning");
+			setPhase("result");
 		},
-		[handleDecoded, stopScanner, updatePhase],
+		[navigate],
 	);
 
-	// Serialised so React StrictMode / quick retries can never run two cameras at once.
-	const startScanner = useCallback(
-		(preferredId) => {
-			const seq = ++seqRef.current;
-			chainRef.current = chainRef.current.then(() => doStart(seq, preferredId)).catch(() => {});
-			return chainRef.current;
-		},
-		[doStart],
-	);
-
+	// Live camera scanner.
 	useEffect(() => {
-		if (!allowed) return undefined;
-		// eslint-disable-next-line react-hooks/set-state-in-effect
-		void startScanner();
-		return () => {
-			seqRef.current += 1;
-			void stopScanner();
-		};
-	}, [allowed, startScanner, stopScanner]);
+		if (!canScan || compat.blocking || !cameraOn) return undefined;
 
-	// Tell the user up-front when permission is already blocked, and auto-retry once it is granted.
-	useEffect(() => {
-		if (!allowed || !navigator.permissions?.query) return undefined;
 		let cancelled = false;
-		let status = null;
-		navigator.permissions
-			.query({ name: "camera" })
-			.then((result) => {
-				if (cancelled) return;
-				status = result;
-				setPermission(result.state);
-				result.onchange = () => {
-					setPermission(result.state);
-					if (result.state === "granted" && phaseRef.current === "error") void startScanner();
-				};
-			})
-			.catch(() => {
-				// Permissions API for "camera" is not supported by every browser (e.g. Firefox/Safari).
+		let handled = false;
+
+		const scanner = new Html5Qrcode(READER_ID, {
+			verbose: false,
+			formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+			useBarCodeDetectorIfSupported: true,
+		});
+
+		const onDecode = (text) => {
+			// The callback fires many times per second; only act on the first hit.
+			if (handled || cancelled) return;
+			handled = true;
+			setCameraOn(false); // effect cleanup stops the camera
+			void processScan(text);
+		};
+
+		const scanConfig = {
+			fps: 10,
+			qrbox: (width, height) => {
+				const size = Math.floor(Math.min(width, height) * 0.7);
+				return { width: size, height: size };
+			},
+		};
+
+		const startWith = (cameraConfig) =>
+			scanner.start(cameraConfig, scanConfig, onDecode, () => {
+				// Per-frame "no QR found" callback: intentionally ignored.
 			});
+
+		const begin = async () => {
+			if (cancelled) return;
+			setPhase("starting");
+			setCameraError(null);
+
+			try {
+				try {
+					await startWith(
+						selectedCameraId
+							? { deviceId: { exact: selectedCameraId } }
+							: { facingMode: "environment" },
+					);
+				} catch (firstError) {
+					// A blocked permission can't be fixed by trying another camera.
+					if (selectedCameraId || cancelled || isPermissionDenied(firstError)) throw firstError;
+
+					// Laptops/desktops often have no "environment" camera: pick one by id.
+					const list = await Html5Qrcode.getCameras();
+					if (!list?.length) throw firstError;
+					const preferred = list.find((c) => /back|rear|environment/i.test(c.label)) || list[0];
+					await startWith({ deviceId: { exact: preferred.id } });
+				}
+
+				if (cancelled) return;
+				setPhase("scanning");
+
+				// Labels are only available once permission was granted.
+				try {
+					const list = await Html5Qrcode.getCameras();
+					if (!cancelled) setCameras(list || []);
+				} catch {
+					// Camera list is a nice-to-have.
+				}
+			} catch (err) {
+				if (cancelled) return;
+				console.error("QR scanner failed to start:", err);
+				setCameraError(describeCameraError(err));
+				setPhase("error");
+			}
+		};
+
+		const task = lifecycleRef.current.then(begin);
+		lifecycleRef.current = task;
+
 		return () => {
 			cancelled = true;
-			if (status) status.onchange = null;
+			lifecycleRef.current = task.then(() => safeStop(scanner));
 		};
-	}, [allowed, startScanner]);
+	}, [canScan, compat.blocking, cameraOn, attempt, selectedCameraId, processScan]);
 
-	const handleRetry = () => {
-		setOutcome(null);
-		void startScanner();
+	const restartScan = () => {
+		setResult(null);
+		setCameraError(null);
+		setCameraOn(true);
+		setAttempt((n) => n + 1);
 	};
 
 	const handleCameraChange = (event) => {
-		const id = event.target.value || null;
-		saveCamera(id);
-		setOutcome(null);
-		void startScanner(id ?? "__auto__");
+		setSelectedCameraId(event.target.value);
+		restartScan();
 	};
 
-	const handleFile = async (event) => {
+	// Fallback for desktops without a camera / blocked permission.
+	const handleImagePicked = async (event) => {
 		const file = event.target.files?.[0];
 		event.target.value = "";
 		if (!file) return;
 
-		seqRef.current += 1; // cancel any camera start in flight
-		await stopScanner();
-		updatePhase("working");
-		setFailure(null);
-		setOutcome(null);
+		setCameraOn(false);
+		setResult(null);
+		setPhase("checking");
 
-		const fileScanner = new Html5Qrcode(FILE_READER_ID, {
-			verbose: false,
-			formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-		});
+		const fileScanner = new Html5Qrcode(FILE_READER_ID);
 		try {
 			const text = await fileScanner.scanFile(file, false);
-			await handleDecoded(text);
-		} catch {
-			setOutcome({
-				tone: "error",
+			await processScan(text);
+		} catch (err) {
+			console.error("Image scan failed:", err);
+			setResult({
+				kind: "error",
 				title: "No QR code found in that image",
-				message: "Use a sharp, well-lit photo where the whole QR code is visible, or enter the booking code manually.",
+				detail: "Try a sharper, closer photo with the whole QR code in frame and good lighting.",
 			});
-			updatePhase("done");
+			setPhase("result");
 		} finally {
 			try {
 				fileScanner.clear();
@@ -489,196 +393,283 @@ const ScanQr = () => {
 		}
 	};
 
-	const handleManual = async (event) => {
-		event.preventDefault();
-		const value = manualCode.trim();
-		if (!value) return;
-		seqRef.current += 1;
-		await stopScanner();
-		setManualCode("");
-		await handleDecoded(value);
-	};
+	/* ------------------------------ render parts ----------------------------- */
 
-	const insecure = typeof window !== "undefined" && !window.isSecureContext;
+	const showReader = canScan && !compat.blocking && cameraOn;
 
-	// ---- access gates -------------------------------------------------------------------------
-	const gate = (title, body, action) => (
-		<MainLayout>
-			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-4 py-10">
-				<div className="mx-auto max-w-lg rounded-[2rem] border border-black/5 bg-white p-8 text-center shadow-2xl">
-					<FiLock className="mx-auto text-3xl text-slate-400" />
-					<h1 className="mt-4 text-2xl font-black text-slate-900">{title}</h1>
-					<p className="mt-2 text-sm text-slate-500">{body}</p>
-					{action}
-				</div>
-			</div>
-		</MainLayout>
-	);
-
-	if (!session) {
-		if (!graceOver) return gate("Checking your account…", "One moment.", <span className="loading loading-spinner mt-4" />);
-		return gate(
-			"Sign in required",
-			"Only signed-in staff and admins can scan booking and event QR codes.",
-			<Link to="/log-in" className="btn btn-primary mt-6 rounded-full">Log in</Link>,
-		);
-	}
-	if (!profile) return gate("Loading your account…", "One moment.", <span className="loading loading-spinner mt-4" />);
-	if (!allowed) {
-		return gate(
-			"Staff access only",
-			"Your account does not have permission to use the QR scanner.",
-			<button type="button" onClick={() => navigate(-1)} className="btn btn-black mt-6 rounded-full">Go back</button>,
-		);
-	}
-
-	// ---- main UI ------------------------------------------------------------------------------
 	const statusText = {
 		starting: "Starting camera…",
-		scanning: "Camera ready. Point it at a QR code.",
-		error: "Camera is not working.",
-		working: "Checking the code…",
-		done: "Scan complete.",
+		scanning: "Point the camera at a booking QR code",
+		checking: "Checking booking…",
+		result: "Scan complete",
+		error: "Camera unavailable",
 	}[phase];
 
-	const statusDot = {
-		starting: "bg-amber-400 animate-pulse",
-		scanning: "bg-emerald-500",
-		error: "bg-rose-500",
-		working: "bg-sky-500 animate-pulse",
-		done: "bg-slate-400",
-	}[phase];
+	const renderResult = () => {
+		if (!result) return null;
 
-	const outcomeStyle = outcome ? toneStyles[outcome.tone] : null;
-	const OutcomeIcon = outcomeStyle?.icon;
-	const reservation = outcome?.reservation;
+		if (result.kind === "booking") {
+			const { reservation, verdict } = result;
+			const { box, Icon } = TONE_STYLES[verdict.tone];
+			return (
+				<div className="space-y-4">
+					<div className={`flex items-start gap-3 rounded-2xl border p-5 ${box}`} role="status">
+						<Icon className="mt-0.5 h-7 w-7 shrink-0" />
+						<div>
+							<p className="text-lg font-black">{verdict.title}</p>
+							<p className="mt-1 text-sm font-medium">{verdict.detail}</p>
+						</div>
+					</div>
+
+					<div className="grid gap-3 rounded-2xl border border-slate-100 bg-white p-5 text-sm sm:grid-cols-2">
+						<div>
+							<p className="text-xs font-bold uppercase tracking-wider text-slate-400">Guest</p>
+							<p className="mt-1 font-semibold text-slate-900">{reservationGuestName(reservation)}</p>
+							{reservation.guest_phone && <p className="text-slate-500">{reservation.guest_phone}</p>}
+						</div>
+						<div>
+							<p className="text-xs font-bold uppercase tracking-wider text-slate-400">Package</p>
+							<p className="mt-1 font-semibold text-slate-900">{reservation.room_type}</p>
+						</div>
+						<div>
+							<p className="text-xs font-bold uppercase tracking-wider text-slate-400">Check-in → Check-out</p>
+							<p className="mt-1 font-semibold text-slate-900">
+								{reservation.check_in} → {reservation.check_out}
+							</p>
+						</div>
+						<div>
+							<p className="text-xs font-bold uppercase tracking-wider text-slate-400">Guests / Status</p>
+							<p className="mt-1 font-semibold capitalize text-slate-900">
+								{reservation.guests} pax · {reservation.status || "pending"}
+							</p>
+						</div>
+					</div>
+
+					<div className="flex flex-col gap-3 sm:flex-row">
+						<button type="button" onClick={restartScan} className="btn btn-primary flex-1 rounded-full">
+							<FiRefreshCw className="h-4 w-4" /> Scan Another
+						</button>
+						<button
+							type="button"
+							onClick={() => navigate("/manage-reservations")}
+							className="btn btn-outline flex-1 rounded-full"
+						>
+							Open Manage Reservations
+						</button>
+					</div>
+				</div>
+			);
+		}
+
+		return (
+			<div className="space-y-4">
+				<div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900" role="alert">
+					<FiXCircle className="mt-0.5 h-7 w-7 shrink-0" />
+					<div className="min-w-0">
+						<p className="text-lg font-black">{result.title}</p>
+						<p className="mt-1 text-sm font-medium">{result.detail}</p>
+						{result.raw && (
+							<p className="mt-2 break-all rounded-lg bg-white/70 px-3 py-2 font-mono text-xs text-rose-800">
+								{result.raw}
+							</p>
+						)}
+					</div>
+				</div>
+				<button type="button" onClick={restartScan} className="btn btn-primary w-full rounded-full">
+					<FiRefreshCw className="h-4 w-4" /> Scan Again
+				</button>
+			</div>
+		);
+	};
+
+	const renderGate = () => {
+		if (!session) {
+			if (authWait) {
+				return (
+					<div className="flex justify-center p-10">
+						<span className="loading loading-spinner loading-lg" />
+					</div>
+				);
+			}
+			return (
+				<div className="space-y-4 p-6 text-center">
+					<FiLock className="mx-auto h-8 w-8 text-slate-400" />
+					<p className="font-semibold text-slate-700">Please log in with a staff or admin account to scan bookings.</p>
+					<button type="button" onClick={() => navigate("/log-in")} className="btn btn-primary rounded-full">
+						Log in
+					</button>
+				</div>
+			);
+		}
+
+		if (!profile) {
+			return (
+				<div className="flex justify-center p-10">
+					<span className="loading loading-spinner loading-lg" />
+				</div>
+			);
+		}
+
+		if (!canScan) {
+			return (
+				<div className="space-y-2 p-6 text-center">
+					<FiLock className="mx-auto h-8 w-8 text-slate-400" />
+					<p className="font-semibold text-slate-700">The QR scanner is only available to staff and admin accounts.</p>
+				</div>
+			);
+		}
+
+		return null;
+	};
+
+	const gate = renderGate();
 
 	return (
 		<MainLayout>
 			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 sm:px-4 sm:py-6 md:px-6">
 				<div className="mx-auto max-w-4xl">
-					<div className="overflow-hidden rounded-[2.5rem] border border-black/5 bg-white shadow-2xl">
+					<div className="overflow-hidden rounded-[2.5rem] border border-black/5 bg-white shadow-2xl backdrop-blur-xl">
 						<div className="border-b border-slate-100 bg-slate-50 p-8 text-center sm:text-left md:p-10">
 							<p className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">QR Scanner</p>
-							<h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 md:text-4xl">Scan Booking or Event Code</h1>
+							<h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 md:text-4xl">
+								Scan Booking Code
+							</h1>
 							<p className="mt-3 text-sm font-medium leading-relaxed text-slate-500 md:text-base">
-								Scan a guest&apos;s booking QR to check it is valid, or an event QR to open its attendance page.
+								Scan a guest&apos;s booking QR code to check whether the reservation is confirmed and valid today.
 							</p>
 						</div>
 
-						{/* Camera viewport. The element must stay mounted so the scanner can attach to it. */}
-						<div className="relative bg-black">
-							<div id={READER_ID} className="w-full overflow-hidden [&_video]:w-full" style={{ minHeight: phase === "scanning" ? undefined : 120 }} />
-							{(phase === "starting" || phase === "working") && (
-								<div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white">
-									<span className="loading loading-spinner loading-lg" />
-								</div>
-							)}
-							{(phase === "error" || phase === "done") && (
-								<div className="flex min-h-[120px] items-center justify-center px-6 py-10 text-center text-sm text-white/70">
-									<FiCamera className="mr-2 shrink-0" /> Camera is off
-								</div>
-							)}
-						</div>
-						<div id={FILE_READER_ID} className="hidden" />
+						{gate}
 
-						<div className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-100 bg-white px-5 py-4 text-xs font-bold uppercase tracking-widest text-slate-500" role="status" aria-live="polite">
-							<span className={`inline-block h-2.5 w-2.5 rounded-full ${statusDot}`} />
-							{statusText}
-							{permission === "denied" && phase !== "error" && <span className="text-rose-600">Camera permission: blocked</span>}
-						</div>
-
-						{insecure && phase !== "error" && (
-							<div className="border-t border-rose-100 bg-rose-50 px-6 py-3 text-center text-sm font-semibold text-rose-800">
-								<FiLock className="mr-1 inline" /> This page is not secure (HTTPS). Browsers will block the camera.
-							</div>
-						)}
-
-						{phase === "error" && failure && (
-							<div className="border-t border-rose-100 bg-rose-50 p-6 text-left" role="alert">
-								<h2 className="flex items-center gap-2 text-lg font-black text-rose-900">
-									<FiAlertTriangle className="shrink-0" /> {failure.title}
-								</h2>
-								<p className="mt-1 text-sm text-rose-800">{failure.detail}</p>
-								<ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-rose-800">
-									{failure.steps.map((step) => (
-										<li key={step}>{step}</li>
-									))}
-								</ul>
-							</div>
-						)}
-
-						{outcome && (
-							<div className={`border-t p-6 text-left ${outcomeStyle.box}`} role="status">
-								<h2 className="flex items-center gap-2 text-xl font-black">
-									<OutcomeIcon className="shrink-0" /> {outcome.title}
-								</h2>
-								<p className="mt-1 text-sm">{outcome.message}</p>
-								{reservation && (
-									<dl className="mt-4 grid gap-3 rounded-2xl bg-white/70 p-4 text-sm sm:grid-cols-2">
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Guest</dt><dd className="font-semibold text-slate-900">{reservation.guest_name}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Phone</dt><dd className="font-semibold text-slate-900">{reservation.guest_phone || "-"}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Package</dt><dd className="font-semibold text-slate-900">{reservation.room_type}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Guests</dt><dd className="font-semibold text-slate-900">{reservation.guests}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Starts</dt><dd className="font-semibold text-slate-900">{formatDateTime(reservation.starts_at)}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Ends</dt><dd className="font-semibold text-slate-900">{formatDateTime(reservation.ends_at)}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Total</dt><dd className="font-semibold text-slate-900">₱{Number(reservation.total_price || 0).toLocaleString("en-PH")}</dd></div>
-										<div><dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Reference</dt><dd className="font-mono font-semibold text-slate-900">{String(reservation.reservation_id).slice(0, 8).toUpperCase()}</dd></div>
-									</dl>
+						{canScan && (
+							<>
+								{compat.blocking && (
+									<div className="m-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-900" role="alert">
+										<FiLock className="mt-0.5 h-5 w-5 shrink-0" />
+										<span>{compat.blocking} You can still use “Scan from image” below.</span>
+									</div>
 								)}
-								<div className="mt-4 flex flex-wrap gap-3">
-									<button type="button" onClick={handleRetry} className="btn btn-primary rounded-full"><FiRefreshCw /> Scan another</button>
-									{reservation && (
-										<button type="button" onClick={() => navigate("/manage-reservations")} className="btn btn-outline rounded-full">Open Manage Reservations</button>
+
+								{!compat.blocking && compat.inAppBrowser && (
+									<div className="m-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900" role="status">
+										<FiAlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+										<span>
+											You seem to be inside an in-app browser (Facebook, Messenger, etc.), which often blocks the camera. If scanning fails, open this page in Chrome or Safari.
+										</span>
+									</div>
+								)}
+
+								<div className={showReader ? "relative bg-black" : "hidden"}>
+									<div id={READER_ID} className="min-h-[16rem] w-full overflow-hidden" />
+									{phase === "starting" && (
+										<div className="absolute inset-0 flex items-center justify-center bg-black/60">
+											<span className="loading loading-spinner loading-lg text-white" />
+										</div>
 									)}
 								</div>
-							</div>
-						)}
 
-						<div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 p-6 sm:flex-row sm:items-center sm:justify-center">
-							{cameras.length > 1 && (
-								<label className="flex items-center gap-2 text-sm text-slate-600">
-									<FiCamera className="shrink-0" />
-									<select className="select select-bordered select-sm max-w-[16rem] rounded-full" value={cameraId || ""} onChange={handleCameraChange} aria-label="Choose camera">
-										<option value="">Automatic (rear camera)</option>
-										{cameras.map((camera, index) => (
-											<option key={camera.id} value={camera.id}>{camera.label || `Camera ${index + 1}`}</option>
-										))}
-									</select>
-								</label>
-							)}
-							<button type="button" onClick={handleRetry} className="btn btn-primary rounded-full">
-								<FiRefreshCw className="h-4 w-4" /> Retry Camera
-							</button>
-						</div>
+								{showReader && (
+									<div className="border-t border-slate-100 bg-white px-5 py-5 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+										{statusText}
+									</div>
+								)}
 
-						<div className="border-t border-slate-100 p-6">
-							<h2 className="text-sm font-black uppercase tracking-widest text-slate-500">Camera not working? Other ways to check</h2>
-							<div className="mt-4 grid gap-4 md:grid-cols-2">
-								<div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-									<p className="text-sm font-semibold text-slate-800">Upload a photo of the QR</p>
-									<p className="mt-1 text-xs text-slate-500">Works with a screenshot or photo of the guest&apos;s QR code.</p>
-									<input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-									<button type="button" className="btn btn-outline btn-sm mt-3 rounded-full" onClick={() => fileInputRef.current?.click()}>
-										<FiUpload /> Choose image
+								{phase === "error" && cameraError && (
+									<div className="m-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-900" role="alert">
+										<FiAlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+										<span>{cameraError}</span>
+									</div>
+								)}
+
+								{!showReader && phase === "checking" && (
+									<div className="flex items-center justify-center gap-3 p-10 text-sm font-bold uppercase tracking-widest text-slate-400">
+										<span className="loading loading-spinner" /> Checking booking…
+									</div>
+								)}
+
+								{phase === "result" && <div className="p-5 sm:p-6">{renderResult()}</div>}
+
+								<div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 p-6">
+									{cameras.length > 1 && showReader && (
+										<label className="flex flex-col gap-1 text-sm font-semibold text-slate-600">
+											Camera
+											<select
+												className="select select-bordered w-full rounded-full"
+												value={selectedCameraId}
+												onChange={handleCameraChange}
+											>
+												<option value="">Automatic</option>
+												{cameras.map((camera, index) => (
+													<option key={camera.id} value={camera.id}>
+														{camera.label || `Camera ${index + 1}`}
+													</option>
+												))}
+											</select>
+										</label>
+									)}
+
+									<button
+										type="button"
+										onClick={restartScan}
+										className="btn btn-primary btn-wide self-center rounded-full"
+									>
+										<FiRefreshCw className="h-4 w-4" />
+										{phase === "error" ? "Try Again" : "Restart Camera"}
+									</button>
+
+									<label className="btn btn-outline btn-wide cursor-pointer self-center rounded-full">
+										<FiImage className="h-4 w-4" />
+										Scan from image
+										<input type="file" accept="image/*" className="hidden" onChange={handleImagePicked} />
+									</label>
+
+									<button
+										type="button"
+										onClick={() => setShowHelp((v) => !v)}
+										className="btn btn-ghost btn-wide self-center rounded-full"
+									>
+										<FiCamera className="h-4 w-4" />
+										Camera Help
 									</button>
 								</div>
-								<form onSubmit={handleManual} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-									<p className="text-sm font-semibold text-slate-800">Enter a booking code or link</p>
-									<p className="mt-1 text-xs text-slate-500">Paste the guest's reservation link, or the code from it.</p>
-									<div className="mt-3 flex gap-2">
-										<input className="input input-bordered input-sm w-full rounded-full" value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="Paste link or code" aria-label="Booking code or link" />
-										<button type="submit" className="btn btn-black btn-sm rounded-full" disabled={!manualCode.trim()}><FiSearch /> Check</button>
+
+								{showHelp && (
+									<div className="border-t border-blue-100 bg-blue-50 p-6 text-left">
+										<h3 className="mb-3 flex items-center gap-2 font-bold text-blue-800">
+											<FiCamera className="h-5 w-5" /> Camera Access Help
+										</h3>
+										<ul className="list-disc space-y-2 pl-5 text-sm text-blue-700">
+											<li>
+												<strong>Allow camera access</strong> when the browser asks, or click the lock icon in the address bar and set Camera to Allow.
+											</li>
+											<li>
+												The site must be opened over <strong>https://</strong> (or localhost).
+											</li>
+											<li>
+												On a laptop, close Zoom/Meet/other tabs that may be using the webcam, and check the Windows or macOS camera privacy settings for your browser.
+											</li>
+											<li>
+												On phones, use <strong>Chrome or Safari</strong>, not an in-app browser.
+											</li>
+											<li>
+												No camera? Use <strong>Scan from image</strong> with a screenshot or photo of the QR code.
+											</li>
+										</ul>
 									</div>
-								</form>
-							</div>
-						</div>
+								)}
+							</>
+						)}
 
 						<div className="flex justify-center border-t border-slate-100 bg-slate-50 p-6">
-							<button type="button" onClick={() => navigate(-1)} className="btn btn-black btn-wide rounded-full">Back</button>
+							<button type="button" onClick={() => navigate(-1)} className="btn btn-black btn-wide rounded-full">
+								Back
+							</button>
 						</div>
 					</div>
 				</div>
+
+				{/* Off-screen mount point required by html5-qrcode's image scanning. */}
+				<div id={FILE_READER_ID} className="hidden" />
 			</div>
 		</MainLayout>
 	);

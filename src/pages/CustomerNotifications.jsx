@@ -153,12 +153,18 @@ const CustomerNotifications = () => {
 								</div>
 
 								{reservation.status === "confirmed" && (
-									<div className="mt-4 sm:mt-6 flex flex-col items-center rounded-xl sm:rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5 text-center flex-shrink-0">
-										<p className="text-xs font-semibold uppercase tracking-wider text-base-content/50">Check-in QR</p>
-										<div className="mt-3 rounded-2xl bg-white p-2 shadow-sm">
-											<QRCodeSVG value={`${window.location.origin}/customer-notifications/${reservationToken}`} size={176} includeMargin title="Booking check-in QR" />
+									<div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5 text-center flex-shrink-0">
+										<p className="text-xs font-bold uppercase tracking-wider text-emerald-800">Check-in QR code</p>
+										<div className="mt-3 inline-block rounded-2xl bg-white p-3 shadow-sm">
+											<QRCodeSVG
+												value={`${window.location.origin}/customer-notifications/${reservationToken}`}
+												size={200}
+												level="M"
+												includeMargin
+												title="Hacienda Amara check-in QR code"
+											/>
 										</div>
-										<p className="mt-3 text-xs text-base-content/60">Show this QR to the resort staff when you arrive so they can verify your booking.</p>
+										<p className="mt-3 text-xs text-emerald-900/80">Show this QR code to the resort staff when you arrive so they can verify your booking.</p>
 									</div>
 								)}
 
