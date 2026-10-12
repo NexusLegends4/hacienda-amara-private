@@ -3,6 +3,7 @@ import {
   countBookingsByMonth,
   getForecastMonths,
   getRecentMonths,
+  isMissingHistoricalBookingsTable,
   parseBookingForecast,
 } from "../booking-analytics";
 
@@ -21,6 +22,27 @@ describe("booking analytics helpers", () => {
       "2027-02",
       "2027-03",
     ]);
+  });
+
+  it("recognizes only the missing historical booking table schema-cache error", () => {
+    expect(
+      isMissingHistoricalBookingsTable({
+        code: "PGRST205",
+        message: "Could not find the table 'public.historical_bookings' in the schema cache",
+      }),
+    ).toBe(true);
+    expect(
+      isMissingHistoricalBookingsTable({
+        code: "PGRST205",
+        message: "Could not find the table 'public.reservations' in the schema cache",
+      }),
+    ).toBe(false);
+    expect(
+      isMissingHistoricalBookingsTable({
+        code: "42501",
+        message: "permission denied",
+      }),
+    ).toBe(false);
   });
 
   it("counts records by month and includes empty months", () => {

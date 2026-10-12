@@ -141,7 +141,9 @@ const BookingAnalytics = () => {
 
 	const extremes = useMemo(() => {
 		const history = analytics?.history || [];
-		if (!history.length) return { highest: null, lowest: null };
+		if (!history.length || !history.some((month) => month.bookings > 0)) {
+			return { highest: null, lowest: null };
+		}
 
 		return {
 			highest: history.reduce((best, month) =>
@@ -155,6 +157,7 @@ const BookingAnalytics = () => {
 
 	const forecast = analytics?.forecast;
 	const forecastError = analytics?.forecastError;
+	const historicalBookingsUnavailable = analytics?.historicalBookingsUnavailable;
 
 	return (
 		<MainLayout>
@@ -202,6 +205,14 @@ const BookingAnalytics = () => {
 						</div>
 					) : analytics && (
 						<>
+							{historicalBookingsUnavailable && (
+								<div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+									<p className="font-semibold">Historical schedule data is not available in Supabase yet.</p>
+									<p className="mt-1">
+										Run <code className="rounded bg-amber-100 px-1">supabase/20261012_historical_bookings_import.sql</code> in your project&apos;s Supabase SQL Editor. If you already ran it, run <code className="rounded bg-amber-100 px-1">NOTIFY pgrst, &apos;reload schema&apos;;</code> there, wait briefly, then refresh.
+									</p>
+								</div>
+							)}
 							<section className="grid gap-4 sm:grid-cols-2" aria-label="Booking highlights">
 								{[
 									{
@@ -230,6 +241,11 @@ const BookingAnalytics = () => {
 													<span className="ml-2 text-sm font-medium text-base-content/55">bookings</span>
 												</p>
 											</div>
+										)}
+										{!entry && (
+											<p className="mt-3 text-sm text-base-content/60">
+												No bookings found in the completed months shown.
+											</p>
 										)}
 									</article>
 								))}

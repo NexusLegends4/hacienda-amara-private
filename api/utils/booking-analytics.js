@@ -2,6 +2,13 @@ export const HISTORY_MONTHS = 36;
 export const DISPLAY_MONTHS = 12;
 export const FORECAST_MONTHS = 3;
 
+export function isMissingHistoricalBookingsTable(error) {
+  return (
+    error?.code === "PGRST205" &&
+    /historical_bookings/i.test(error.message || "")
+  );
+}
+
 export function getRecentMonths(now = new Date(), count = HISTORY_MONTHS) {
   const currentMonth = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),

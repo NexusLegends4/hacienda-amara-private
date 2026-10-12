@@ -692,6 +692,8 @@ on conflict (booking_date, package_type) do nothing;
 
 commit;
 
+notify pgrst, 'reload schema';
+
 select package_type, count(*) as booking_count
 from public.historical_bookings
 group by package_type

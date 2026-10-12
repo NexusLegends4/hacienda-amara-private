@@ -5,6 +5,7 @@ import {
   DISPLAY_MONTHS,
   FORECAST_MONTHS,
   getForecastMonths,
+  isMissingHistoricalBookingsTable,
   getRecentMonths,
   HISTORY_MONTHS,
   parseBookingForecast,
@@ -116,6 +117,7 @@ export async function POST(request) {
     const records = [];
     const currentMonthStart = `${new Date().toISOString().slice(0, 7)}-01`;
     const pageSize = 1000;
+    let historicalBookingsUnavailable = false;
 
     for (const source of [
       { table: "historical_bookings", dateColumn: "booking_date" },
@@ -130,7 +132,19 @@ export async function POST(request) {
           .order(source.dateColumn, { ascending: true })
           .range(offset, offset + pageSize - 1);
 
-        if (error) throw error;
+        if (error) {
+          if (
+            source.table === "historical_bookings" &&
+            isMissingHistoricalBookingsTable(error)
+          ) {
+            historicalBookingsUnavailable = true;
+            console.warn(
+              "Historical bookings table is missing from the Supabase API schema cache.",
+            );
+            break;
+          }
+          throw error;
+        }
         records.push(...data);
         if (data.length < pageSize) break;
       }
@@ -165,6 +179,7 @@ export async function POST(request) {
       history,
       forecast,
       forecastError,
+      historicalBookingsUnavailable,
       generatedAt: new Date().toISOString(),
       includesStatuses: ["pending", "confirmed", "cancelled"],
       basedOn: "Booking date (check_in). Only completed months are included in historical counts and AI training.",
