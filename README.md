@@ -95,4 +95,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 GROQ_API_KEY=your_groq_api_key
 ```
 
+In Vercel, open the project **Settings → Environment Variables**, add `GROQ_API_KEY` with your Groq API key, and select the environments where you deploy (Production, and Preview if applicable). Keep it server-side—do not use the `VITE_` prefix. Redeploy after saving environment variables so the serverless function receives the new value, then refresh Booking Analytics. If the key is missing or Groq is unavailable, historical analytics still load and the dashboard shows a forecast-specific message.
+
 The endpoint only accepts staff/admin access tokens with AAL2 MFA completed. It sends monthly booking counts—not guest names or contact details—to Groq for a forecast. Predictions are estimates, not guarantees. Keep all three values server-side; never prefix the service role key or Groq key with `VITE_`.

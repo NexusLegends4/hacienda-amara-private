@@ -134,25 +134,36 @@ export async function POST(request) {
     const history = fullHistory.slice(0, -1).slice(-DISPLAY_MONTHS);
     const forecastMonths = getForecastMonths(new Date(), FORECAST_MONTHS);
     const hasHistoricalBookings = fullHistory.some((month) => month.bookings > 0);
-    const forecast = !hasHistoricalBookings
-      ? {
-          predictions: [],
-          summary: "There is no reservation history yet, so an AI forecast cannot be generated.",
-        }
-      : await predictBookings(fullHistory, forecastMonths, process.env.GROQ_API_KEY);
+    let forecast = {
+      predictions: [],
+      summary: "There is no reservation history yet, so an AI forecast cannot be generated.",
+    };
+    let forecastError = null;
+
+    if (hasHistoricalBookings) {
+      try {
+        forecast = await predictBookings(
+          fullHistory,
+          forecastMonths,
+          process.env.GROQ_API_KEY,
+        );
+      } catch (error) {
+        console.error("Booking forecast unavailable:", error);
+        forecast = null;
+        forecastError = error?.message || "The AI forecast is temporarily unavailable.";
+      }
+    }
 
     return json({
       history,
       forecast,
+      forecastError,
       generatedAt: new Date().toISOString(),
       includesStatuses: ["pending", "confirmed", "cancelled"],
       basedOn: "Reservation request creation date (created_at), not check-in date.",
     });
   } catch (error) {
     console.error("Booking analytics failed:", error);
-    return json(
-      { error: error?.message || "Unable to load booking analytics." },
-      error?.message?.includes("AI forecast") ? 503 : 500,
-    );
+    return json({ error: error?.message || "Unable to load booking analytics." }, 500);
   }
 }

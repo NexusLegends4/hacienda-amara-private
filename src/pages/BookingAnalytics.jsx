@@ -154,6 +154,7 @@ const BookingAnalytics = () => {
 	}, [analytics?.history]);
 
 	const forecast = analytics?.forecast;
+	const forecastError = analytics?.forecastError;
 
 	return (
 		<MainLayout>
@@ -261,6 +262,17 @@ const BookingAnalytics = () => {
 									<h2 className="text-xl font-bold">AI booking prediction</h2>
 								</div>
 								<p className="mt-3 text-sm leading-6 text-base-content/75">{forecast?.summary}</p>
+								{forecastError && (
+									<div role="status" className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+										<p className="font-semibold">AI forecast is unavailable; historical analytics are still shown.</p>
+										<p className="mt-1">{forecastError}</p>
+										{forecastError.includes("not configured") && (
+											<p className="mt-2">
+												Add <code className="rounded bg-amber-100 px-1">GROQ_API_KEY</code> in your Vercel project&apos;s server-side Environment Variables, then redeploy and refresh this page.
+											</p>
+										)}
+									</div>
+								)}
 								{forecast?.predictions?.length > 0 && (
 									<div className="mt-5 grid gap-3 md:grid-cols-3">
 										{forecast.predictions.map((prediction) => (
