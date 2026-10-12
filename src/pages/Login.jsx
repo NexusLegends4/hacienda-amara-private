@@ -130,23 +130,20 @@ const Login = () => {
     setIsSubmitting(true);
     setLoginError("");
     setMfaError("");
-    let signedOut = false;
 
     try {
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
-      const email = sessionData.session?.user?.email;
-      if (!email) {
+      const sessionUser = sessionData.session?.user;
+      const email = sessionUser?.email;
+      if (!sessionUser || !email) {
         throw new Error("Your account does not have an email address for verification.");
       }
 
       setEmailOtpAddress(email);
       setEmailOtpNotice("");
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) throw signOutError;
-      signedOut = true;
 
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
@@ -160,15 +157,7 @@ const Login = () => {
       setShowEmailOtp(true);
     } catch (error) {
       console.error("Email OTP request failed:", error);
-      const message = error?.message || "Unable to send a sign-in code to your email.";
-      if (signedOut) {
-        localStorage.removeItem(MFA_PENDING_KEY);
-        setShowMethodChoice(false);
-        setMfaError("");
-        setLoginError(message);
-      } else {
-        setMfaError(message);
-      }
+      setMfaError(error?.message || "Unable to send a sign-in code to your email.");
     } finally {
       setIsSubmitting(false);
     }
@@ -184,12 +173,27 @@ const Login = () => {
     setMfaLoading(true);
     setMfaError("");
     try {
+      const { data: currentSession, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const expectedUserId = currentSession.session?.user?.id;
+      if (!expectedUserId || currentSession.session?.user?.email !== emailOtpAddress) {
+        throw new Error("Your login session changed. Sign in again to request a new code.");
+      }
+
       const { data, error } = await supabase.auth.verifyOtp({
         email: emailOtpAddress,
         token: mfaCode,
         type: "email",
       });
       if (error) throw error;
+      if (data.user?.id !== expectedUserId) {
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          console.error("Could not end mismatched email OTP session:", signOutError);
+        }
+        throw new Error("The verification code did not match your signed-in account. Sign in again.");
+      }
       if (
         !data.session?.access_token ||
         !hasStaffVerificationClaim(data.session.access_token)
