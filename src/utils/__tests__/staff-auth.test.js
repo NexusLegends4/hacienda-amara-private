@@ -17,6 +17,14 @@ describe("hasStaffVerificationClaim", () => {
 		).toBe(true);
 	});
 
+	it("accepts AAL1 sessions authenticated by a Supabase magic-link OTP", () => {
+		expect(
+			hasStaffVerificationClaim(
+				createToken({ aal: "aal1", amr: [{ method: "magiclink" }] }),
+			),
+		).toBe(true);
+	});
+
 	it("rejects password-only AAL1 and malformed tokens", () => {
 		expect(
 			hasStaffVerificationClaim(
