@@ -46,20 +46,13 @@ const Profile = () => {
 
 	return (
 		<MainLayout>
-			{/* The profile page uses a full-screen background for a resort feel. */}
 			<div
-				className="relative left-1/2 right-1/2 -mx-[50vw] min-h-screen w-screen overflow-hidden bg-cover bg-center bg-no-repeat px-4 py-12"
-				style={{
-					backgroundImage:
-						'linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.25)), url("https://via.placeholder.com/800x600/6b4b2a/ffffff?text=Hacienda+Amara")',
-					backgroundSize: "120%",
-					backgroundPosition: "left center",
-				}}
+				className="relative left-1/2 right-1/2 -mx-[50vw] min-h-screen w-screen overflow-hidden bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-4 py-12"
 			>
 				<div className="mx-auto flex min-h-[5vh] w-full max-w-2xl items-start pt-44">
-					<div className="w-full rounded-2xl border border-white/20 bg-black/25 p-8 text-white shadow-sm backdrop-blur-sm">
+					<div className="w-full rounded-2xl border border-black/5 bg-white/80 p-8 text-base-content shadow-xl backdrop-blur-sm">
 						<div className="mb-8 flex items-center gap-4">
-							<div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white/15 text-xl font-bold text-white shadow-md">
+							<div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200 bg-amber-100 text-xl font-bold text-amber-800 shadow-md">
 								{profile?.avatar_url ? (
 									<img
 										src={profile.avatar_url}
@@ -71,22 +64,22 @@ const Profile = () => {
 								)}
 							</div>
 							<div>
-								<p className="text-sm uppercase tracking-[0.3em] text-white/70">
+								<p className="text-sm uppercase tracking-[0.3em] text-base-content/55">
 									{profile?.role === "admin" ? "Admin" : profile?.role === "staff" ? "Staff" : "Client"}
 								</p>
-								<h1 className="mt-2 text-3xl font-semibold text-white md:text-4xl">
+								<h1 className="mt-2 text-3xl font-semibold text-base-content md:text-4xl">
 									{profile?.firstname} {profile?.lastname}
 								</h1>
 							</div>
 						</div>
-						<div className="space-y-3 text-white/85">
+						<div className="space-y-3 text-base-content/80">
 							<p>
-								<span className="font-medium text-white">Email:</span>{" "}
+								<span className="font-medium text-base-content">Email:</span>{" "}
 								{profile?.email}
 							</p>
 							{profile?.contact_number && (
 								<p>
-									<span className="font-medium text-white">Contact Number:</span>{" "}
+									<span className="font-medium text-base-content">Contact Number:</span>{" "}
 									{profile.contact_number}
 								</p>
 							)}
