@@ -260,7 +260,7 @@ function App() {
 		const fetchProfile = async () => {
 			const { data, error } = await supabase
 				.from("profiles")
-				.select("id, firstname, lastname, email, avatar_url, role, deleted_at")
+				.select("id, firstname, lastname, email, contact_number, avatar_url, role, deleted_at")
 				.eq("id", session.user.id)
 				.single();
 
