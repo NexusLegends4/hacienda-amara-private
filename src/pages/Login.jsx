@@ -586,7 +586,7 @@ const Login = () => {
           sm:px-4
           md:px-6
           lg:px-8
-          bg-[#f8ecd8]]
+          bg-[#efeae1]
         "
       >
         <div
@@ -594,19 +594,18 @@ const Login = () => {
             absolute
             inset-0
             bg-gradient-to-b
-            from-[#6b4b2a]/35
-            via-[#9a6a3c]/20
-            to-[#f8ecd8]/60
+            from-[#5d3f2b]/35
+            via-[#9d7e59]/20
+            to-[#efeae1]/80
           "
         />
         <div
           className="
             relative
             w-full
-            max-w-md
-            sm:max-w-lg
-            md:max-w-xl
-            lg:max-w-2xl
+            max-w-[360px]
+            sm:max-w-[420px]
+            md:max-w-[470px]
             max-h-full
             flex
             items-center
@@ -614,7 +613,6 @@ const Login = () => {
             px-3
             sm:px-4
             md:px-6
-            lg:px-8
           "
         >
           <div
@@ -622,28 +620,37 @@ const Login = () => {
               w-full
               max-h-[calc(100vh-120px)]
               overflow-hidden
-              rounded-2xl
-              sm:rounded-[2rem]
+              rounded-[30px]
               border
               border-white/30
-              bg-white/40
+              bg-[#f3f1ef]
               p-5
               sm:p-6
               md:p-7
-              lg:p-8
               text-slate-900
-              shadow-2xl
+              shadow-[0_28px_64px_rgba(32,24,18,0.18)]
               backdrop-blur-xl
             "
           >
             {showMethodChoice ? (
               <>
                 <div className="text-center">
-                  <div className="text-5xl mb-4">✓</div>
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                  <div className="mb-4 flex justify-center">
+                    <svg viewBox="0 0 64 64" className="h-16 w-16 text-slate-900" aria-hidden="true">
+                      <path
+                        d="M17 33.5L27 44L48 20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <h1 className="text-[2rem] sm:text-[2.25rem] font-black tracking-[-0.06em] text-slate-900 leading-none">
                     Verify Your Sign In
                   </h1>
-                  <p className="mt-2 text-sm sm:text-base text-slate-700">
+                  <p className="mt-3 text-sm sm:text-base text-slate-700 leading-relaxed">
                     Choose an authenticator code or a one-time code sent to your account email.
                   </p>
                 </div>
@@ -653,7 +660,7 @@ const Login = () => {
                     type="button"
                     onClick={() => startMfa().catch(() => {})}
                     disabled={mfaLoading || isSubmitting}
-                    className="btn btn-black h-12 min-h-12 w-full rounded-full"
+                    className="btn btn-black h-14 min-h-14 w-full rounded-full text-base font-semibold border-0 shadow-none"
                   >
                     {mfaLoading ? <span className="loading loading-spinner loading-sm" /> : null}
                     Use authenticator app
@@ -662,7 +669,7 @@ const Login = () => {
                     type="button"
                     onClick={continueWithEmailOtp}
                     disabled={mfaLoading || isSubmitting}
-                    className="btn h-12 min-h-12 w-full rounded-full"
+                    className="btn h-14 min-h-14 w-full rounded-full border-0 bg-[#dfe1df] text-slate-900 text-base font-semibold hover:bg-[#d2d7d4] shadow-none"
                   >
                     {isSubmitting ? <span className="loading loading-spinner loading-sm" /> : null}
                     Send a code to {emailOtpAddress || "your account email"}
@@ -672,7 +679,7 @@ const Login = () => {
                   Email codes are valid for one sign-in. Check your inbox and spam folder.
                 </p>
                 <div className="mt-5 text-center">
-                  <button type="button" onClick={handleCancelMfa} disabled={isSubmitting || mfaLoading} className="btn btn-ghost btn-sm rounded-full">Cancel Login</button>
+                  <button type="button" onClick={handleCancelMfa} disabled={isSubmitting || mfaLoading} className="btn btn-ghost btn-sm rounded-full text-slate-700 hover:bg-slate-200/60">Cancel Login</button>
                 </div>
               </>
             ) : showEmailOtp ? (

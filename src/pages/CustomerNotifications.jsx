@@ -87,111 +87,124 @@ const CustomerNotifications = () => {
 
 	return (
 		<MainLayout noScroll>
-			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 sm:px-4 md:px-6 py-6 sm:py-8 lg:py-12 min-h-0">
-				<div className="mx-auto max-w-xl sm:max-w-2xl h-full flex flex-col min-h-0">
-					<div className="rounded-2xl sm:rounded-[2rem] border border-black/5 bg-white/80 p-4 sm:p-6 md:p-8 lg:p-9 shadow-2xl backdrop-blur-xl flex-1 flex flex-col min-h-0">
-						<div className="flex items-start justify-between gap-3 sm:gap-4 flex-shrink-0 flex-wrap">
+			<div className="flex-1 bg-[#f0ede7] px-3 py-4 sm:px-4 md:px-6 lg:px-8 min-h-0">
+				<div className="mx-auto max-w-[420px] sm:max-w-[460px] h-full flex flex-col min-h-0">
+					<div className="rounded-[28px] border border-black/5 bg-[#f5f3f0] shadow-[0_22px_40px_rgba(31,24,18,0.12)] flex-1 flex flex-col min-h-0 overflow-hidden">
+						<div className="flex items-center justify-between px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
 							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50">
-									Private Reservation Update
+								<p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+									Hacienda Amara
 								</p>
-								<h1 className="mt-2 sm:mt-3 flex items-center gap-2 sm:gap-3 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">
-									<FiBell className="text-amber-500 w-5 h-5 sm:w-6 sm:h-6" />
-									Reservation Notification
-								</h1>
+								<p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+									Private Resort and Events Place
+								</p>
 							</div>
 							<button
 								type="button"
 								onClick={loadNotification}
-								className="btn btn-outline btn-sm rounded-full shrink-0"
+								className="btn btn-ghost btn-square btn-sm rounded-xl border border-slate-300/80 bg-white/60"
 								disabled={loading}
+								aria-label="Refresh reservation notification"
 							>
 								<FiRefreshCw className={loading ? "animate-spin" : ""} />
-								<span className="hidden sm:inline">Refresh</span>
 							</button>
 						</div>
 
-						{loading ? (
-							<div className="mt-6 sm:mt-10 flex-1 flex items-center justify-center min-h-0">
-								<span className="loading loading-spinner loading-lg"></span>
-							</div>
-						) : !reservation ? (
-							<div className="mt-6 sm:mt-10 flex-1 rounded-2xl sm:rounded-3xl border-2 border-dashed border-black/10 bg-base-100/40 p-6 sm:p-8 text-center flex flex-col items-center justify-center min-h-0">
-								<FiBell className="mx-auto text-3xl sm:text-4xl text-base-content/35" />
-								<h2 className="mt-3 sm:mt-4 text-lg sm:text-xl font-bold">Notification not found</h2>
-								<p className="mt-2 text-sm text-base-content/65">
-									This link is invalid, or no reservation matches it.
+						<div className="border-t border-slate-200/80 bg-[#f7f6f5] px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+							<div className="flex items-center justify-between gap-3">
+								<p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
+									Private Reservation Update
 								</p>
-								<button onClick={() => navigate("/")} className="btn btn-black mt-4 sm:mt-6 rounded-full">
-									Go to Home
-								</button>
 							</div>
-						) : (
-							<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-								<div className={`mt-5 sm:mt-8 flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border p-4 sm:p-5 ${statusClasses} flex-shrink-0`}>
-									<FiBell className="text-xl sm:text-2xl" />
-									<div>
-										<p className="text-xs font-bold uppercase tracking-wider">
-											{statusLabel}
-										</p>
-										<p className="mt-1 font-semibold text-sm sm:text-base">{reservation.message}</p>
-									</div>
-								</div>
+							<h1 className="mt-3 flex items-center gap-3 text-[2rem] font-black tracking-[-0.06em] text-slate-900 leading-[1.05]">
+								<FiBell className="text-amber-500 w-6 h-6" />
+								<span>Reservation Notification</span>
+							</h1>
 
-								<div className="mt-4 sm:mt-5 grid gap-3 sm:grid-cols-2 flex-shrink-0">
-									<div className="rounded-xl sm:rounded-2xl bg-base-100/60 p-3 sm:p-4">
-										<p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/50">
-											<FiUser /> Customer
-										</p>
-										<p className="mt-1 sm:mt-2 font-semibold text-sm sm:text-base">{reservation.guest_name}</p>
-									</div>
-									<div className="rounded-xl sm:rounded-2xl bg-base-100/60 p-3 sm:p-4">
-										<p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-base-content/50">
-											<FiCalendar /> Schedule
-										</p>
-										<p className="mt-1 sm:mt-2 font-semibold text-sm sm:text-base">{reservation.room_type}</p>
-										<p className="text-xs sm:text-sm text-base-content/65">{reservation.check_in}</p>
-									</div>
+							{loading ? (
+								<div className="mt-6 flex items-center justify-center py-10">
+									<span className="loading loading-spinner loading-lg"></span>
 								</div>
-
-								{reservation.status === "confirmed" && (
-									<div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5 text-center flex-shrink-0">
-										<p className="text-xs font-bold uppercase tracking-wider text-emerald-800">Check-in QR code</p>
-										<div className="mt-3 inline-block rounded-2xl bg-white p-3 shadow-sm">
-											<QRCodeSVG
-												value={`${window.location.origin}/customer-notifications/${reservationToken}`}
-												size={200}
-												level="M"
-												includeMargin
-												title="Hacienda Amara check-in QR code"
-											/>
+							) : !reservation ? (
+								<div className="mt-6 rounded-[22px] border-2 border-dashed border-black/10 bg-base-100/40 p-6 text-center flex flex-col items-center justify-center">
+									<FiBell className="mx-auto text-3xl text-base-content/35" />
+									<h2 className="mt-3 text-xl font-bold">Notification not found</h2>
+									<p className="mt-2 text-sm text-base-content/65">
+										This link is invalid, or no reservation matches it.
+									</p>
+									<button onClick={() => navigate("/")} className="btn btn-black mt-4 rounded-full">
+										Go to Home
+									</button>
+								</div>
+							) : (
+								<div className="mt-5 flex flex-col gap-4 pb-2">
+									<div className={`flex items-center gap-3 rounded-[18px] border p-4 ${statusClasses}`}>
+										<FiBell className="text-xl" />
+										<div>
+											<p className="text-[11px] font-black uppercase tracking-[0.2em]">
+												{statusLabel}
+											</p>
+											<p className="mt-1 text-sm sm:text-base font-semibold leading-snug">
+												{reservation.message}
+											</p>
 										</div>
-										<p className="mt-3 text-xs text-emerald-900/80">Show this QR code to the resort staff when you arrive so they can verify your booking.</p>
 									</div>
-								)}
 
-								<div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl bg-black/5 p-3 sm:p-4 flex-shrink-0">
-									<p className="text-xs font-semibold uppercase tracking-wider text-base-content/50">
-										Private access link
-									</p>
-									<div className="mt-2 sm:mt-3 flex flex-col gap-2">
-										<code className="min-w-0 flex-1 truncate rounded-xl bg-white px-3 py-2 text-xs text-base-content/70 break-all">
-											{window.location.href}
-										</code>
-										<button
-											type="button"
-											onClick={copyNotificationLink}
-											className="btn btn-black btn-sm rounded-xl whitespace-nowrap w-full sm:w-auto"
-										>
-											<FiCopy className="w-4 h-4" /> {copied ? "Copied" : "Copy Link"}
-										</button>
+									<div className="grid gap-3">
+										<div className="rounded-[18px] bg-[#f1f1ef] p-4">
+											<p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+												<FiUser className="h-4 w-4" /> Customer
+											</p>
+											<p className="mt-2 text-2xl font-bold leading-tight text-slate-900">{reservation.guest_name}</p>
+										</div>
+										<div className="rounded-[18px] bg-[#f1f1ef] p-4">
+											<p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+												<FiCalendar className="h-4 w-4" /> Schedule
+											</p>
+											<p className="mt-2 text-lg font-bold text-slate-900">{reservation.room_type}</p>
+											<p className="mt-1 text-sm text-slate-600">{reservation.check_in}</p>
+										</div>
 									</div>
-									<p className="mt-2 text-xs text-base-content/55">
-										Keep this private link secure. Anyone who has it can view this reservation update.
-									</p>
+
+									{reservation.status === "confirmed" && (
+										<div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-4 text-center">
+											<p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-800">Check-in QR code</p>
+											<div className="mt-3 inline-block rounded-2xl bg-white p-3 shadow-sm">
+												<QRCodeSVG
+													value={`${window.location.origin}/customer-notifications/${reservationToken}`}
+													size={200}
+													level="M"
+													includeMargin
+													title="Hacienda Amara check-in QR code"
+												/>
+											</div>
+											<p className="mt-3 text-xs text-emerald-900/80">Show this QR code to the resort staff when you arrive so they can verify your booking.</p>
+										</div>
+									)}
+
+									<div className="rounded-[18px] bg-[#efefee] p-3">
+										<p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+											Private access link
+										</p>
+										<div className="mt-3 space-y-3">
+											<code className="block w-full rounded-[12px] bg-white px-3 py-2 text-[11px] text-slate-700 break-all">
+												{window.location.href}
+											</code>
+											<button
+												type="button"
+												onClick={copyNotificationLink}
+												className="btn btn-black h-11 min-h-11 w-full rounded-full text-sm font-semibold"
+											>
+												<FiCopy className="w-4 h-4" /> {copied ? "Copied" : "Copy Link"}
+											</button>
+										</div>
+										<p className="mt-3 text-xs text-slate-600 leading-5">
+											Keep this private link secure. Anyone who has it can view this reservation update.
+										</p>
+									</div>
 								</div>
-							</div>
-						)}
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
