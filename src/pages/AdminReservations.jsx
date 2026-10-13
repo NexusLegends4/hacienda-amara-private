@@ -127,7 +127,7 @@ const AdminReservations = () => {
 						<div className="mt-1.5 flex flex-wrap items-center gap-1" aria-hidden="true">
 							{statuses.has("confirmed") || statuses.has("accepted") ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
 							{statuses.has("pending") ? <span className="h-2 w-2 rounded-full bg-amber-500" /> : null}
-							{statuses.has("cancelled") || statuses.has("rejected") ? <span className="h-2 w-2 rounded-full bg-rose-500" /> : null}
+							{statuses.has("cancelled") || statuses.has("denied") || statuses.has("rejected") ? <span className="h-2 w-2 rounded-full bg-rose-500" /> : null}
 							<span className="ml-0.5 text-[10px] font-semibold text-slate-600">{dayBookings.length}</span>
 						</div>
 					)}

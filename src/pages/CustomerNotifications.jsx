@@ -73,13 +73,15 @@ const CustomerNotifications = () => {
 
 	const statusLabel = reservation?.status === "confirmed"
 		? "Accepted"
-		: reservation?.status === "cancelled"
-			? "Declined"
-			: "Pending";
+		: reservation?.status === "denied"
+			? "Denied"
+			: reservation?.status === "cancelled"
+				? "Cancelled"
+				: "Pending";
 
 	const statusClasses = reservation?.status === "confirmed"
 		? "bg-emerald-50 text-emerald-800 border-emerald-200"
-		: reservation?.status === "cancelled"
+		: ["denied", "cancelled"].includes(reservation?.status)
 			? "bg-rose-50 text-rose-800 border-rose-200"
 			: "bg-amber-50 text-amber-800 border-amber-200";
 

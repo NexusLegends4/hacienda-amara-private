@@ -1,6 +1,6 @@
 import { hasStaffVerificationClaim } from "./utils/auth.js";
 
-const allowedStatuses = new Set(["confirmed", "cancelled"]);
+const allowedStatuses = new Set(["confirmed", "denied", "cancelled"]);
 
 const getAdminUser = async (request) => {
 	const authorization = request.headers.get("authorization") || "";
@@ -61,11 +61,21 @@ export async function POST(request) {
 		return Response.json({ error: "Email notification is not configured." }, { status: 503 });
 	}
 
-	const accepted = status === "confirmed";
-	const subject = accepted ? "Your Hacienda Amara reservation was accepted" : "Update on your Hacienda Amara reservation";
-	const message = accepted
-		? `Good news! Your reservation for ${roomType} on ${checkIn} has been accepted.`
-		: `Your reservation for ${roomType} on ${checkIn} was not accepted. Please contact Hacienda Amara for assistance.`;
+	const emailDetails = {
+		confirmed: {
+			subject: "Your Hacienda Amara reservation was accepted",
+			message: `Good news! Your reservation for ${roomType} on ${checkIn} has been accepted.`,
+		},
+		denied: {
+			subject: "Your Hacienda Amara reservation was denied",
+			message: `Your reservation request for ${roomType} on ${checkIn} was denied. Please contact Hacienda Amara for assistance.`,
+		},
+		cancelled: {
+			subject: "Your Hacienda Amara reservation was cancelled",
+			message: `Your accepted reservation for ${roomType} on ${checkIn} has been cancelled by Hacienda Amara. Please contact us if you have questions.`,
+		},
+	};
+	const { subject, message } = emailDetails[status];
 
 	const response = await fetch("https://send.api.mailtrap.io/api/send", {
 		method: "POST",

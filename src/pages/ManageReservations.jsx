@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiCalendar, FiCheckCircle, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiCalendar, FiCheckCircle, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -27,6 +27,7 @@ const ManageReservations = () => {
 	const navigate = useNavigate();
 	const [reservations, setReservations] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [updatingReservationId, setUpdatingReservationId] = useState(null);
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
 
@@ -35,7 +36,7 @@ const ManageReservations = () => {
 
 		const { data, error } = await supabase
 			.from("reservations")
-			.select("*, profiles(firstname, lastname, avatar_url)")
+			.select("*, profiles(firstname, lastname, avatar_url, email)")
 			.order("created_at", { ascending: false });
 
 		if (error) {
@@ -83,41 +84,64 @@ const ManageReservations = () => {
 
 	const updateStatus = async (id, newStatus) => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
+		if (!resToUpdate || !["confirmed", "denied", "cancelled"].includes(newStatus)) return;
+		if (
+			(newStatus === "confirmed" || newStatus === "denied") &&
+			resToUpdate.status !== "pending"
+		) return;
+		if (newStatus === "cancelled" && resToUpdate.status !== "confirmed") return;
 
-		const { error } = await supabase
-			.from("reservations")
-			.update({ status: newStatus })
-			.eq("id", id);
+		setUpdatingReservationId(id);
+		try {
+			const { error } = await supabase
+				.from("reservations")
+				.update({ status: newStatus })
+				.eq("id", id);
 
-		if (error) {
-			alert(error.message);
-			return;
-		}
+			if (error) throw error;
 
-		const clientName = resToUpdate ? reservationGuestName(resToUpdate) : "the client";
-		const action = newStatus === "confirmed" ? "accepted" : "declined";
-
-		// Send email notification to guest
-		if (resToUpdate?.guest_email) {
-			try {
-				await fetch("/api/reservation-status-notification", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						name: clientName,
-						email: resToUpdate.guest_email,
-						status: newStatus,
-						roomType: resToUpdate.room_type,
-						checkIn: resToUpdate.check_in,
-					}),
-				});
-			} catch (e) {
-				console.warn("Failed to send notification:", e);
+			const clientName = reservationGuestName(resToUpdate);
+			const clientEmail = resToUpdate.guest_email || resToUpdate.profiles?.email;
+			let emailError = clientEmail ? "" : "No email address is available for this reservation.";
+			if (clientEmail) {
+				try {
+					const response = await fetch("/api/reservation-status-notification", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${session?.access_token || ""}`,
+						},
+						body: JSON.stringify({
+							name: clientName,
+							email: clientEmail,
+							status: newStatus,
+							roomType: resToUpdate.room_type,
+							checkIn: resToUpdate.check_in,
+						}),
+					});
+					const result = await response.json();
+					if (!response.ok) throw new Error(result.error || "Email could not be sent.");
+				} catch (error) {
+					console.error("Failed to send reservation status email:", error);
+					emailError = error.message || "Email could not be sent.";
+				}
 			}
-		}
 
-		alert(`Reservation for ${clientName} was ${action}.`);
-		fetchReservations(false);
+			const actionLabels = {
+				confirmed: "accepted",
+				denied: "denied",
+				cancelled: "cancelled",
+			};
+			alert(
+				`Reservation for ${clientName} was ${actionLabels[newStatus]}.` +
+				(emailError ? ` However, the email notification failed: ${emailError}` : ""),
+			);
+			await fetchReservations(false);
+		} catch (error) {
+			alert(`Could not update reservation: ${error.message}`);
+		} finally {
+			setUpdatingReservationId(null);
+		}
 	};
 
 	const deleteReservation = async (id) => {
@@ -235,20 +259,36 @@ const ManageReservations = () => {
 												"badge uppercase text-[10px] font-bold",
 												res.status === "confirmed"
 													? "badge-success text-white"
-													: res.status === "cancelled"
+													: ["cancelled", "denied"].includes(res.status)
 														? "badge-error text-white"
 														: "badge-warning"
 											].join(" ")}>
 												{res.status || "pending"}
 											</span>
-											{canManageReservations && <div className="flex shrink-0 gap-1.5">
+											{canManageReservations && <div className="flex flex-wrap justify-end gap-1.5">
 												<button
 													onClick={() => updateStatus(res.id, "confirmed")}
-													className="btn btn-sm btn-circle btn-ghost text-success text-xl"
+													disabled={updatingReservationId !== null || res.status !== "pending"}
+													className="btn btn-sm rounded-full btn-success text-white"
 													title="Accept reservation"
-													aria-label={`Accept reservation for ${reservationGuestName(res)}`}
 												>
-													<FiCheckCircle />
+													<FiCheckCircle /> Accept
+												</button>
+												<button
+													onClick={() => updateStatus(res.id, "denied")}
+													disabled={updatingReservationId !== null || res.status !== "pending"}
+													className="btn btn-sm rounded-full btn-error btn-outline"
+													title="Deny reservation"
+												>
+													<FiXCircle /> Deny
+												</button>
+												<button
+													onClick={() => updateStatus(res.id, "cancelled")}
+													disabled={updatingReservationId !== null || res.status !== "confirmed"}
+													className="btn btn-sm rounded-full btn-warning btn-outline"
+													title="Cancel accepted reservation"
+												>
+													<FiXCircle /> Cancel
 												</button>
 
 												<button
