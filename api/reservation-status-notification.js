@@ -59,7 +59,12 @@ export async function POST(request) {
 	}
 
 	if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-		return Response.json({ error: "Email notification is not configured." }, { status: 503 });
+		return Response.json(
+			{
+				error: "Gmail email is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Project Settings > Environment Variables, then redeploy.",
+			},
+			{ status: 503 },
+		);
 	}
 
 	const emailDetails = {
