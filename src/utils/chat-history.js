@@ -6,6 +6,25 @@ const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const CHAT_BUBBLE_STORAGE_KEY = "hacienda-amara-chat-bubble-state";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
 const CHAT_MEDIA_BUCKET = "chat-media";
+const chatClearHandlers = new Set();
+
+export const registerChatClearHandler = (handler) => {
+	chatClearHandlers.add(handler);
+	return () => chatClearHandlers.delete(handler);
+};
+
+export const prepareChatConversationClear = async (conversationKey) => {
+	const releases = await Promise.all(
+		[...chatClearHandlers].map((handler) => handler(conversationKey)),
+	);
+	let released = false;
+
+	return () => {
+		if (released) return;
+		released = true;
+		releases.forEach((release) => release?.());
+	};
+};
 
 const clearLocalChatData = () => {
 	if (typeof window === "undefined") return;
@@ -17,8 +36,12 @@ const clearLocalChatData = () => {
 };
 
 export const clearChatData = async (profile) => {
+	let releaseChat;
+
 	try {
 		if (profile?.role !== "client" || !profile.id) return;
+
+		releaseChat = await prepareChatConversationClear(profile.id);
 
 		const { data: rows, error: readError } = await supabase
 			.from("chat_messages")
@@ -51,9 +74,20 @@ export const clearChatData = async (profile) => {
 		const { error: deleteError } = await supabase
 			.from("chat_messages")
 			.delete()
-			.eq("conversation_key", profile.id);
+			.eq("conversation_key", profile.id)
+			.select("id");
 		if (deleteError) throw deleteError;
+
+		const { count, error: verifyError } = await supabase
+			.from("chat_messages")
+			.select("id", { count: "exact", head: true })
+			.eq("conversation_key", profile.id);
+		if (verifyError) throw verifyError;
+		if (count > 0) {
+			throw new Error("Some chat replies could not be deleted. Apply the full-conversation chat deletion migration in Supabase.");
+		}
 	} finally {
+		releaseChat?.();
 		clearLocalChatData();
 	}
 };

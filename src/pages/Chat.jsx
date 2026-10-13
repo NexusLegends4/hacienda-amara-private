@@ -3,6 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { useNavigate, NavLink } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
+import { prepareChatConversationClear, registerChatClearHandler } from "../utils/chat-history";
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend } from "react-icons/fi";
@@ -753,6 +754,10 @@ const [isSending, setIsSending] = useState(false);
 	const videoInputRef = useRef(null);
 	const dbAvailableRef = useRef(true);
 	const isRefreshingHistoryRef = useRef(false);
+	const pendingBotReplyTimersRef = useRef(new Set());
+	const pendingWritesRef = useRef(new Set());
+	const chatGenerationRef = useRef(0);
+	const isClearingChatRef = useRef(false);
 
 	useEffect(() => {
 		if (!CHAT_BACKEND_CONFIGURED || session) {
@@ -864,6 +869,25 @@ const canReply = !isAdminOrStaff || adminAvailable;
 		writeHistory(historyByConversation);
 	}, [historyByConversation]);
 
+	useEffect(() => registerChatClearHandler(async (targetConversationKey) => {
+		if (targetConversationKey !== conversationKey) return undefined;
+
+		isClearingChatRef.current = true;
+		chatGenerationRef.current += 1;
+		pendingBotReplyTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+		pendingBotReplyTimersRef.current.clear();
+		await Promise.allSettled([...pendingWritesRef.current]);
+		setHistoryByConversation((current) => {
+			const next = { ...current };
+			delete next[targetConversationKey];
+			return next;
+		});
+
+		return () => {
+			isClearingChatRef.current = false;
+		};
+	}), [conversationKey]);
+
 	const mergeMessage = (message) => {
 		setHistoryByConversation((current) => {
 			return upsertConversationHistory(current, message);
@@ -871,15 +895,26 @@ const canReply = !isAdminOrStaff || adminAvailable;
 	};
 
 	const persistMessage = async (message) => {
+		if (isClearingChatRef.current && message.conversationKey === conversationKey) {
+			throw new Error("This chat is being cleared.");
+		}
 		if (!CHAT_BACKEND_CONFIGURED) return;
 		if (!dbAvailableRef.current) {
 			throw new Error("Chat history storage is unavailable. Please try again later.");
 		}
 
-		const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
-		if (dbError) {
-			console.error("Unable to save chat message:", dbError);
-			throw new Error("Your message could not be saved. Please try again.");
+		const pendingWrite = (async () => {
+			const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
+			if (dbError) {
+				console.error("Unable to save chat message:", dbError);
+				throw new Error("Your message could not be saved. Please try again.");
+			}
+		})();
+		pendingWritesRef.current.add(pendingWrite);
+		try {
+			await pendingWrite;
+		} finally {
+			pendingWritesRef.current.delete(pendingWrite);
 		}
 	};
 
@@ -1031,7 +1066,9 @@ const clearCurrentChat = async () => {
     setShowClearConfirm(false);
 
     const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
+	const releaseChat = await prepareChatConversationClear(targetConversationKey);
 
+	try {
       if (CHAT_BACKEND_CONFIGURED && dbAvailableRef.current) {
         try {
           const { data: rows, error: readError } = await supabase
@@ -1055,8 +1092,18 @@ const clearCurrentChat = async () => {
           const { error: deleteError } = await supabase
             .from("chat_messages")
             .delete()
-            .eq("conversation_key", targetConversationKey);
+            .eq("conversation_key", targetConversationKey)
+            .select("id");
           if (deleteError) throw deleteError;
+
+		  const { count, error: verifyError } = await supabase
+			  .from("chat_messages")
+			  .select("id", { count: "exact", head: true })
+			  .eq("conversation_key", targetConversationKey);
+		  if (verifyError) throw verifyError;
+		  if (count > 0) {
+			  throw new Error("Some chat replies could not be deleted. Apply the full-conversation chat deletion migration in Supabase.");
+		  }
         } catch (deleteError) {
           console.error("Unable to clear saved chat history:", deleteError);
           setError("Chat history could not be cleared. Please try again.");
@@ -1072,6 +1119,9 @@ const clearCurrentChat = async () => {
 
     setPrompt("");
     clearDraftAttachment();
+	} finally {
+		releaseChat();
+	}
   };
 
   const cancelClearChat = () => {
@@ -1485,9 +1535,11 @@ const clearCurrentChat = async () => {
 		setIsSending(true);
 		pendingScrollToBottomRef.current = true;
 		shouldStickToBottomRef.current = true;
+		const chatGeneration = chatGenerationRef.current;
 
 		try {
 			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
+			if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
 			if (draftAttachments.length > 0) {
 				clearDraftAttachment();
 			}
@@ -1524,6 +1576,8 @@ const clearCurrentChat = async () => {
 					replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
 				}
 
+				if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
+
 				const botMessage = {
 					id: getMessageId(),
 					conversationKey: outgoing.conversationKey,
@@ -1535,7 +1589,10 @@ const clearCurrentChat = async () => {
 					createdAt: new Date().toISOString(),
 				};
 
-				window.setTimeout(async () => {
+				const botReplyTimer = window.setTimeout(async () => {
+					pendingBotReplyTimersRef.current.delete(botReplyTimer);
+					if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
+
 					try {
 						await persistMessage(botMessage);
 						pendingScrollToBottomRef.current = true;
@@ -1545,6 +1602,7 @@ const clearCurrentChat = async () => {
 						setError("Your message was sent, but the automatic reply could not be saved.");
 					}
 				}, 650);
+				pendingBotReplyTimersRef.current.add(botReplyTimer);
 			}
 		} catch (sendError) {
 			console.error("Unable to send chat message:", sendError);
