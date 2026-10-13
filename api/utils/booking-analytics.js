@@ -88,3 +88,32 @@ export function parseBookingForecast(content, expectedMonths) {
     summary: result.summary.trim().slice(0, 500),
   };
 }
+
+export function createHistoricalForecast(history, expectedMonths) {
+  const observations = Array.isArray(history)
+    ? history.filter((month) => Number.isInteger(month.bookings) && month.bookings >= 0)
+    : [];
+  const recentMonths = observations.slice(-6);
+  const recentAverage = recentMonths.length
+    ? recentMonths.reduce((total, month) => total + month.bookings, 0) / recentMonths.length
+    : 0;
+
+  const predictions = expectedMonths.map((month) => {
+    const calendarMonth = month.slice(5, 7);
+    const seasonalMonths = observations.filter((entry) => entry.month.slice(5, 7) === calendarMonth);
+    const seasonalAverage = seasonalMonths.length
+      ? seasonalMonths.reduce((total, entry) => total + entry.bookings, 0) / seasonalMonths.length
+      : recentAverage;
+    const estimate = Math.max(0, Math.round((seasonalAverage * 0.6) + (recentAverage * 0.4)));
+    const reason = seasonalMonths.length
+      ? `Historical estimate using ${seasonalMonths.length} matching calendar month${seasonalMonths.length === 1 ? "" : "s"} and the recent six-month average.`
+      : "Historical estimate using the recent six-month average; no matching calendar month was available.";
+
+    return { month, bookings: estimate, reason };
+  });
+
+  return {
+    predictions,
+    summary: "AI forecasting is unavailable, so these estimates use recent booking averages and matching months from historical data.",
+  };
+}

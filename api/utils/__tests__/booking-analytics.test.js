@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countBookingsByMonth,
+  createHistoricalForecast,
   getForecastMonths,
   getRecentMonths,
   isBookingAnalyticsAdmin,
@@ -103,6 +104,28 @@ describe("booking analytics helpers", () => {
 
     expect(forecast.predictions).toHaveLength(2);
     expect(forecast.summary).toBe("A modest increase is likely.");
+  });
+
+  it("creates historical estimates for each requested month", () => {
+    const forecast = createHistoricalForecast(
+      [
+        { month: "2025-01", bookings: 10 },
+        { month: "2025-02", bookings: 20 },
+        { month: "2026-01", bookings: 14 },
+        { month: "2026-02", bookings: 22 },
+      ],
+      ["2027-01", "2027-02", "2027-03"],
+    );
+
+    expect(forecast.predictions).toHaveLength(3);
+    expect(forecast.predictions.map(({ month }) => month)).toEqual([
+      "2027-01",
+      "2027-02",
+      "2027-03",
+    ]);
+    expect(forecast.predictions.every(({ bookings }) => bookings >= 0)).toBe(true);
+    expect(forecast.predictions[0].reason).toContain("matching calendar months");
+    expect(forecast.predictions[2].reason).toContain("recent six-month average");
   });
 
   it("rejects invalid, unordered, or incomplete predictions", () => {

@@ -197,7 +197,7 @@ const BookingAnalytics = () => {
 								Booking Analytics
 							</h1>
 							<p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/75 md:text-base">
-								Monthly reservation requests and an AI forecast based on the last 36 months of booking history.
+								Monthly reservation requests and a forecast based on the last 36 months of booking history.
 							</p>
 						</div>
 						<div className="flex gap-3">
@@ -299,16 +299,18 @@ const BookingAnalytics = () => {
 							<section className="rounded-[1.5rem] border border-green-900/10 bg-white/85 p-5 shadow-lg sm:rounded-[2rem] sm:p-7">
 								<div className="flex items-center gap-2">
 									<FiTrendingUp className="text-green-700" aria-hidden="true" />
-									<h2 className="text-xl font-bold">AI booking prediction</h2>
+									<h2 className="text-xl font-bold">
+										{analytics.forecastSource === "historical" ? "Historical trend estimate" : "AI booking prediction"}
+									</h2>
 								</div>
 								<p className="mt-3 text-sm leading-6 text-base-content/75">{forecast?.summary}</p>
 								{forecastError && (
 									<div role="status" className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-										<p className="font-semibold">AI forecast is unavailable; historical analytics are still shown.</p>
+										<p className="font-semibold">AI forecast is unavailable; historical estimates are shown instead.</p>
 										<p className="mt-1">{forecastError}</p>
-										{forecastError.includes("not configured") && (
+										{forecastError.includes("GROQ_API_KEY") && (
 											<p className="mt-2">
-												Add <code className="rounded bg-amber-100 px-1">GROQ_API_KEY</code> in your Vercel project&apos;s server-side Environment Variables, then redeploy and refresh this page.
+												To enable AI predictions, add <code className="rounded bg-amber-100 px-1">GROQ_API_KEY</code> to your Vercel project&apos;s server-side Environment Variables, then redeploy.
 											</p>
 										)}
 									</div>
@@ -329,6 +331,7 @@ const BookingAnalytics = () => {
 								)}
 								<p className="mt-4 text-xs leading-5 text-base-content/55">
 									Predictions are AI-generated estimates, not guarantees. They are based on monthly booking counts only and may be inaccurate.
+									{analytics.forecastSource === "historical" && " This is a statistical estimate, not an AI prediction."}
 									{analytics.generatedAt && ` Updated ${new Date(analytics.generatedAt).toLocaleString()}.`}
 								</p>
 							</section>

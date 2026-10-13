@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { hasStaffVerificationClaim } from "./utils/auth.js";
 import {
   countBookingsByMonth,
+  createHistoricalForecast,
   DISPLAY_MONTHS,
   FORECAST_MONTHS,
   getForecastMonths,
@@ -163,16 +164,21 @@ export async function POST(request) {
     let forecastError = null;
 
     if (hasHistoricalBookings) {
-      try {
-        forecast = await predictBookings(
-          completedHistory,
-          forecastMonths,
-          process.env.GROQ_API_KEY,
-        );
-      } catch (error) {
-        console.error("Booking forecast unavailable:", error);
-        forecast = null;
-        forecastError = error?.message || "The AI forecast is temporarily unavailable.";
+      if (!process.env.GROQ_API_KEY) {
+        forecast = createHistoricalForecast(completedHistory, forecastMonths);
+        forecastError = "GROQ_API_KEY is not configured; showing a historical trend estimate instead.";
+      } else {
+        try {
+          forecast = await predictBookings(
+            completedHistory,
+            forecastMonths,
+            process.env.GROQ_API_KEY,
+          );
+        } catch (error) {
+          console.error("Booking forecast unavailable:", error);
+          forecast = createHistoricalForecast(completedHistory, forecastMonths);
+          forecastError = `${error?.message || "The AI forecast is temporarily unavailable."} Showing a historical trend estimate instead.`;
+        }
       }
     }
 
@@ -180,6 +186,7 @@ export async function POST(request) {
       history,
       forecast,
       forecastError,
+      forecastSource: forecastError && forecast ? "historical" : forecast ? "ai" : "none",
       historicalBookingsUnavailable,
       generatedAt: new Date().toISOString(),
       includesStatuses: ["pending", "confirmed", "cancelled"],
