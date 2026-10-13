@@ -10,8 +10,12 @@ const SharedChat = lazy(() => import("../pages/Chat.jsx"));
 const ChatBubbleLauncher = () => {
 	const location = useLocation();
 	const { profile, session } = useContext(SessionContext);
-	const [isOpen, setIsOpen] = useState(() => localStorage.getItem(CHAT_BUBBLE_STORAGE_KEY) === "true");
-	const position = { bottom: "5rem", right: "1.5rem" };
+	const [isOpen, setIsOpen] = useState(() => {
+		const storedValue = localStorage.getItem(CHAT_BUBBLE_STORAGE_KEY);
+		if (storedValue !== null) return storedValue === "true";
+		return location.pathname === "/";
+	});
+	const position = { bottom: "1.5rem", right: "1.5rem" };
 	const chatIdentity = profile?.id || session?.user?.id || "guest";
 
 	useEffect(() => {
@@ -28,7 +32,7 @@ const ChatBubbleLauncher = () => {
 				<section
 					role="dialog"
 					aria-label="Hacienda Amara chat"
-					className="fixed z-40 h-[min(26rem,calc(100dvh-11.5rem))] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-black/10 bg-white shadow-2xl"
+					className="fixed z-40 h-[min(30rem,calc(100dvh-7rem))] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.5rem] border border-black/10 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.18)]"
 					style={{ bottom: position.bottom, right: position.right }}
 				>
 					<Suspense fallback={<div className="flex h-full items-center justify-center"><span className="loading loading-spinner loading-md text-amber-700" /></div>}>
@@ -40,12 +44,12 @@ const ChatBubbleLauncher = () => {
 			<button
 				type="button"
 				onClick={() => setIsOpen((open) => !open)}
-				className="fixed z-39 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-2xl transition-transform hover:scale-105"
+				className="fixed z-39 flex h-12 w-12 items-center justify-center rounded-full bg-[#0e0f10] text-white shadow-[0_12px_24px_rgba(15,23,42,0.25)] transition-transform hover:scale-105"
 				style={{ bottom: position.bottom, right: position.right }}
 				aria-label={isOpen ? "Close chat" : "Open chat"}
 				aria-expanded={isOpen}
 			>
-				{isOpen ? <FiX className="h-6 w-6" /> : <FiMessageSquare className="h-7 w-7" />}
+				{isOpen ? <FiX className="h-5 w-5" /> : <FiMessageSquare className="h-5 w-5" />}
 			</button>
 		</>
 	);
