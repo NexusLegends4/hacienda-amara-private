@@ -26,27 +26,14 @@ export const prepareChatConversationClear = async (conversationKey) => {
 	};
 };
 
-const clearLocalChatData = () => {
-	if (typeof window === "undefined") return;
-
-	localStorage.removeItem(HISTORY_STORAGE_KEY);
-	localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
-	localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
-	localStorage.removeItem(CHAT_BUBBLE_STORAGE_KEY);
-};
-
-export const clearChatData = async (profile) => {
-	let releaseChat;
+export const clearConversationHistory = async (conversationKey) => {
+	const releaseChat = await prepareChatConversationClear(conversationKey);
 
 	try {
-		if (profile?.role !== "client" || !profile.id) return;
-
-		releaseChat = await prepareChatConversationClear(profile.id);
-
 		const { data: rows, error: readError } = await supabase
 			.from("chat_messages")
 			.select("content")
-			.eq("conversation_key", profile.id);
+			.eq("conversation_key", conversationKey);
 		if (readError) throw readError;
 
 		const paths = (rows || []).flatMap(({ content }) => {
@@ -74,20 +61,38 @@ export const clearChatData = async (profile) => {
 		const { error: deleteError } = await supabase
 			.from("chat_messages")
 			.delete()
-			.eq("conversation_key", profile.id)
+			.eq("conversation_key", conversationKey)
 			.select("id");
 		if (deleteError) throw deleteError;
 
 		const { count, error: verifyError } = await supabase
 			.from("chat_messages")
 			.select("id", { count: "exact", head: true })
-			.eq("conversation_key", profile.id);
+			.eq("conversation_key", conversationKey);
 		if (verifyError) throw verifyError;
 		if (count > 0) {
 			throw new Error("Some chat replies could not be deleted. Apply the full-conversation chat deletion migration in Supabase.");
 		}
 	} finally {
-		releaseChat?.();
+		releaseChat();
+	}
+};
+
+const clearLocalChatData = () => {
+	if (typeof window === "undefined") return;
+
+	localStorage.removeItem(HISTORY_STORAGE_KEY);
+	localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
+	localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
+	localStorage.removeItem(CHAT_BUBBLE_STORAGE_KEY);
+};
+
+export const clearChatData = async (profile) => {
+	try {
+		if (profile?.role !== "client" || !profile.id) return;
+
+		await clearConversationHistory(profile.id);
+	} finally {
 		clearLocalChatData();
 	}
 };

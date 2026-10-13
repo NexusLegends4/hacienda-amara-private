@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { useNavigate, NavLink } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
-import { prepareChatConversationClear, registerChatClearHandler } from "../utils/chat-history";
+import { clearConversationHistory, registerChatClearHandler } from "../utils/chat-history";
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend } from "react-icons/fi";
@@ -758,6 +758,7 @@ const [isSending, setIsSending] = useState(false);
 	const pendingWritesRef = useRef(new Set());
 	const chatGenerationRef = useRef(0);
 	const isClearingChatRef = useRef(false);
+	const clearedConversationsRef = useRef(new Set());
 
 	useEffect(() => {
 		if (!CHAT_BACKEND_CONFIGURED || session) {
@@ -866,7 +867,10 @@ const canReply = !isAdminOrStaff || adminAvailable;
 	};
 
 	useEffect(() => {
-		writeHistory(historyByConversation);
+		const persistedHistory = Object.fromEntries(
+			Object.entries(historyByConversation).filter(([key]) => !clearedConversationsRef.current.has(key)),
+		);
+		writeHistory(persistedHistory);
 	}, [historyByConversation]);
 
 	useEffect(() => registerChatClearHandler(async (targetConversationKey) => {
@@ -874,6 +878,7 @@ const canReply = !isAdminOrStaff || adminAvailable;
 
 		isClearingChatRef.current = true;
 		chatGenerationRef.current += 1;
+		clearedConversationsRef.current.add(targetConversationKey);
 		pendingBotReplyTimersRef.current.forEach((timer) => window.clearTimeout(timer));
 		pendingBotReplyTimersRef.current.clear();
 		await Promise.allSettled([...pendingWritesRef.current]);
@@ -889,6 +894,7 @@ const canReply = !isAdminOrStaff || adminAvailable;
 	}), [conversationKey]);
 
 	const mergeMessage = (message) => {
+		clearedConversationsRef.current.delete(message.conversationKey);
 		setHistoryByConversation((current) => {
 			return upsertConversationHistory(current, message);
 		});
@@ -921,6 +927,8 @@ const canReply = !isAdminOrStaff || adminAvailable;
 	const refreshFromDb = useCallback(async () => {
 		if (!CHAT_BACKEND_CONFIGURED) return false;
 		if (!dbAvailableRef.current) return false;
+		if (isClearingChatRef.current) return false;
+		const chatGeneration = chatGenerationRef.current;
 		isRefreshingHistoryRef.current = true;
 
 		try {
@@ -944,6 +952,8 @@ const canReply = !isAdminOrStaff || adminAvailable;
 			const hydratedMessages = await Promise.all(
 				(data || []).map((row) => refreshSignedMessage(normalizeDbMessage(row))),
 			);
+			if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return false;
+
 			hydratedMessages.forEach((message) => {
 				grouped[message.conversationKey] = grouped[message.conversationKey] || [];
 				const hasMessage = grouped[message.conversationKey].some((item) => item.id === message.id);
@@ -964,7 +974,7 @@ const nextSnapshot = isAdminOrStaff
 			? Object.keys(nextSnapshot).length === 0
 			: (nextSnapshot[conversationKey] || []).length === 0;
 
-		if (nextIsEmpty) {
+		if (nextIsEmpty && !clearedConversationsRef.current.has(conversationKey)) {
 			const stored = readHistory();
 			const storedIsEmpty = isAdminOrStaff
 				? Object.keys(stored).length === 0
@@ -1020,6 +1030,7 @@ const nextSnapshot = isAdminOrStaff
 	}, [activeMessagesProfiles, profile?.avatar_url, profile?.id, sidebarProfiles]);
 
 	const refreshMessages = async () => {
+		if (isClearingChatRef.current) return;
 		setIsRefreshing(true);
 
 		try {
@@ -1066,51 +1077,13 @@ const clearCurrentChat = async () => {
     setShowClearConfirm(false);
 
     const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
-	const releaseChat = await prepareChatConversationClear(targetConversationKey);
 
 	try {
       if (CHAT_BACKEND_CONFIGURED && dbAvailableRef.current) {
-        try {
-          const { data: rows, error: readError } = await supabase
-            .from("chat_messages")
-            .select("id, content")
-            .eq("conversation_key", targetConversationKey);
-          if (readError) throw readError;
-
-          const paths = (rows || []).flatMap((row) =>
-            decodeMessageContent(row.content).attachments
-              .filter((attachment) => attachment?.bucket === CHAT_MEDIA_BUCKET && attachment.path)
-              .map((attachment) => attachment.path),
-          );
-          if (paths.length > 0) {
-            const { error: mediaError } = await supabase.storage
-              .from(CHAT_MEDIA_BUCKET)
-              .remove([...new Set(paths)]);
-            if (mediaError) throw mediaError;
-          }
-
-          const { error: deleteError } = await supabase
-            .from("chat_messages")
-            .delete()
-            .eq("conversation_key", targetConversationKey)
-            .select("id");
-          if (deleteError) throw deleteError;
-
-		  const { count, error: verifyError } = await supabase
-			  .from("chat_messages")
-			  .select("id", { count: "exact", head: true })
-			  .eq("conversation_key", targetConversationKey);
-		  if (verifyError) throw verifyError;
-		  if (count > 0) {
-			  throw new Error("Some chat replies could not be deleted. Apply the full-conversation chat deletion migration in Supabase.");
-		  }
-        } catch (deleteError) {
-          console.error("Unable to clear saved chat history:", deleteError);
-          setError("Chat history could not be cleared. Please try again.");
-          return;
-        }
+		await clearConversationHistory(targetConversationKey);
       }
 
+	  clearedConversationsRef.current.add(targetConversationKey);
       setHistoryByConversation((current) => {
         const next = { ...current };
         delete next[targetConversationKey];
@@ -1119,8 +1092,9 @@ const clearCurrentChat = async () => {
 
     setPrompt("");
     clearDraftAttachment();
-	} finally {
-		releaseChat();
+	} catch (deleteError) {
+		console.error("Unable to clear saved chat history:", deleteError);
+		setError("Chat history could not be cleared. Please try again.");
 	}
   };
 
