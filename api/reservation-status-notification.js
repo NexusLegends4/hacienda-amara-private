@@ -1,3 +1,4 @@
+import nodemailer from "nodemailer";
 import { hasStaffVerificationClaim } from "./utils/auth.js";
 
 const allowedStatuses = new Set(["confirmed", "denied", "cancelled"]);
@@ -57,7 +58,7 @@ export async function POST(request) {
 		return Response.json({ error: "Missing or invalid reservation details." }, { status: 400 });
 	}
 
-	if (!process.env.MAILTRAP_API_TOKEN || !process.env.MAILTRAP_FROM_EMAIL) {
+	if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
 		return Response.json({ error: "Email notification is not configured." }, { status: 503 });
 	}
 
@@ -77,23 +78,30 @@ export async function POST(request) {
 	};
 	const { subject, message } = emailDetails[status];
 
-	const response = await fetch("https://send.api.mailtrap.io/api/send", {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${process.env.MAILTRAP_API_TOKEN}`,
-			"Content-Type": "application/json",
+	const transporter = nodemailer.createTransport({
+		host: "smtp.gmail.com",
+		port: 465,
+		secure: true,
+		auth: {
+			user: process.env.GMAIL_USER,
+			pass: process.env.GMAIL_APP_PASSWORD,
 		},
-		body: JSON.stringify({
-			from: { email: process.env.MAILTRAP_FROM_EMAIL, name: "Hacienda Amara" },
-			to: [{ email, name }],
+	});
+
+	try {
+		await transporter.sendMail({
+			from: { name: "Hacienda Amara", address: process.env.GMAIL_USER },
+			to: { name, address: email },
 			subject,
 			text: `Hello ${name},\n\n${message}\n\nHacienda Amara Private Resort`,
 			html: `<p>Hello ${escapeHtml(name)},</p><p>${escapeHtml(message)}</p><p>Hacienda Amara Private Resort</p>`,
-		}),
-	});
-
-	if (!response.ok) {
-		return Response.json({ error: "Email provider rejected the notification." }, { status: 502 });
+		});
+	} catch (error) {
+		console.error("Gmail SMTP failed to send reservation notification:", error);
+		return Response.json(
+			{ error: "Gmail could not send the notification. Check the recipient and Gmail SMTP settings." },
+			{ status: 502 },
+		);
 	}
 
 	return Response.json({ sent: true });

@@ -58,18 +58,18 @@ order by c.relname;
 
 Users who cannot access their email or authenticator app will need an administrator to help restore account access. Authenticator setup keys are secrets; users should not share or store them in public notes. Supabase's default email service may be restricted or rate-limited; use a configured SMTP provider if codes do not arrive reliably.
 
-## Guest Reservation Email Notifications
+## Reservation Email Notifications
 
-Run `supabase/20260907_guest_reservation_notifications.sql` in the Supabase SQL Editor. For guests without an account to receive accepted or rejected reservation emails through Mailtrap, add these Vercel environment variables:
+Reservation status emails are sent through Gmail SMTP. Enable 2-Step Verification on the sending Google account, then create a Google App Password for this application. Add these Vercel environment variables:
 
 ```env
-MAILTRAP_API_TOKEN=your_mailtrap_api_token
-MAILTRAP_FROM_EMAIL=your-verified-sender@example.com
+GMAIL_USER=your-sending-gmail-address@gmail.com
+GMAIL_APP_PASSWORD=your-16-character-app-password
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-The `MAILTRAP_API_TOKEN` and `SUPABASE_SERVICE_ROLE_KEY` must remain server-side. The notification API accepts requests only from authenticated admin or staff users. `MAILTRAP_FROM_EMAIL` must be an approved sender in the Mailtrap sending domain.
+Keep `GMAIL_APP_PASSWORD` and `SUPABASE_SERVICE_ROLE_KEY` server-side in Vercel; never use a Google account password or expose these values in frontend variables. The notification API accepts requests only from authenticated admin or staff users. Gmail has sending limits and is intended here for low-volume project notifications.
 
 ## Staff and Admin Account Creation
 
