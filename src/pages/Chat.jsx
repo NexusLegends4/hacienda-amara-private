@@ -398,22 +398,22 @@ const isGenericResponse = (text) => {
 
 const censorProfanity = (text) => {
 	const profanityList = [
-		"putang", "puta", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol", 
+		"putang", "puta", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol",
 		"leche", "amputa", "tanginamo", "putangina", "putang ina", "putang ina mo",
 		"bobo ka", "boba ka", "gago ka", "gaga ka", "ulol ka", "leche ka",
 		"fuck", "shit", "bitch", "asshole", "dick", "pussy", "cunt", "motherfucker",
 		"fucker", "fucking", "bullshit", "shithead", "dumbass", "ass", "damn",
 		"tarantado", "tarantada", "bwisit", "buwisit", "pakyu", "putang ina nyo",
-		"punyeta", "hayop", "demonyo", "hayop ka", "putangina mo", "tanginamo"
+		"punyeta", "hayop", "demonyo", "hayop ka", "putangina mo", "tanginamo", "sex"
 	];
-	
+
 	let result = text;
 	for (const word of profanityList) {
 		const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
 		const replacement = '*'.repeat(word.length);
 		result = result.replace(regex, replacement);
 	}
-	
+
 	console.log("Censor check:", { original: text, censored: result, changed: result !== text });
 	return result;
 };
