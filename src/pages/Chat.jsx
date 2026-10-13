@@ -1360,6 +1360,7 @@ const clearCurrentChat = async () => {
 	) => {
 		const messageId = getMessageId();
 		const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
+		const activeSession = session || (CHAT_BACKEND_CONFIGURED ? (await supabase.auth.getSession()).data.session : null);
 		const uploadedPaths = [];
 		const uploadedAttachments = [];
 		const removeUploaded = async () => {
@@ -1385,8 +1386,8 @@ const clearCurrentChat = async () => {
 					continue;
 				}
 
-				if (!CHAT_BACKEND_CONFIGURED || !session?.user?.id) {
-					throw new Error("Sign-in is required before uploading persistent chat media.");
+				if (!CHAT_BACKEND_CONFIGURED || !activeSession?.user?.id) {
+					throw new Error("Guest chat is still connecting securely. Please wait a moment and try again.");
 				}
 
 				const storagePath = buildChatMediaPath(targetConversationKey, messageId, attachment);
@@ -1422,7 +1423,7 @@ const clearCurrentChat = async () => {
 		const message = {
 			id: messageId,
 			conversationKey: targetConversationKey,
-			senderId: session?.user?.id || profile?.id || "guest",
+			senderId: activeSession?.user?.id || profile?.id || "guest",
 			senderRole,
 			senderName: displayName,
 			content,
@@ -1499,7 +1500,7 @@ const clearCurrentChat = async () => {
 			setError(chatAuthError);
 			return;
 		}
-		if (!chatAuthReady || (CHAT_BACKEND_CONFIGURED && !session)) {
+		if (!chatAuthReady) {
 			setError("Chat is still connecting securely. Please wait a moment and try again.");
 			return;
 		}
