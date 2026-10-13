@@ -709,7 +709,7 @@ const toDbPayload = (message) => ({
 	created_at: message.createdAt,
 });
 
-const Chat = ({ presentation = "page", onClose }) => {
+const ChatConversation = ({ presentation = "page", onClose }) => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const isBubble = presentation === "bubble";
@@ -2263,6 +2263,13 @@ const chatContent = (
 	);
 
 	return isBubble ? <div className="h-full min-h-0">{chatContent}</div> : <MainLayout>{chatContent}</MainLayout>;
+};
+
+const Chat = (props) => {
+	const { session, profile } = useContext(SessionContext);
+	const chatIdentity = profile?.id || session?.user?.id || "guest";
+
+	return <ChatConversation key={chatIdentity} {...props} />;
 };
 
 export default Chat;
