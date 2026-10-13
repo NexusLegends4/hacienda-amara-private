@@ -9,9 +9,10 @@ const SharedChat = lazy(() => import("../pages/Chat.jsx"));
 
 const ChatBubbleLauncher = () => {
 	const location = useLocation();
-	const { profile } = useContext(SessionContext);
+	const { profile, session } = useContext(SessionContext);
 	const [isOpen, setIsOpen] = useState(() => localStorage.getItem(CHAT_BUBBLE_STORAGE_KEY) === "true");
-	const [position, setPosition] = useState({ bottom: "5rem", right: "1.5rem" });
+	const position = { bottom: "5rem", right: "1.5rem" };
+	const chatIdentity = profile?.id || session?.user?.id || "guest";
 
 	useEffect(() => {
 		localStorage.setItem(CHAT_BUBBLE_STORAGE_KEY, String(isOpen));
@@ -36,7 +37,7 @@ const ChatBubbleLauncher = () => {
 					style={{ bottom: position.bottom, right: position.right }}
 				>
 					<Suspense fallback={<div className="flex h-full items-center justify-center"><span className="loading loading-spinner loading-md text-amber-700" /></div>}>
-						<SharedChat presentation="bubble" onClose={() => setIsOpen(false)} />
+						<SharedChat key={chatIdentity} presentation="bubble" onClose={() => setIsOpen(false)} />
 					</Suspense>
 				</section>
 			)}
@@ -55,4 +56,9 @@ const ChatBubbleLauncher = () => {
 	);
 };
 
-export default ChatBubbleLauncher;
+const ChatBubble = () => {
+	const { session } = useContext(SessionContext);
+	return <ChatBubbleLauncher key={session?.user?.id || "guest"} />;
+};
+
+export default ChatBubble;

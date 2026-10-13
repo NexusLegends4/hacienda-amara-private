@@ -2,28 +2,9 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
+import { clearChatData } from "../utils/chat-history";
 import LoginIcon from "./icons/LoginIcon";
 import { FiBell, FiHome, FiChevronDown, FiMenu, FiX, FiInfo, FiCalendar, FiBarChart2 } from "react-icons/fi";
-
-const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
-const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
-const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
-
-const clearChatData = async (profile) => {
-	if (typeof window !== "undefined") {
-		localStorage.removeItem(HISTORY_STORAGE_KEY);
-		localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
-		localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
-	}
-
-	if (profile?.id) {
-		try {
-			await supabase.from("chat_messages").delete().eq("sender_id", profile.id);
-		} catch {
-			// ignore
-		}
-	}
-};
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -129,7 +110,12 @@ const NavBar = () => {
 				});
 		}
 
-		await clearChatData(profile);
+		try {
+			await clearChatData(profile);
+		} catch (chatError) {
+			console.error("Unable to clear chat history during logout:", chatError);
+			alert("Chat history could not be deleted: " + chatError.message);
+		}
 
 		const { error } = await supabase.auth.signOut();
 		if (error) alert("Error logging out: " + error.message);

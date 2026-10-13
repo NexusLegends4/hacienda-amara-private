@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
+import { clearChatData } from "./utils/chat-history";
 import { hasStaffVerificationClaim } from "./utils/staff-auth";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 
@@ -42,26 +43,7 @@ import FacebookQr from "./pages/FacebookQr";
 import ManageAnnouncements from "./pages/ManageAnnouncements";
 import BookingAnalytics from "./pages/BookingAnalytics";
 
-const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
-const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-key";
-const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MFA_PENDING_KEY = "hacienda_staff_mfa_pending";
-
-const clearChatData = async (profile) => {
-	if (typeof window !== "undefined") {
-		localStorage.removeItem(HISTORY_STORAGE_KEY);
-		localStorage.removeItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
-		localStorage.removeItem(ADMIN_AVAILABILITY_KEY);
-	}
-
-	if (profile?.id) {
-		try {
-			await supabase.from("chat_messages").delete().eq("sender_id", profile.id);
-		} catch {
-			// ignore
-		}
-	}
-};
 
 const THEME_STORAGE_KEY = "theme";
 
@@ -270,7 +252,12 @@ function App() {
 					alert(
 						"This account has been deleted. Please contact the administrator.",
 					);
-					await clearChatData(data);
+					try {
+						await clearChatData(data);
+					} catch (chatError) {
+						console.error("Unable to clear chat history for deleted account:", chatError);
+						alert("Chat history could not be deleted: " + chatError.message);
+					}
 					await supabase.auth.signOut();
 					return;
 				}
