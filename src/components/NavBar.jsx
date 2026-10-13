@@ -355,6 +355,10 @@ const NavBar = () => {
 									<NavLink to="/manage-packages" className={mobileLinkClass} onClick={closeMobile}>Manage Packages</NavLink>
 									<NavLink to="/manage-clients" className={mobileLinkClass} onClick={closeMobile}>Manage Clients</NavLink>
 									<NavLink to="/manage-reservations" className={mobileLinkClass} onClick={closeMobile}>Manage Reservations</NavLink>
+									<NavLink to="/booking-analytics" className={mobileLinkClass} onClick={closeMobile}>
+										<FiBarChart2 />
+										Booking Analytics
+									</NavLink>
 									<NavLink to="/scan-qr" className={mobileLinkClass} onClick={closeMobile}>Scan QR</NavLink>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/admin-notifications" className={mobileLinkClass} onClick={closeMobile}>Notifications</NavLink>
