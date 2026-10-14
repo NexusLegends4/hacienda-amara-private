@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiCalendar, FiCheckCircle, FiRefreshCw, FiTrash2, FiXCircle } from "react-icons/fi";
+import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -28,6 +28,14 @@ const ManageReservations = () => {
 	const [reservations, setReservations] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [updatingReservationId, setUpdatingReservationId] = useState(null);
+	const [denyingReservationId, setDenyingReservationId] = useState(null);
+	const [rejectionReason, setRejectionReason] = useState("");
+	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
+	const [maintenanceStart, setMaintenanceStart] = useState("");
+	const [maintenanceEnd, setMaintenanceEnd] = useState("");
+	const [maintenanceReason, setMaintenanceReason] = useState("");
+	const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+	const [maintenanceError, setMaintenanceError] = useState("");
 	const canManageReservations = ["admin", "staff"].includes(profile?.role);
 	const isAdmin = profile?.role === "admin";
 
@@ -46,6 +54,17 @@ const ManageReservations = () => {
 		}
 
 		setLoading(false);
+	}, []);
+
+	const fetchMaintenance = useCallback(async () => {
+		const { data, error } = await supabase.rpc("get_reservation_maintenance");
+		if (error) {
+			console.error("Unable to load maintenance periods:", error);
+			setMaintenanceError("Maintenance schedules could not be loaded.");
+			return;
+		}
+		setMaintenanceError("");
+		setMaintenancePeriods(data || []);
 	}, []);
 
 	useEffect(() => {
@@ -74,15 +93,26 @@ const ManageReservations = () => {
 					{ event: "UPDATE", schema: "public", table: "profiles" },
 					() => fetchReservations(false)
 				)
+				.on(
+					"postgres_changes",
+					{ event: "*", schema: "public", table: "reservation_maintenance" },
+					() => fetchMaintenance()
+				)
 				.subscribe();
 
+			fetchMaintenance();
+			const refreshTimer = window.setInterval(() => {
+				fetchReservations(false);
+				fetchMaintenance();
+			}, 60_000);
 			return () => {
+				window.clearInterval(refreshTimer);
 				supabase.removeChannel(channel);
 			};
 		}
-	}, [canManageReservations, fetchReservations]);
+	}, [canManageReservations, fetchMaintenance, fetchReservations]);
 
-	const updateStatus = async (id, newStatus) => {
+	const updateStatus = async (id, newStatus, reason = "") => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
 		if (!resToUpdate || !["confirmed", "denied", "cancelled"].includes(newStatus)) return;
 		if (
@@ -95,7 +125,10 @@ const ManageReservations = () => {
 		try {
 			const { error } = await supabase
 				.from("reservations")
-				.update({ status: newStatus })
+				.update({
+					status: newStatus,
+					rejection_reason: newStatus === "denied" ? reason.trim() || null : null,
+				})
 				.eq("id", id);
 
 			if (error) throw error;
@@ -117,6 +150,7 @@ const ManageReservations = () => {
 							status: newStatus,
 							roomType: resToUpdate.room_type,
 							checkIn: resToUpdate.check_in,
+							rejectionReason: newStatus === "denied" ? reason.trim() : "",
 						}),
 					});
 					const result = await response.json();
@@ -144,39 +178,55 @@ const ManageReservations = () => {
 		}
 	};
 
-	const deleteReservation = async (id) => {
-		if (window.confirm("Are you sure you want to delete this reservation?")) {
-			const { error } = await supabase
-				.from("reservations")
-				.delete()
-				.eq("id", id);
-
-			if (error) {
-				alert("Error deleting: " + error.message);
-			} else {
-				setReservations((prev) => prev.filter((res) => res.id !== id));
-			}
-		}
+	const submitRejection = async (event) => {
+		event.preventDefault();
+		const id = denyingReservationId;
+		if (!id || rejectionReason.length > 300) return;
+		setDenyingReservationId(null);
+		await updateStatus(id, "denied", rejectionReason);
+		setRejectionReason("");
 	};
 
-	const clearAllReservations = async () => {
-		if (window.confirm("WARNING: This will permanently delete ALL reservation records. Are you sure?")) {
-			setLoading(true);
-
-			const { error } = await supabase
-				.from("reservations")
-				.delete()
-				.neq("id", "00000000-0000-0000-0000-000000000000");
-
-			if (error) {
-				alert("Failed to clear data: " + error.message);
-			} else {
-				setReservations([]);
-				alert("Database successfully cleared.");
-			}
-
-			setLoading(false);
+	const addMaintenance = async (event) => {
+		event.preventDefault();
+		if (!maintenanceStart || !maintenanceEnd || maintenanceEnd < maintenanceStart) {
+			setMaintenanceError("Choose a valid maintenance date range.");
+			return;
 		}
+		if (maintenanceReason.length > 300) {
+			setMaintenanceError("Maintenance notes must be 300 characters or fewer.");
+			return;
+		}
+		setMaintenanceLoading(true);
+		setMaintenanceError("");
+		const { error } = await supabase.from("reservation_maintenance").insert({
+			start_date: maintenanceStart,
+			end_date: maintenanceEnd,
+			reason: maintenanceReason.trim(),
+			created_by: session.user.id,
+		});
+		if (error) {
+			setMaintenanceError(error.message);
+		} else {
+			setMaintenanceStart("");
+			setMaintenanceEnd("");
+			setMaintenanceReason("");
+			await fetchMaintenance();
+		}
+		setMaintenanceLoading(false);
+	};
+
+	const deleteMaintenance = async (period) => {
+		if (!window.confirm(`Remove maintenance block from ${period.start_date} to ${period.end_date}?`)) return;
+		const { error } = await supabase
+			.from("reservation_maintenance")
+			.delete()
+			.eq("id", period.id);
+		if (error) {
+			setMaintenanceError(`Could not remove maintenance schedule: ${error.message}`);
+			return;
+		}
+		setMaintenancePeriods((current) => current.filter((item) => item.id !== period.id));
 	};
 
 	return (
@@ -200,17 +250,49 @@ const ManageReservations = () => {
 								<button onClick={() => fetchReservations(true)} className="btn btn-outline rounded-full" title="Refresh List">
 									<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 								</button>
-								{canManageReservations && (
-									<button onClick={clearAllReservations} className="btn btn-error btn-outline rounded-full" title="Clear All Data">
-										<FiTrash2 /> Clear All
-									</button>
-								)}
 								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full">
 									Back
 								</button>
 							</div>
 						</div>
 					</div>
+
+					<section className="rounded-[1.5rem] border border-black/5 bg-white/80 p-5 shadow-lg sm:rounded-[2rem] sm:p-7">
+						<h2 className="text-xl font-black text-slate-900">Maintenance schedule</h2>
+						<p className="mt-1 text-sm text-slate-600">Blocked dates will be unavailable to customers when they make a reservation.</p>
+						{maintenanceError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{maintenanceError}</p>}
+						<form onSubmit={addMaintenance} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+							<label className="form-control">
+								<span className="label-text mb-1">Start date</span>
+								<input type="date" className="input input-bordered" value={maintenanceStart} onChange={(event) => setMaintenanceStart(event.target.value)} required />
+							</label>
+							<label className="form-control">
+								<span className="label-text mb-1">End date</span>
+								<input type="date" min={maintenanceStart || undefined} className="input input-bordered" value={maintenanceEnd} onChange={(event) => setMaintenanceEnd(event.target.value)} required />
+							</label>
+							<label className="form-control lg:col-span-1">
+								<span className="label-text mb-1">Reason (optional)</span>
+								<input type="text" maxLength={300} className="input input-bordered" value={maintenanceReason} onChange={(event) => setMaintenanceReason(event.target.value)} placeholder="e.g. Pool cleaning" />
+							</label>
+							<div className="flex items-end">
+								<button type="submit" disabled={maintenanceLoading} className="btn btn-black w-full rounded-full">
+									{maintenanceLoading ? "Saving..." : "Block dates"}
+								</button>
+							</div>
+						</form>
+						{maintenancePeriods.length > 0 && (
+							<ul className="mt-4 divide-y divide-slate-200">
+								{maintenancePeriods.map((period) => (
+									<li key={period.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+										<span className="font-semibold text-slate-800">
+											{period.start_date} – {period.end_date}{period.reason ? ` · ${period.reason}` : ""}
+										</span>
+										<button type="button" onClick={() => deleteMaintenance(period)} className="btn btn-error btn-outline btn-xs rounded-full">Remove</button>
+									</li>
+								))}
+							</ul>
+						)}
+					</section>
 
 					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 						{loading ? (
@@ -275,12 +357,15 @@ const ManageReservations = () => {
 													<FiCheckCircle /> Accept
 												</button>
 												<button
-													onClick={() => updateStatus(res.id, "denied")}
+													onClick={() => {
+														setDenyingReservationId(res.id);
+														setRejectionReason("");
+													}}
 													disabled={updatingReservationId !== null || res.status !== "pending"}
 													className="btn btn-sm rounded-full btn-error btn-outline"
-													title="Deny reservation"
+													title="Reject reservation"
 												>
-													<FiXCircle /> Deny
+													<FiXCircle /> Reject
 												</button>
 												<button
 													onClick={() => updateStatus(res.id, "cancelled")}
@@ -291,14 +376,6 @@ const ManageReservations = () => {
 													<FiXCircle /> Cancel
 												</button>
 
-												<button
-													onClick={() => deleteReservation(res.id)}
-													className="btn btn-sm btn-circle btn-ghost text-error text-xl"
-													title="Delete"
-													aria-label={`Delete reservation for ${reservationGuestName(res)}`}
-												>
-													<FiTrash2 />
-												</button>
 											</div>}
 										</div>
 									</div>
@@ -308,6 +385,21 @@ const ManageReservations = () => {
 					</div>
 				</div>
 			</div>
+			{denyingReservationId && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+					<form onSubmit={submitRejection} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="reject-reservation-title">
+						<h2 id="reject-reservation-title" className="text-xl font-black text-slate-900">Reject reservation</h2>
+						<p className="mt-2 text-sm text-slate-600">Add an optional reason. If provided, it will be included in the customer’s notification and email.</p>
+						<label htmlFor="rejection-reason" className="mt-4 block text-sm font-semibold text-slate-800">Reason (optional)</label>
+						<textarea id="rejection-reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={300} rows={4} className="textarea textarea-bordered mt-2 w-full" placeholder="Explain why the reservation was rejected" />
+						<p className="mt-1 text-right text-xs text-slate-500">{rejectionReason.length}/300</p>
+						<div className="mt-4 flex justify-end gap-2">
+							<button type="button" onClick={() => setDenyingReservationId(null)} className="btn btn-ghost rounded-full">Keep reservation</button>
+							<button type="submit" disabled={updatingReservationId !== null} className="btn btn-error rounded-full">Reject reservation</button>
+						</div>
+					</form>
+				</div>
+			)}
 		</MainLayout>
 	);
 };

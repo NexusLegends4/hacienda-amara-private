@@ -282,6 +282,9 @@ const EditProfile = () => {
 									label="First name"
 									type="text"
 									defaultValue={profile?.firstname}
+									autoComplete="given-name"
+									maxLength={80}
+									required
 								/>
 								<Input
 									name="lastname"
@@ -289,6 +292,9 @@ const EditProfile = () => {
 									label="Last name"
 									type="text"
 									defaultValue={profile?.lastname}
+									autoComplete="family-name"
+									maxLength={80}
+									required
 								/>
 							</div>
 
@@ -306,6 +312,9 @@ const EditProfile = () => {
 								label="Contact Number"
 								type="tel"
 								defaultValue={profile?.contact_number}
+								autoComplete="tel"
+								maxLength={20}
+								required
 							/>
 
 							<div className="rounded-2xl bg-base-200/80 px-4 py-4 text-sm leading-6 text-base-content/70">

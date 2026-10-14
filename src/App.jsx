@@ -235,6 +235,23 @@ function App() {
 		};
 	}, [session, profile, location.pathname, navigate]);
 
+	useEffect(() => {
+		if (
+			!session ||
+			profile?.role !== "client" ||
+			["/log-in", "/auth/callback", "/reset-password", "/edit-profile"].includes(location.pathname)
+		) {
+			return;
+		}
+
+		const profileNeedsDetails = !profile.firstname?.trim()
+			|| !profile.lastname?.trim()
+			|| !profile.contact_number?.trim();
+		if (profileNeedsDetails) {
+			navigate("/edit-profile", { replace: true });
+		}
+	}, [session, profile, location.pathname, navigate]);
+
 	// Profile
 	useEffect(() => {
 		if (!session || session.user.is_anonymous) return;

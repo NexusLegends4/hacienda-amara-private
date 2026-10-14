@@ -53,9 +53,12 @@ export async function POST(request) {
 		return Response.json({ error: "Invalid request body." }, { status: 400 });
 	}
 
-	const { name, email, status, roomType, checkIn } = body || {};
+	const { name, email, status, roomType, checkIn, rejectionReason } = body || {};
 	if (!name || !email || !allowedStatuses.has(status) || !roomType || !checkIn) {
 		return Response.json({ error: "Missing or invalid reservation details." }, { status: 400 });
+	}
+	if (typeof rejectionReason !== "undefined" && (typeof rejectionReason !== "string" || rejectionReason.length > 300)) {
+		return Response.json({ error: "Rejection reason must be 300 characters or fewer." }, { status: 400 });
 	}
 
 	if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
@@ -74,7 +77,7 @@ export async function POST(request) {
 		},
 		denied: {
 			subject: "Your Hacienda Amara reservation was denied",
-			message: `Your reservation request for ${roomType} on ${checkIn} was denied. Please contact Hacienda Amara for assistance.`,
+			message: `Your reservation request for ${roomType} on ${checkIn} was denied.${rejectionReason?.trim() ? ` Reason: ${rejectionReason.trim()}` : " Please contact Hacienda Amara for assistance."}`,
 		},
 		cancelled: {
 			subject: "Your Hacienda Amara reservation was cancelled",

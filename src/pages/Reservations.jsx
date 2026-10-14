@@ -18,6 +18,11 @@ const isWeekendOrHoliday = (dateStr) => {
 };
 
 const isPhilippinePhoneNumber = (phone) => /^(?:09\d{9}|639\d{9})$/.test(phone);
+const dateKey = (date) => [
+	date.getFullYear(),
+	String(date.getMonth() + 1).padStart(2, "0"),
+	String(date.getDate()).padStart(2, "0"),
+].join("-");
 
 const Reservations = () => {
 	const { profile } = useContext(SessionContext);
@@ -32,6 +37,13 @@ const Reservations = () => {
 	const [selectedPackageId, setSelectedPackageId] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [reservedBookings, setReservedBookings] = useState([]);
+	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
+	const [availabilityLoading, setAvailabilityLoading] = useState(true);
+	const [availabilityError, setAvailabilityError] = useState("");
+	const [calendarMonth, setCalendarMonth] = useState(() => {
+		const today = new Date();
+		return new Date(today.getFullYear(), today.getMonth(), 1);
+	});
 	const [reservationConflict, setReservationConflict] = useState(false);
 	const [cancelDate, setCancelDate] = useState("");
 	const [cancelEmail, setCancelEmail] = useState(null);
@@ -74,13 +86,31 @@ const Reservations = () => {
 	}, []);
 
 	useEffect(() => {
-		const loadReservedDates = async () => {
-			const { data, error } = await supabase.rpc("get_reserved_date_ranges");
-
-			if (!error) setReservedBookings(data || []);
+		let cancelled = false;
+		const loadAvailability = async () => {
+			const [bookingsResult, maintenanceResult] = await Promise.all([
+				supabase.rpc("get_reserved_date_ranges"),
+				supabase.rpc("get_reservation_maintenance"),
+			]);
+			if (cancelled) return;
+			if (bookingsResult.error || maintenanceResult.error) {
+				console.error("Unable to load reservation availability:", bookingsResult.error || maintenanceResult.error);
+				setAvailabilityError("Availability could not be loaded. Refresh before submitting a reservation.");
+				setAvailabilityLoading(false);
+				return;
+			}
+			setAvailabilityError("");
+			setReservedBookings(bookingsResult.data || []);
+			setMaintenancePeriods(maintenanceResult.data || []);
+			setAvailabilityLoading(false);
 		};
 
-		loadReservedDates();
+		void loadAvailability();
+		const refreshTimer = window.setInterval(loadAvailability, 60_000);
+		return () => {
+			cancelled = true;
+			window.clearInterval(refreshTimer);
+		};
 	}, []);
 
 	const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId) || packages[0] || null;
@@ -119,7 +149,6 @@ const Reservations = () => {
 			return existingInterval && selectedInterval.start < existingInterval.end && selectedInterval.end > existingInterval.start;
 		});
 	})() : false;
-
 	const pricing = useMemo(() => {
 		if (!date || !selectedPackage) return 0;
 		const extraGuests = Math.max(0, guests - Number(selectedPackage.max_guests || 20));
@@ -142,9 +171,52 @@ const Reservations = () => {
 		].join("-");
 	})() : null;
 
+	const isDateInMaintenance = Boolean(date && maintenancePeriods.some((period) =>
+		date <= period.end_date && (checkOutDate || date) >= period.start_date,
+	));
+	const isDateUnavailable = isDateReserved || isDateInMaintenance;
+	const isCalendarDateUnavailable = (dateString) => {
+		if (!selectedPackage) {
+			return maintenancePeriods.some((period) => dateString >= period.start_date && dateString <= period.end_date);
+		}
+		const requestedInterval = getBookingInterval(dateString, selectedPackage.name);
+		if (!requestedInterval) return false;
+		const requestedEndDate = dateKey(new Date(
+			requestedInterval.end.getFullYear(),
+			requestedInterval.end.getMonth(),
+			requestedInterval.end.getDate(),
+		));
+		if (maintenancePeriods.some((period) =>
+			dateString <= period.end_date && requestedEndDate >= period.start_date,
+		)) {
+			return true;
+		}
+		return reservedBookings.some((reservation) => {
+			const existingInterval = getBookingInterval(reservation.check_in, reservation.room_type);
+			return existingInterval
+				&& requestedInterval.start < existingInterval.end
+				&& requestedInterval.end > existingInterval.start;
+		});
+	};
+	const calendarDays = (() => {
+		const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
+		const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+		return [
+			...Array.from({ length: firstDay }, (_, index) => ({ key: `empty-${index}` })),
+			...Array.from({ length: daysInMonth }, (_, index) => {
+				const day = index + 1;
+				const value = dateKey(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day));
+				return { key: value, day, value, unavailable: isCalendarDateUnavailable(value) };
+			}),
+		];
+	})();
+	const todayDate = dateKey(new Date());
+
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (pricing <= 0 || isDateReserved) { alert("Please select an available date."); return; }
+		if (availabilityLoading) { alert("Checking availability. Please wait a moment."); return; }
+		if (availabilityError) { alert(availabilityError); return; }
+		if (pricing <= 0 || isDateUnavailable) { alert("Please select an available date."); return; }
 		if (!isPhilippinePhoneNumber(bookingPhone.trim())) {
 			alert("Please enter a valid Philippine mobile number: 09XXXXXXXXX or 639XXXXXXXXX.");
 			return;
@@ -250,9 +322,60 @@ const Reservations = () => {
 								<div className="pt-4">
 									<div className="form-control">
 										<label className="label-text font-bold mb-2 flex items-center gap-2"><FiCalendar /> Select Date</label>
-										<input type="date" className="input input-bordered rounded-2xl px-4" value={date} onChange={e => setDate(e.target.value)} required min={new Date().toISOString().split("T")[0]} />
+										<input type="date" className="input input-bordered rounded-2xl px-4" value={date} onChange={e => setDate(e.target.value)} required min={todayDate} />
 										{isDateReserved && <p className="mt-1 text-xs font-bold text-error">This date is already reserved. Choose another date.</p>}
+										{isDateInMaintenance && <p className="mt-1 text-xs font-bold text-error">This date is blocked for maintenance. Choose another date.</p>}
 										{reservationConflict && <p className="mt-1 text-xs font-bold text-error">The selected schedule is unavailable. Please choose another date.</p>}
+										{availabilityLoading && <p role="status" className="mt-1 text-xs text-slate-600">Checking reservation availability…</p>}
+										{availabilityError && <p role="alert" className="mt-1 text-xs font-bold text-error">{availabilityError}</p>}
+										<div className="mt-4 rounded-2xl border border-black/10 bg-white/80 p-4">
+											<div className="mb-3 flex items-center justify-between gap-2">
+												<button
+													type="button"
+													onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+													className="btn btn-ghost btn-sm btn-circle"
+													aria-label="Previous month"
+												>‹</button>
+												<p className="font-bold text-slate-900">
+													{calendarMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+												</p>
+												<button
+													type="button"
+													onClick={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+													className="btn btn-ghost btn-sm btn-circle"
+													aria-label="Next month"
+												>›</button>
+											</div>
+											<div className="grid grid-cols-7 gap-1 text-center">
+												{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+													<span key={dayName} className="py-1 text-[0.65rem] font-bold uppercase text-slate-500">{dayName}</span>
+												))}
+												{calendarDays.map((calendarDay) => calendarDay.day ? (
+													<button
+														key={calendarDay.key}
+														type="button"
+														disabled={availabilityLoading || calendarDay.value < todayDate || calendarDay.unavailable || Boolean(availabilityError)}
+														onClick={() => {
+															setDate(calendarDay.value);
+															setReservationConflict(false);
+														}}
+														aria-label={`${calendarDay.value}${calendarDay.unavailable ? ", unavailable" : ", available"}`}
+														aria-pressed={date === calendarDay.value}
+														className={`aspect-square rounded-lg text-sm font-semibold transition ${
+															calendarDay.value < todayDate || calendarDay.unavailable
+																? "cursor-not-allowed bg-slate-200 text-slate-400 line-through"
+																: date === calendarDay.value
+																	? "bg-emerald-700 text-white"
+																	: "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+														}`}
+													>{calendarDay.day}</button>
+												) : <span key={calendarDay.key} />)}
+											</div>
+											<div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+												<span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-100" />Available</span>
+												<span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-slate-300" />Booked / maintenance</span>
+											</div>
+										</div>
 										{date && (
 											<p className={`mt-1 text-xs font-bold ${isExpensive ? "text-rose-600" : "text-emerald-600"}`}>
 												{isExpensive ? "Weekend / Holiday rate applies" : "Weekday rate applies (including February 25)"}
@@ -329,7 +452,7 @@ const Reservations = () => {
 										<span className="text-3xl font-black">{pricing > 0 ? `₱${pricing.toLocaleString()}` : "—"}</span>
 									</div>
 								</div>
-								<button disabled={loading || pricing === 0 || isDateReserved} className="btn btn-black w-full rounded-full h-14 mt-6">
+								<button disabled={loading || availabilityLoading || pricing === 0 || isDateUnavailable || Boolean(availabilityError)} className="btn btn-black w-full rounded-full h-14 mt-6">
 									{loading ? <span className="loading loading-spinner"></span> : <><FiCheckCircle /> Confirm Reservation</>}
 								</button>
 							</div>
