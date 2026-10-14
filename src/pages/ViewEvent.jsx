@@ -201,7 +201,7 @@ const ViewEvent = () => {
 
 						<div className="mt-8 flex flex-wrap justify-end gap-3">
 							{!registered && profile?.role !== "admin" && profile?.role !== "staff" && (
-								<button onClick={() => setShowSignInForm(true)} disabled={registering} className="btn btn-primary rounded-full">
+								<button onClick={() => setShowSignInForm(true)} disabled={registering} className="btn btn-outline border-emerald-700 bg-transparent text-emerald-800 rounded-full hover:bg-emerald-50 hover:text-emerald-900">
 									Sign In to Event
 								</button>
 							)}

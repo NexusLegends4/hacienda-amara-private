@@ -133,7 +133,7 @@ const EventCard = ({ event, setEvents, formatDate, formatTime }) => {
 						<Link
 							to={`/view-event/${event.id}`}
 							onClick={(clickEvent) => clickEvent.stopPropagation()}
-							className="btn btn-primary rounded-full text-sm font-medium group flex items-center gap-1.5"
+							className="btn btn-outline border-emerald-700 bg-transparent text-emerald-800 rounded-full text-sm font-medium group flex items-center gap-1.5 hover:bg-emerald-50 hover:text-emerald-900"
 						>
 							View Details
 						</Link>

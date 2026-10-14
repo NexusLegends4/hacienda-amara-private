@@ -71,7 +71,7 @@ const Events = () => {
 							<p className="mt-2 text-sm sm:text-base text-base-content/70 max-w-2xl">Join our community events and special occasions at Hacienda Amara.</p>
 						</div>
 						{profile?.role === "admin" && (
-							<Link to="/add-event" className="btn btn-primary w-full rounded-full sm:w-auto">
+							<Link to="/add-event" className="btn btn-outline border-emerald-700 bg-transparent text-emerald-800 w-full rounded-full sm:w-auto hover:bg-emerald-50 hover:text-emerald-900">
 								<span aria-hidden="true">+</span>
 								Create Event
 							</Link>
