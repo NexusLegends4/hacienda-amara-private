@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import EventCard from "../components/EventCard";
 import { SessionContext } from "../contexts/SessionContext";
-import { FiCalendar, FiMapPin, FiClock, FiUsers, FiTag } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 const Events = () => {
 	const [events, setEvents] = useState([]);
@@ -64,10 +64,18 @@ const Events = () => {
 		<MainLayout>
 			<div className="px-3 sm:px-4 md:px-6 pt-4 sm:pt-6 pb-8">
 				<div className="mx-auto max-w-7xl">
-					<div className="mb-6 sm:mb-8">
-						<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">Available Events</p>
-						<h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">Upcoming Events</h1>
-						<p className="mt-2 text-sm sm:text-base text-base-content/70 max-w-2xl">Join our community events and special occasions at Hacienda Amara.</p>
+					<div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+						<div>
+							<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">Available Events</p>
+							<h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">Upcoming Events</h1>
+							<p className="mt-2 text-sm sm:text-base text-base-content/70 max-w-2xl">Join our community events and special occasions at Hacienda Amara.</p>
+						</div>
+						{profile?.role === "admin" && (
+							<Link to="/add-event" className="btn btn-primary w-full rounded-full sm:w-auto">
+								<span aria-hidden="true">+</span>
+								Create Event
+							</Link>
+						)}
 					</div>
 					{loadError ? (
 						<div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-red-800">
