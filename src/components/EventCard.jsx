@@ -1,4 +1,5 @@
-import React, { useNavigate } from "react";
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Card from "./Card";
 import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
@@ -129,9 +130,13 @@ const EventCard = ({ event, setEvents, formatDate, formatTime }) => {
 					</div>
 
 					<div className="flex items-center justify-between pt-2 border-t border-base-200">
-						<span className="btn btn-primary rounded-full text-sm font-medium group flex items-center gap-1.5 cursor-pointer">
+						<Link
+							to={`/view-event/${event.id}`}
+							onClick={(clickEvent) => clickEvent.stopPropagation()}
+							className="btn btn-primary rounded-full text-sm font-medium group flex items-center gap-1.5"
+						>
 							View Details
-						</span>
+						</Link>
 
 						{isAdmin && (
 							<button

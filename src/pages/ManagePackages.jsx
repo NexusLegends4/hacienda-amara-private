@@ -4,6 +4,7 @@ import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiPlus, FiTrash2, FiEdit2, FiDollarSign, FiClock, FiUsers, FiArrowUp, FiArrowDown, FiArrowRight, FiSave, FiX } from "react-icons/fi";
+import { MAX_PACKAGE_PRICE, validatePackagePricing } from "../utils/package-validation";
 
 const DURATION_OPTIONS = [
     { value: 9, label: "Day Time (9 hrs - 9AM-6PM)" },
@@ -12,6 +13,7 @@ const DURATION_OPTIONS = [
     { value: 12, label: "Half Day (12 hrs)" },
     { value: 24, label: "Full Day (24 hrs)" },
 ];
+const MAX_GUESTS = 1000;
 
 const ManagePackages = () => {
     const { profile } = useContext(SessionContext);
@@ -57,7 +59,8 @@ const ManagePackages = () => {
             navigate("/");
             return;
         }
-        fetchPackages();
+        const loadTimer = window.setTimeout(() => fetchPackages(), 0);
+        return () => window.clearTimeout(loadTimer);
     }, [profile, navigate, fetchPackages]);
 
     const handleChange = (e) => {
@@ -68,7 +71,7 @@ const ManagePackages = () => {
                 features: value.split(',').map(f => f.trim()).filter(f => f)
             }));
         } else if (type === 'number') {
-            setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+            setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
         } else if (type === 'checkbox') {
             setFormData(prev => ({ ...prev, [name]: e.target.checked }));
         } else {
@@ -78,6 +81,13 @@ const ManagePackages = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const validationError = validatePackagePricing(formData);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+        if (saving) return;
+        setSaving(true);
         const payload = { ...formData };
         payload.base_price = parseFloat(payload.base_price) || 0;
         payload.min_price = parseFloat(payload.min_price) || 0;
@@ -87,17 +97,21 @@ const ManagePackages = () => {
         payload.additional_guest_price = parseFloat(payload.additional_guest_price) || 0;
         payload.display_order = parseInt(payload.display_order) || 0;
 
+        let error;
         if (editingId) {
-            const { error } = await supabase
+            ({ error } = await supabase
                 .from("packages")
                 .update(payload)
-                .eq("id", editingId);
-            if (error) alert(error.message);
+                .eq("id", editingId));
         } else {
-            const { error } = await supabase
+            ({ error } = await supabase
                 .from("packages")
-                .insert(payload);
-            if (error) alert(error.message);
+                .insert(payload));
+        }
+        setSaving(false);
+        if (error) {
+            alert(error.message);
+            return;
         }
         setEditingId(null);
         resetForm();
@@ -137,6 +151,12 @@ const ManagePackages = () => {
 
     const handleSaveEdit = async (id) => {
         if (!editData) return;
+        const validationError = validatePackagePricing(editData);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+        if (saving) return;
         setSaving(true);
         const payload = {
             ...editData,
@@ -262,15 +282,15 @@ const ManagePackages = () => {
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Base Price (₱)</span></label>
-                                    <input type="number" name="base_price" step="1" className="input input-bordered w-full" value={formData.base_price} onChange={handleChange} required />
+                                    <input type="number" name="base_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.base_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Min Price (₱)</span></label>
-                                    <input type="number" name="min_price" step="1" className="input input-bordered w-full" value={formData.min_price} onChange={handleChange} required />
+                                    <input type="number" name="min_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.min_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Max Price (₱)</span></label>
-                                    <input type="number" name="max_price" step="1" className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
+                                    <input type="number" name="max_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Duration</span></label>
@@ -296,11 +316,11 @@ const ManagePackages = () => {
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Max Guests</span></label>
-                                    <input type="number" name="max_guests" className="input input-bordered w-full" value={formData.max_guests} onChange={handleChange} required />
+                                    <input type="number" name="max_guests" min="1" max={MAX_GUESTS} className="input input-bordered w-full" value={formData.max_guests} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control">
                                     <label className="label"><span className="label-text">Additional Guest Price (₱)</span></label>
-                                    <input type="number" name="additional_guest_price" step="1" className="input input-bordered w-full" value={formData.additional_guest_price} onChange={handleChange} required />
+                                    <input type="number" name="additional_guest_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.additional_guest_price} onChange={handleChange} required />
                                 </div>
                                 <div className="form-control md:col-span-2 lg:col-span-3">
                                     <label className="label"><span className="label-text">Features (comma separated)</span></label>
@@ -361,8 +381,8 @@ const ManagePackages = () => {
                                                             <td><input type="text" name="name" value={editData.name} onChange={handleEditChange} className="input input-bordered input-sm w-full" required /></td>
                                                             <td>
                                                                 <div className="flex flex-col gap-1">
-                                                                    <input type="number" name="min_price" value={editData.min_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Min" />
-                                                                    <input type="number" name="max_price" value={editData.max_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Max" />
+                                                                    <input type="number" name="min_price" value={editData.min_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Min" step="1" min="0" max={MAX_PACKAGE_PRICE} required />
+                                                                    <input type="number" name="max_price" value={editData.max_price} onChange={handleEditChange} className="input input-bordered input-sm w-28" placeholder="Max" step="1" min="0" max={MAX_PACKAGE_PRICE} required />
                                                                 </div>
                                                             </td>
                                                             <td>

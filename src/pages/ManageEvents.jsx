@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../utils/supabase";
@@ -10,13 +10,13 @@ const ManageEvents = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 
-	const fetchEvents = async () => {
+	const fetchEvents = useCallback(async () => {
 		const { data: eventsData, error: eventsError } = await supabase
 			.from("events")
 			.select();
 		if (eventsError) alert(eventsError.message || eventsError);
 		if (eventsData) setEvents(eventsData);
-	};
+	}, []);
 
 	useEffect(() => {
 		if (!session) {
@@ -27,7 +27,8 @@ const ManageEvents = () => {
 			navigate("/");
 			return;
 		}
-		fetchEvents();
+		const loadTimer = window.setTimeout(() => fetchEvents(), 0);
+		return () => window.clearTimeout(loadTimer);
 	}, [session, profile, navigate, fetchEvents]);
 
 	return (

@@ -2,6 +2,35 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.1-8b-instant";
+const CHAT_RATE_WINDOW_MS = 60_000;
+const CHAT_RATE_LIMIT = 10;
+const MAX_REQUEST_BYTES = 16_384;
+const MAX_MESSAGE_LENGTH = 1_200;
+const requestTimestampsByIp = new Map();
+
+function isRateLimited(request) {
+	const now = Date.now();
+	const forwardedIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+	const clientIp = forwardedIp || request.headers.get("x-real-ip") || "unknown";
+	const timestamps = (requestTimestampsByIp.get(clientIp) || [])
+		.filter((timestamp) => now - timestamp < CHAT_RATE_WINDOW_MS);
+
+	if (timestamps.length >= CHAT_RATE_LIMIT) {
+		requestTimestampsByIp.set(clientIp, timestamps);
+		return true;
+	}
+
+	timestamps.push(now);
+	requestTimestampsByIp.set(clientIp, timestamps);
+	if (requestTimestampsByIp.size > 1000) {
+		for (const [ip, entries] of requestTimestampsByIp) {
+			if (!entries.some((timestamp) => now - timestamp < CHAT_RATE_WINDOW_MS)) {
+				requestTimestampsByIp.delete(ip);
+			}
+		}
+	}
+	return false;
+}
 
 // Inappropriate words filter (English + Tagalog)
 const INAPPROPRIATE_WORDS = [
@@ -179,6 +208,17 @@ const getTextFromMessages = (messages = []) => {
 };
 
 export async function POST(request) {
+	const contentLength = Number(request.headers.get("content-length") || 0);
+	if (contentLength > MAX_REQUEST_BYTES) {
+		return Response.json({ error: "Chat request is too large." }, { status: 413 });
+	}
+	if (isRateLimited(request)) {
+		return Response.json(
+			{ error: "Too many chat requests. Please wait a minute before trying again." },
+			{ status: 429, headers: { "Retry-After": "60" } }
+		);
+	}
+
 	let body;
 
 	try {
@@ -187,8 +227,14 @@ export async function POST(request) {
 		return Response.json({ error: "Invalid request body." }, { status: 400 });
 	}
 
-	const messages = body?.messages ?? [];
+	const messages = body?.messages;
+	if (!Array.isArray(messages) || messages.length === 0 || messages.length > 12) {
+		return Response.json({ error: "Invalid chat message history." }, { status: 400 });
+	}
 	const userText = getTextFromMessages(messages);
+	if (!userText || userText.length > MAX_MESSAGE_LENGTH) {
+		return Response.json({ error: "Message must be between 1 and 1,200 characters." }, { status: 400 });
+	}
 
 	// Check inappropriate words first
 	if (containsInappropriate(userText)) {
@@ -221,14 +267,14 @@ export async function POST(request) {
 
 				const reader = stream.getReader();
 				const decoder = new TextDecoder();
+				let pending = "";
 
 				try {
 					while (true) {
 						const { done, value } = await reader.read();
-						if (done) break;
-
-						const chunk = decoder.decode(value, { stream: true });
-						const lines = chunk.split("\n").filter(line => line.trim());
+						pending += decoder.decode(value || new Uint8Array(), { stream: !done });
+						const lines = pending.split(/\r?\n/);
+						pending = done ? "" : lines.pop() || "";
 
 						for (const line of lines) {
 							if (line.startsWith("data: ")) {
@@ -246,6 +292,7 @@ export async function POST(request) {
 								}
 							}
 						}
+						if (done) break;
 					}
 				} finally {
 					writer.write({ type: "text-end", id: textId });

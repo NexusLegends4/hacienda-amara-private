@@ -1,70 +1,144 @@
-import { defineConfig } from "vite";
+import { Buffer } from "node:buffer";
+import process from "node:process";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const localAiChatApi = {
+	name: "local-ai-chat-api",
+	configureServer(server) {
+		server.middlewares.use("/api/ai-chat", async (request, response) => {
+			if (request.method !== "POST") {
+				response.statusCode = 405;
+				response.setHeader("Allow", "POST");
+				response.end(JSON.stringify({ error: "Method not allowed." }));
+				return;
+			}
+
+			try {
+				const chunks = [];
+				let requestBytes = 0;
+				for await (const chunk of request) {
+					requestBytes += chunk.length;
+					if (requestBytes <= 16_384) chunks.push(chunk);
+				}
+				if (requestBytes > 16_384) {
+					response.statusCode = 413;
+					response.end(JSON.stringify({ error: "Chat request is too large." }));
+					return;
+				}
+
+				const headers = new Headers();
+				for (const name of ["content-type", "content-length", "x-forwarded-for", "x-real-ip"]) {
+					const value = request.headers[name];
+					if (typeof value === "string") headers.set(name, value);
+				}
+				const apiRequest = new Request(`http://${request.headers.host || "localhost"}${request.url}`, {
+					method: "POST",
+					headers,
+					body: Buffer.concat(chunks),
+				});
+				const { POST } = await import("./api/ai-chat.js");
+				const apiResponse = await POST(apiRequest);
+				response.statusCode = apiResponse.status;
+				apiResponse.headers.forEach((value, name) => response.setHeader(name, value));
+
+				const reader = apiResponse.body?.getReader();
+				if (!reader) {
+					response.end();
+					return;
+				}
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					response.write(Buffer.from(value));
+				}
+				response.end();
+			} catch (error) {
+				console.error("Local AI chat API failed:", error);
+				if (!response.headersSent) {
+					response.statusCode = 500;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "AI chat is temporarily unavailable." }));
+				} else {
+					response.end();
+				}
+			}
+		});
+	},
+};
+
 // https://vite.dev/config/
-export default defineConfig({
-	plugins: [
-		react(),
-		tailwindcss(),
-		VitePWA({
-			registerType: "autoUpdate",
-			includeAssets: ["favicon.svg", "icons.svg"],
-			manifest: {
-				name: "Hacienda Amara",
-				short_name: "Hacienda Amara",
-				description:
-					"Hacienda Amara Private Resort and Events Place — Book events, manage reservations, and stay connected.",
-				theme_color: "#1a1a2e",
-				background_color: "#ffffff",
-				display: "standalone",
-				scope: "/",
-				start_url: "/",
-				orientation: "portrait",
-				icons: [
-					{
-						src: "pwa-192x192.png",
-						sizes: "192x192",
-						type: "image/png",
-					},
-					{
-						src: "pwa-512x512.png",
-						sizes: "512x512",
-						type: "image/png",
-					},
-					{
-						src: "pwa-512x512.png",
-						sizes: "512x512",
-						type: "image/png",
-						purpose: "any maskable",
-					},
-				],
-			},
-			workbox: {
-				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
-				runtimeCaching: [
-					{
-						urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-						handler: "NetworkFirst",
-						options: {
-							cacheName: "supabase-cache",
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 60 * 60 * 24,
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, process.cwd(), "");
+	if (!process.env.GROQ_API_KEY && env.GROQ_API_KEY) {
+		process.env.GROQ_API_KEY = env.GROQ_API_KEY;
+	}
+
+	return {
+		plugins: [
+			react(),
+			tailwindcss(),
+			localAiChatApi,
+			VitePWA({
+				registerType: "autoUpdate",
+				includeAssets: ["favicon.svg", "icons.svg"],
+				manifest: {
+					name: "Hacienda Amara",
+					short_name: "Hacienda Amara",
+					description:
+						"Hacienda Amara Private Resort and Events Place — Book events, manage reservations, and stay connected.",
+					theme_color: "#1a1a2e",
+					background_color: "#ffffff",
+					display: "standalone",
+					scope: "/",
+					start_url: "/",
+					orientation: "portrait",
+					icons: [
+						{
+							src: "pwa-192x192.png",
+							sizes: "192x192",
+							type: "image/png",
+						},
+						{
+							src: "pwa-512x512.png",
+							sizes: "512x512",
+							type: "image/png",
+						},
+						{
+							src: "pwa-512x512.png",
+							sizes: "512x512",
+							type: "image/png",
+							purpose: "any maskable",
+						},
+					],
+				},
+				workbox: {
+					globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
+					runtimeCaching: [
+						{
+							urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+							handler: "NetworkFirst",
+							options: {
+								cacheName: "supabase-cache",
+								expiration: {
+									maxEntries: 50,
+									maxAgeSeconds: 60 * 60 * 24,
+								},
 							},
 						},
-					},
-				],
-			},
-		}),
-	],
-	server: {
-		host: "0.0.0.0",
-		port: 5173,
-	},
-	preview: {
-		host: "0.0.0.0",
-		port: 4173,
-	},
+					],
+				},
+			}),
+		],
+		server: {
+			host: "0.0.0.0",
+			port: 5173,
+		},
+		preview: {
+			host: "0.0.0.0",
+			port: 4173,
+		},
+	};
 });

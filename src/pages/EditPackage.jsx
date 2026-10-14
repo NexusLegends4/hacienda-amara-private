@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { FiEdit2, FiArrowRight } from "react-icons/fi";
+import { MAX_PACKAGE_PRICE, validatePackagePricing } from "../utils/package-validation";
 
 const emptyForm = {
     name: "",
@@ -25,14 +26,11 @@ const EditPackage = () => {
     const { packageId } = useParams();
     const navigate = useNavigate();
     const { session, profile } = useContext(SessionContext);
-    const [packageData, setPackageData] = useState(null);
     const [packagesList, setPackagesList] = useState([]);
     const [formData, setFormData] = useState(emptyForm);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [loadError, setLoadError] = useState("");
-
-    const isAdmin = session && profile?.role === "admin";
 
     const loadPackage = async (id) => {
         setLoading(true);
@@ -45,9 +43,7 @@ const EditPackage = () => {
 
         if (error) {
             setLoadError(error.message);
-            setPackageData(null);
         } else {
-            setPackageData(data);
             setFormData({
                 name: data.name || "",
                 description: data.description || "",
@@ -91,11 +87,11 @@ const EditPackage = () => {
             navigate("/", { replace: true });
             return;
         }
-        if (packageId) {
-            loadPackage(packageId);
-        } else {
-            loadPackagesList();
-        }
+        const loadTimer = window.setTimeout(() => {
+            if (packageId) loadPackage(packageId);
+            else loadPackagesList();
+        }, 0);
+        return () => window.clearTimeout(loadTimer);
     }, [packageId, session, profile, navigate]);
 
     const handleChange = (event) => {
@@ -113,6 +109,12 @@ const EditPackage = () => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         if (!packageId) return;
+        const validationError = validatePackagePricing(formData);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+        if (saving) return;
 
         const payload = {
             ...formData,
@@ -278,15 +280,15 @@ const EditPackage = () => {
                             </div>
                             <div className="form-control">
                                 <label className="label"><span className="label-text">Base Price (₱)</span></label>
-                                <input type="number" name="base_price" step="1" min="0" className="input input-bordered w-full" value={formData.base_price} onChange={handleChange} required />
+                                <input type="number" name="base_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.base_price} onChange={handleChange} required />
                             </div>
                             <div className="form-control">
                                 <label className="label"><span className="label-text">Min Price (₱)</span></label>
-                                <input type="number" name="min_price" step="1" min="0" className="input input-bordered w-full" value={formData.min_price} onChange={handleChange} required />
+                                <input type="number" name="min_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.min_price} onChange={handleChange} required />
                             </div>
                             <div className="form-control">
                                 <label className="label"><span className="label-text">Max Price (₱)</span></label>
-                                <input type="number" name="max_price" step="1" min="0" className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
+                                <input type="number" name="max_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.max_price} onChange={handleChange} required />
                             </div>
                             <div className="form-control">
                                 <label className="label"><span className="label-text">Duration (Hours)</span></label>
@@ -306,7 +308,7 @@ const EditPackage = () => {
                             </div>
                             <div className="form-control">
                                 <label className="label"><span className="label-text">Additional Guest Price (₱)</span></label>
-                                <input type="number" name="additional_guest_price" step="1" min="0" className="input input-bordered w-full" value={formData.additional_guest_price} onChange={handleChange} required />
+                                <input type="number" name="additional_guest_price" step="1" min="0" max={MAX_PACKAGE_PRICE} className="input input-bordered w-full" value={formData.additional_guest_price} onChange={handleChange} required />
                             </div>
                             <div className="form-control md:col-span-2 lg:col-span-3">
                                 <label className="label"><span className="label-text">Features (comma separated)</span></label>

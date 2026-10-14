@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import EventCard from "../components/EventCard";
@@ -8,28 +8,42 @@ import { FiCalendar, FiMapPin, FiClock, FiUsers, FiTag } from "react-icons/fi";
 const Events = () => {
 	const [events, setEvents] = useState([]);
 	const [registrations, setRegistrations] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState("");
 	const { profile } = useContext(SessionContext);
 
-	useEffect(() => {
-		const loadData = async () => {
-			// Fetch Events
-			const { data: eventsData, error: eventsError } = await supabase.from("events").select().order("start_date", { ascending: true });
-			if (eventsError) alert(eventsError.message || eventsError);
-			if (eventsData) setEvents(eventsData);
+	const loadData = useCallback(async () => {
+		setLoading(true);
+		setLoadError("");
+		const { data: eventsData, error: eventsError } = await supabase
+			.from("events")
+			.select()
+			.order("start_date", { ascending: true });
+		if (eventsError) {
+			console.error("Unable to load events:", eventsError);
+			setLoadError("Events could not be loaded. Check your connection and try again.");
+			setLoading(false);
+			return;
+		}
+		setEvents(eventsData || []);
 
-			// Fetch Registrations if user is logged in
-			if (profile) {
-				const { data: registrationsData, error: registrationsError } = await supabase
-					.from("registrations")
-					.select()
-					.eq("profile_id", profile?.id);
-				if (registrationsError) console.error(registrationsError.message);
-				if (registrationsData) setRegistrations(registrationsData);
-			}
-		};
-
-		loadData();
+		if (profile) {
+			const { data: registrationsData, error: registrationsError } = await supabase
+				.from("registrations")
+				.select()
+				.eq("profile_id", profile.id);
+			if (registrationsError) console.error("Unable to load event registrations:", registrationsError);
+			if (registrationsData) setRegistrations(registrationsData);
+		} else {
+			setRegistrations([]);
+		}
+		setLoading(false);
 	}, [profile]);
+
+	useEffect(() => {
+		const loadTimer = window.setTimeout(() => loadData(), 0);
+		return () => window.clearTimeout(loadTimer);
+	}, [loadData]);
 
 	const formatDate = (dateStr) => {
 		if (!dateStr) return "";
@@ -55,7 +69,16 @@ const Events = () => {
 						<h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">Upcoming Events</h1>
 						<p className="mt-2 text-sm sm:text-base text-base-content/70 max-w-2xl">Join our community events and special occasions at Hacienda Amara.</p>
 					</div>
-					{events?.length > 0 ? (
+					{loadError ? (
+						<div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-red-800">
+							<p>{loadError}</p>
+							<button type="button" onClick={loadData} className="btn btn-sm mt-3">Try again</button>
+						</div>
+					) : loading ? (
+						<div className="flex min-h-48 items-center justify-center" role="status" aria-label="Loading events">
+							<span className="loading loading-spinner loading-lg" />
+						</div>
+					) : events.length > 0 ? (
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
 							{events?.map((event) => (
 								<EventCard

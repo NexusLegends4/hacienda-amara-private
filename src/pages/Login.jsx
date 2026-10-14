@@ -578,14 +578,19 @@ const Login = () => {
           -mx-[50vw]
           w-screen
           min-h-screen
-          overflow-hidden
+          min-h-[100dvh]
+          overflow-x-hidden
+          overflow-y-auto
           flex
-          items-center
+          items-start
+          sm:items-center
           justify-center
           px-3
           sm:px-4
           md:px-6
           lg:px-8
+          py-4
+          sm:py-8
           bg-[#efeae1]
         "
       >
@@ -606,7 +611,6 @@ const Login = () => {
             max-w-[360px]
             sm:max-w-[420px]
             md:max-w-[470px]
-            max-h-full
             flex
             items-center
             justify-center
@@ -618,8 +622,6 @@ const Login = () => {
           <div
             className="
               w-full
-              max-h-[calc(100vh-120px)]
-              overflow-hidden
               rounded-[30px]
               border
               border-white/30
@@ -780,6 +782,7 @@ const Login = () => {
                         name="email"
                         placeholder="you@example.com"
                         autoComplete="email"
+                        maxLength={254}
                         required
                         className="w-full"
                       />
@@ -794,6 +797,7 @@ const Login = () => {
                         name="password"
                         placeholder="••••••••"
                         autoComplete="current-password"
+                        maxLength={128}
                         required
                         className="w-full"
                       />

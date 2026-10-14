@@ -348,13 +348,13 @@ const callAIChat = async (userMessage) => {
 		const reader = response.body.getReader();
 		const decoder = new TextDecoder();
 		let fullText = "";
+		let pending = "";
 
 		while (true) {
 			const { done, value } = await reader.read();
-			if (done) break;
-
-			const chunk = decoder.decode(value, { stream: true });
-			const lines = chunk.split("\n").filter(line => line.trim());
+			pending += decoder.decode(value || new Uint8Array(), { stream: !done });
+			const lines = pending.split(/\r?\n/);
+			pending = done ? "" : lines.pop() || "";
 
 			for (const line of lines) {
 				if (line.startsWith("data: ")) {
@@ -362,10 +362,12 @@ const callAIChat = async (userMessage) => {
 					if (data === "[DONE]") continue;
 					try {
 						const parsed = JSON.parse(data);
-						const delta = parsed.choices?.[0]?.delta?.content;
+						const delta = parsed.type === "text-delta"
+							? parsed.delta
+							: parsed.choices?.[0]?.delta?.content;
 						if (delta) fullText += delta;
 					} catch {
-						// ignore parse errors
+						console.warn("Ignoring an invalid AI stream event.");
 					}
 				} else if (line.startsWith("0:")) {
 					// AI SDK text delta format
@@ -373,10 +375,12 @@ const callAIChat = async (userMessage) => {
 					fullText += delta;
 				}
 			}
+			if (done) break;
 		}
 
-		return fullText || "Thanks for your message. How can I help you with Hacienda Amara?";
-	} catch {
+		return fullText || null;
+	} catch (error) {
+		console.error("AI assistant request failed:", error);
 		return null;
 	}
 };
@@ -757,6 +761,7 @@ const [isSending, setIsSending] = useState(false);
 	const pendingBotReplyTimersRef = useRef(new Set());
 	const pendingWritesRef = useRef(new Set());
 	const chatGenerationRef = useRef(0);
+	const messageTimestampsRef = useRef([]);
 	const isClearingChatRef = useRef(false);
 	const clearedConversationsRef = useRef(new Set());
 
@@ -1488,7 +1493,6 @@ const clearCurrentChat = async () => {
 		
 		// Check if message contains profanity (censored differs from original)
 		const hasProfanity = censored !== trimmed;
-		console.log("Profanity check:", { trimmed, censored, hasProfanity });
 		if (hasProfanity) {
 			setError("Your message contains inappropriate language. Please remove it and try again.");
 			return;
@@ -1496,6 +1500,12 @@ const clearCurrentChat = async () => {
 		
 		if (!trimmed && draftAttachments.length === 0) return;
 		if (loading || isSending) return;
+		const now = Date.now();
+		messageTimestampsRef.current = messageTimestampsRef.current.filter((timestamp) => now - timestamp < 60_000);
+		if (messageTimestampsRef.current.length >= 10) {
+			setError("Message limit reached. Please wait a minute before sending more messages.");
+			return;
+		}
 		if (chatAuthError) {
 			setError(chatAuthError);
 			return;
@@ -1506,6 +1516,7 @@ const clearCurrentChat = async () => {
 		}
 		if (isAdminOrStaff && !canReply) return;
 
+		setError("");
 		setError("");
 		setIsSending(true);
 		pendingScrollToBottomRef.current = true;
@@ -2220,6 +2231,7 @@ const chatContent = (
 
 											<textarea
 												value={prompt}
+												maxLength={1200}
 												onChange={(event) => setPrompt(event.target.value)}
 												onKeyDown={handleKeyDown}
 												placeholder={
