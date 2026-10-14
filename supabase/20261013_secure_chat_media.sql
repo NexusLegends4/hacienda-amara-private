@@ -39,7 +39,7 @@ using (
 			and (
 				(storage.foldername(name))[2] = auth.uid()::text
 				or (
-					public.is_staff_or_admin_user()
+					public.is_admin_or_staff_user()
 					and public.has_staff_verification()
 				)
 			)
@@ -50,7 +50,7 @@ using (
 			where (
 				message.conversation_key = auth.uid()::text
 				or (
-					public.is_staff_or_admin_user()
+					public.is_admin_or_staff_user()
 					and public.has_staff_verification()
 				)
 			)
@@ -66,11 +66,18 @@ to authenticated
 with check (
 	bucket_id = 'chat-media'
 	and (storage.foldername(name))[1] = 'conversations'
+	and cardinality(storage.foldername(name)) = 3
 	and (
 		(storage.foldername(name))[2] = auth.uid()::text
 		or (
-			public.is_staff_or_admin_user()
+			public.is_admin_or_staff_user()
 			and public.has_staff_verification()
+			and exists (
+				select 1
+				from public.chat_messages message
+				where message.conversation_key = (storage.foldername(name))[2]
+					and message.sender_role = 'client'
+			)
 		)
 	)
 );
@@ -87,7 +94,7 @@ using (
 			and (
 				(storage.foldername(name))[2] = auth.uid()::text
 				or (
-					public.is_staff_or_admin_user()
+					public.is_admin_or_staff_user()
 					and public.has_staff_verification()
 				)
 			)
@@ -98,7 +105,7 @@ using (
 			where (
 				message.conversation_key = auth.uid()::text
 				or (
-					public.is_staff_or_admin_user()
+					public.is_admin_or_staff_user()
 					and public.has_staff_verification()
 				)
 			)

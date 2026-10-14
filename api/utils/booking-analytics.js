@@ -1,6 +1,9 @@
 export const HISTORY_MONTHS = 36;
 export const DISPLAY_MONTHS = 12;
 export const FORECAST_MONTHS = 3;
+export const MIN_FORECAST_HISTORY_MONTHS = 12;
+export const MIN_FORECAST_ACTIVE_MONTHS = 6;
+export const MIN_FORECAST_BOOKINGS = 30;
 
 export function isBookingAnalyticsAdmin(role) {
   return role === "admin";
@@ -10,6 +13,13 @@ export function isMissingHistoricalBookingsTable(error) {
   return (
     error?.code === "PGRST205" &&
     /historical_bookings/i.test(error.message || "")
+  );
+}
+
+export function isMissingForecastSnapshotsTable(error) {
+  return (
+    (error?.code === "PGRST205" || error?.code === "42P01") &&
+    /booking_forecast_snapshots/i.test(error.message || "")
   );
 }
 
@@ -49,6 +59,69 @@ export function countBookingsByMonth(records, months) {
   }
 
   return months.map((month) => ({ month, bookings: counts.get(month) }));
+}
+
+export function assessForecastHistory(history) {
+  const recent = Array.isArray(history)
+    ? history.slice(-MIN_FORECAST_HISTORY_MONTHS)
+    : [];
+  const activeMonths = recent.filter((month) => Number.isInteger(month.bookings) && month.bookings > 0).length;
+  const bookings = recent.reduce(
+    (total, month) => total + (Number.isInteger(month.bookings) && month.bookings > 0 ? month.bookings : 0),
+    0,
+  );
+
+  return {
+    sufficient:
+      recent.length >= MIN_FORECAST_HISTORY_MONTHS &&
+      activeMonths >= MIN_FORECAST_ACTIVE_MONTHS &&
+      bookings >= MIN_FORECAST_BOOKINGS,
+    completedMonths: recent.length,
+    activeMonths,
+    bookings,
+    minimumMonths: MIN_FORECAST_HISTORY_MONTHS,
+    minimumActiveMonths: MIN_FORECAST_ACTIVE_MONTHS,
+    minimumBookings: MIN_FORECAST_BOOKINGS,
+  };
+}
+
+export function getPreviousMonth(month) {
+  const date = new Date(`${month}-01T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
+}
+
+export function selectForecastComparisons(rows, limit = 12) {
+  const latestByTargetMonth = new Map();
+  const sorted = [...(Array.isArray(rows) ? rows : [])].sort((left, right) =>
+    String(right.forecast_date || "").localeCompare(String(left.forecast_date || "")),
+  );
+
+  for (const row of sorted) {
+    const targetMonth = String(row.target_month || "").slice(0, 7);
+    const forecastDate = String(row.forecast_date || "");
+    if (
+      !/^\d{4}-\d{2}$/.test(targetMonth) ||
+      forecastDate.slice(0, 7) !== getPreviousMonth(targetMonth) ||
+      !Number.isInteger(row.predicted_bookings) ||
+      !Number.isInteger(row.actual_bookings)
+    ) continue;
+
+    if (!latestByTargetMonth.has(targetMonth)) {
+      latestByTargetMonth.set(targetMonth, {
+        month: targetMonth,
+        forecastDate,
+        predicted: row.predicted_bookings,
+        actual: row.actual_bookings,
+        source: row.forecast_source,
+      });
+    }
+  }
+
+  return [...latestByTargetMonth.values()]
+    .sort((left, right) => right.month.localeCompare(left.month))
+    .slice(0, limit);
 }
 
 export function parseBookingForecast(content, expectedMonths) {

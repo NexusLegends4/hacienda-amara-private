@@ -67,6 +67,111 @@ const localAiChatApi = {
 			}
 		});
 	},
+	configurePreviewServer(server) {
+		localAiChatApi.configureServer(server);
+	},
+};
+
+const localChatMessageApi = {
+	name: "local-chat-message-api",
+	configureServer(server) {
+		server.middlewares.use("/api/chat-message", async (request, response) => {
+			if (request.method !== "POST") {
+				response.statusCode = 405;
+				response.setHeader("Allow", "POST");
+				response.setHeader("Content-Type", "application/json");
+				response.end(JSON.stringify({ error: "Method not allowed." }));
+				return;
+			}
+
+			try {
+				const chunks = [];
+				let requestBytes = 0;
+				for await (const chunk of request) {
+					requestBytes += chunk.length;
+					if (requestBytes <= 131_072) chunks.push(chunk);
+				}
+				if (requestBytes > 131_072) {
+					response.statusCode = 413;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Chat request is too large." }));
+					return;
+				}
+
+				const headers = new Headers();
+				for (const name of ["content-type", "authorization", "content-length", "x-forwarded-for", "x-real-ip"]) {
+					const value = request.headers[name];
+					if (typeof value === "string") headers.set(name, value);
+				}
+				const apiRequest = new Request(`http://${request.headers.host || "localhost"}${request.url}`, {
+					method: "POST",
+					headers,
+					body: Buffer.concat(chunks),
+				});
+				const { POST } = await import("./api/chat-message.js");
+				const apiResponse = await POST(apiRequest);
+				response.statusCode = apiResponse.status;
+				apiResponse.headers.forEach((value, name) => response.setHeader(name, value));
+				response.end(Buffer.from(await apiResponse.arrayBuffer()));
+			} catch (error) {
+				console.error("Local chat message API failed:", error);
+				if (!response.headersSent) {
+					response.statusCode = 500;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Your message could not be saved. Please try again." }));
+				} else {
+					response.end();
+				}
+			}
+		});
+	},
+	configurePreviewServer(server) {
+		localChatMessageApi.configureServer(server);
+	},
+};
+
+const localBookingAnalyticsApi = {
+	name: "local-booking-analytics-api",
+	configureServer(server) {
+		server.middlewares.use("/api/booking-analytics", async (request, response) => {
+			if (request.method !== "POST") {
+				response.statusCode = 405;
+				response.setHeader("Allow", "POST");
+				response.setHeader("Content-Type", "application/json");
+				response.end(JSON.stringify({ error: "Method not allowed." }));
+				return;
+			}
+
+			try {
+				const headers = new Headers();
+				for (const name of ["content-type", "authorization", "x-forwarded-for", "x-real-ip"]) {
+					const value = request.headers[name];
+					if (typeof value === "string") headers.set(name, value);
+				}
+				const apiRequest = new Request(`http://${request.headers.host || "localhost"}${request.url}`, {
+					method: "POST",
+					headers,
+				});
+				const { POST } = await import("./api/booking-analytics.js");
+				const apiResponse = await POST(apiRequest);
+				response.statusCode = apiResponse.status;
+				apiResponse.headers.forEach((value, name) => response.setHeader(name, value));
+				response.end(Buffer.from(await apiResponse.arrayBuffer()));
+			} catch (error) {
+				console.error("Local booking analytics API failed:", error);
+				if (!response.headersSent) {
+					response.statusCode = 500;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Booking analytics is temporarily unavailable." }));
+				} else {
+					response.end();
+				}
+			}
+		});
+	},
+	configurePreviewServer(server) {
+		localBookingAnalyticsApi.configureServer(server);
+	},
 };
 
 // https://vite.dev/config/
@@ -75,12 +180,23 @@ export default defineConfig(({ mode }) => {
 	if (!process.env.GROQ_API_KEY && env.GROQ_API_KEY) {
 		process.env.GROQ_API_KEY = env.GROQ_API_KEY;
 	}
+	for (const key of ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY"]) {
+		if (!process.env[key] && env[key]) process.env[key] = env[key];
+	}
+	if (!process.env.SUPABASE_URL && env.VITE_SUPABASE_URL) {
+		process.env.SUPABASE_URL = env.VITE_SUPABASE_URL;
+	}
+	if (env.VITE_SUPABASE_ANON_KEY) {
+		process.env.SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
+	}
 
 	return {
 		plugins: [
 			react(),
 			tailwindcss(),
 			localAiChatApi,
+			localChatMessageApi,
+			localBookingAnalyticsApi,
 			VitePWA({
 				registerType: "autoUpdate",
 				includeAssets: ["favicon.svg", "icons.svg"],

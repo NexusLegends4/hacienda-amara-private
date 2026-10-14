@@ -7,7 +7,8 @@ import { clearConversationHistory, registerChatClearHandler } from "../utils/cha
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
-import { buildChatMediaPath, validateChatMedia } from "../utils/chat-media";
+import { buildChatMediaPath, createVideoPoster, validateChatMedia } from "../utils/chat-media";
+import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
@@ -16,8 +17,47 @@ const LEGACY_CUSTOMER_CONVERSATION_KEY = "customer";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
 const CHAT_MEDIA_BUCKET = "chat-media";
+const CHAT_MEDIA_SIGNED_URL_SECONDS = 15 * 60;
 const EMPTY_MESSAGES = [];
 const CHAT_BACKEND_CONFIGURED = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+let guestSessionRequest = null;
+
+const getOrCreateGuestSession = () => {
+	if (guestSessionRequest) return guestSessionRequest;
+
+	guestSessionRequest = (async () => {
+		const { data, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError) throw sessionError;
+		if (data.session) return data.session;
+
+		const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+		if (signInError) throw signInError;
+		return signInData.session;
+	})();
+
+	return guestSessionRequest.finally(() => {
+		guestSessionRequest = null;
+	});
+};
+
+const getGuestAuthErrorMessage = (authError) => {
+	const code = String(authError?.code || "").toLowerCase();
+	const message = String(authError?.message || "").toLowerCase();
+
+	if (code === "anonymous_provider_disabled" || message.includes("anonymous sign-ins are disabled")) {
+		return "Guest chat needs Anonymous Sign-Ins enabled in Supabase: Authentication → Sign In / Providers → Anonymous Sign-Ins.";
+	}
+	if (code === "over_request_rate_limit" || message.includes("rate limit")) {
+		return "Guest chat sign-in is temporarily rate limited. Wait a minute, then retry.";
+	}
+	if (message.includes("database error creating anonymous user")) {
+		return "Supabase could not create the guest account because a database trigger or constraint failed. Check Supabase Logs → Postgres for the failed auth.users insert and its trigger error.";
+	}
+	if (message.includes("failed to fetch") || message.includes("network")) {
+		return "Guest chat could not reach Supabase. Check your connection and the VITE_SUPABASE_URL setting, then reload.";
+	}
+	return `Guest chat could not start secure sign-in${authError?.message ? `: ${authError.message}` : ". Please retry."}`;
+};
 const HACIENDA_AMARA_ADDRESS =
 	"B30 L12 Itneg Street Phase 3 Amityville Bgry. San Jose, Rodriguez, Rizal, Philippines, 1860";
 const HACIENDA_AMARA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -39,6 +79,7 @@ const HACIENDA_AMARA_GALLERY_IMAGES = [
 	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
 ];
 const BOT_DISPLAY_NAME = "Hacienda Amara Assistant";
+const AI_SAFE_FALLBACK = "For current availability, reservation status, and details that need confirmation, please contact authorized Hacienda Amara staff.";
 const CLIENT_CHAT_PROMPTS = [
 	"What is Hacienda Amara?",
 	"Available po ba kayo on [date]?",
@@ -329,11 +370,14 @@ const getBotReply = (text) => {
 	return "Thanks for your message. If you need more help, ask about availability, rates, amenities, location, events, rules, policies, photos, or nationwide bookings.";
 };
 
-const callAIChat = async (userMessage) => {
+const callAIChat = async (userMessage, accessToken) => {
 	try {
 		const response = await fetch("/api/ai-chat", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+			},
 			body: JSON.stringify({
 				messages: [
 					{ role: "user", parts: [{ type: "text", text: userMessage }] },
@@ -342,46 +386,14 @@ const callAIChat = async (userMessage) => {
 		});
 
 		if (!response.ok) {
-			throw new Error("AI request failed");
+			return AI_SAFE_FALLBACK;
 		}
 
-		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
-		let fullText = "";
-		let pending = "";
-
-		while (true) {
-			const { done, value } = await reader.read();
-			pending += decoder.decode(value || new Uint8Array(), { stream: !done });
-			const lines = pending.split(/\r?\n/);
-			pending = done ? "" : lines.pop() || "";
-
-			for (const line of lines) {
-				if (line.startsWith("data: ")) {
-					const data = line.slice(6);
-					if (data === "[DONE]") continue;
-					try {
-						const parsed = JSON.parse(data);
-						const delta = parsed.type === "text-delta"
-							? parsed.delta
-							: parsed.choices?.[0]?.delta?.content;
-						if (delta) fullText += delta;
-					} catch {
-						console.warn("Ignoring an invalid AI stream event.");
-					}
-				} else if (line.startsWith("0:")) {
-					// AI SDK text delta format
-					const delta = line.slice(2).replace(/^"|"$/g, "").replace(/\\"/g, '"');
-					fullText += delta;
-				}
-			}
-			if (done) break;
-		}
-
-		return fullText || null;
+		const result = await response.json();
+		return typeof result.reply === "string" ? result.reply : AI_SAFE_FALLBACK;
 	} catch (error) {
 		console.error("AI assistant request failed:", error);
-		return null;
+		return AI_SAFE_FALLBACK;
 	}
 };
 
@@ -398,28 +410,6 @@ const isGenericResponse = (text) => {
 	];
 	const lower = text.toLowerCase();
 	return generic.some(g => lower.includes(g));
-};
-
-const censorProfanity = (text) => {
-	const profanityList = [
-		"putang", "puta", "tangina", "tang ina", "gago", "gaga", "bobo", "boba", "ulol",
-		"leche", "amputa", "tanginamo", "putangina", "putang ina", "putang ina mo",
-		"bobo ka", "boba ka", "gago ka", "gaga ka", "ulol ka", "leche ka",
-		"fuck", "shit", "bitch", "asshole", "dick", "pussy", "cunt", "motherfucker",
-		"fucker", "fucking", "bullshit", "shithead", "dumbass", "ass", "damn",
-		"tarantado", "tarantada", "bwisit", "buwisit", "pakyu", "putang ina nyo",
-		"punyeta", "hayop", "demonyo", "hayop ka", "putangina mo", "tanginamo", "sex"
-	];
-
-	let result = text;
-	for (const word of profanityList) {
-		const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-		const replacement = '*'.repeat(word.length);
-		result = result.replace(regex, replacement);
-	}
-
-	console.log("Censor check:", { original: text, censored: result, changed: result !== text });
-	return result;
 };
 
 const getMessageId = () => {
@@ -476,6 +466,38 @@ const revokePreviewUrl = (attachment) => {
 const getAttachmentSource = (attachment) =>
 	attachment?.url || attachment?.publicUrl || attachment?.dataUrl || attachment?.previewUrl || "";
 
+const uploadChatMediaWithProgress = (bucket, path, file, accessToken, onProgress) => new Promise((resolve, reject) => {
+	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+	const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+	if (!supabaseUrl || !anonKey || !accessToken) {
+		reject(new Error("Secure chat sign-in is required to upload media."));
+		return;
+	}
+
+	const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+	const request = new XMLHttpRequest();
+	request.open("POST", `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`);
+	request.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+	request.setRequestHeader("apikey", anonKey);
+	request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+	request.setRequestHeader("x-upsert", "false");
+	request.upload.addEventListener("progress", (event) => {
+		if (event.lengthComputable) onProgress?.(event.loaded, event.total);
+	});
+	request.addEventListener("load", () => {
+		if (request.status >= 200 && request.status < 300) {
+			resolve();
+			return;
+		}
+		let payload;
+		try { payload = JSON.parse(request.responseText); } catch { payload = null; }
+		reject(new Error(payload?.message || payload?.error || `Media upload failed (${request.status}).`));
+	});
+	request.addEventListener("error", () => reject(new Error("Network error while uploading media. Check your connection and retry.")));
+	request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));
+	request.send(file);
+});
+
 const mediaInlineClassName =
 	"block max-h-80 w-full rounded-xl bg-slate-950 object-contain";
 
@@ -501,7 +523,7 @@ const refreshSignedAttachment = async (attachment) => {
 
 	const { data, error } = await supabase.storage
 		.from(attachment.bucket)
-		.createSignedUrl(attachment.path, 24 * 60 * 60);
+		.createSignedUrl(attachment.path, CHAT_MEDIA_SIGNED_URL_SECONDS);
 	if (error) throw error;
 	return { ...attachment, url: data.signedUrl };
 };
@@ -515,12 +537,65 @@ const refreshSignedMessage = async (message) => ({
 
 const ChatVideo = ({ attachment, source }) => {
 	const [loading, setLoading] = useState(true);
-	const [failed, setFailed] = useState(false);
+	const [failureMessage, setFailureMessage] = useState("");
+	const [playbackSource, setPlaybackSource] = useState(source);
+	const [renewing, setRenewing] = useState(false);
+	const renewedRef = useRef(false);
 
-	if (failed || !source) {
+	useEffect(() => {
+		setPlaybackSource(source);
+		setLoading(true);
+		setFailureMessage("");
+		setRenewing(false);
+		renewedRef.current = false;
+	}, [source, attachment?.path]);
+
+	const getPlaybackFailureMessage = (videoElement) => {
+		const errorCode = videoElement?.error?.code;
+		const mimeType = attachment?.mimeType || "";
+		const formatSupported = !mimeType || videoElement?.canPlayType?.(mimeType) !== "";
+
+		if (!formatSupported || errorCode === 4) {
+			return "This browser or device cannot play this video format or codec. Try an MP4 encoded with H.264 video and AAC audio, or a browser-compatible WebM.";
+		}
+		if (errorCode === 2) {
+			return "The video could not load. Check your connection and try again.";
+		}
+		if (errorCode === 3) {
+			return "The video appears to be damaged or uses a codec this device cannot decode.";
+		}
+		if (errorCode === 1) {
+			return "Video playback was interrupted. Press play to try again.";
+		}
+		return "This video could not be played. It may be corrupted, unavailable, or use an unsupported codec.";
+	};
+
+	const handlePlaybackError = async (event) => {
+		setLoading(false);
+		if (!renewedRef.current && attachment?.path && attachment?.bucket) {
+			renewedRef.current = true;
+			setRenewing(true);
+			try {
+				const { data, error } = await supabase.storage
+					.from(attachment.bucket)
+					.createSignedUrl(attachment.path, CHAT_MEDIA_SIGNED_URL_SECONDS);
+				if (error) throw error;
+				setPlaybackSource(data.signedUrl);
+				setLoading(true);
+				return;
+			} catch (renewError) {
+				console.error("Unable to renew chat video access:", renewError);
+			} finally {
+				setRenewing(false);
+			}
+		}
+		setFailureMessage(getPlaybackFailureMessage(event.currentTarget));
+	};
+
+	if (failureMessage || !playbackSource) {
 		return (
 			<p role="alert" className="rounded-xl bg-slate-900 p-4 text-sm text-white">
-				This video could not be played. It may have expired, be corrupted, or use an unsupported format.
+				{failureMessage || "This video could not be played because its source is unavailable."}
 			</p>
 		);
 	}
@@ -529,23 +604,21 @@ const ChatVideo = ({ attachment, source }) => {
 		<div>
 			{loading && (
 				<div role="status" className="flex items-center justify-center gap-2 bg-slate-900 p-3 text-xs text-white">
-					<span className="loading loading-spinner loading-sm" /> Loading video…
+					<span className="loading loading-spinner loading-sm" /> {renewing ? "Refreshing video access…" : "Loading video…"}
 				</div>
 			)}
 			<video
 				controls
 				playsInline
 				preload="metadata"
-				className={mediaInlineClassName}
-				src={source}
+				poster={typeof attachment?.poster === "string" && attachment.poster.startsWith("data:image/jpeg;base64,") ? attachment.poster : undefined}
+				className="block max-h-[70vh] min-h-40 w-full rounded-xl bg-slate-950 object-contain sm:max-h-[32rem]"
+				src={playbackSource}
 				onLoadedMetadata={() => setLoading(false)}
 				onCanPlay={() => setLoading(false)}
-				onError={() => {
-					setLoading(false);
-					setFailed(true);
-				}}
+				onError={handlePlaybackError}
 			>
-				<source src={source} type={attachment.mimeType || "video/mp4"} />
+				<source src={playbackSource} type={attachment.mimeType || "video/mp4"} />
 			</video>
 			<p className="sr-only">Video controls include playback, timeline, and volume.</p>
 		</div>
@@ -733,6 +806,9 @@ const [adminAvailable, setAdminAvailable] = useState(() => {
 	});
 const [adminOnline, setAdminOnline] = useState(false);
 const [staffOnline, setStaffOnline] = useState(false);
+const [remoteTyping, setRemoteTyping] = useState(null);
+const [seenReceipts, setSeenReceipts] = useState({});
+const [realtimeReady, setRealtimeReady] = useState(false);
 const [historyByConversation, setHistoryByConversation] = useState(() => {
 		const stored = readHistory();
 		return stored;
@@ -742,6 +818,8 @@ const [historyByConversation, setHistoryByConversation] = useState(() => {
 	const [draftAttachments, setDraftAttachments] = useState([]);
 	const [selectedMedia, setSelectedMedia] = useState(null);
 const [isSending, setIsSending] = useState(false);
+const [uploadProgress, setUploadProgress] = useState(0);
+const [uploadFailed, setUploadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
   const [chatAuthError, setChatAuthError] = useState("");
@@ -754,6 +832,11 @@ const [isSending, setIsSending] = useState(false);
 	const shouldStickToBottomRef = useRef(true);
 	const pendingScrollToBottomRef = useRef(true);
 	const channelRef = useRef(null);
+	const activeConversationKeyRef = useRef(activeConversationKey);
+	activeConversationKeyRef.current = activeConversationKey;
+	const localTypingRef = useRef({ lastSentAt: 0, stopTimer: null });
+	const remoteTypingTimerRef = useRef(null);
+	const remoteTypingSenderRef = useRef(null);
 	const photoInputRef = useRef(null);
 	const videoInputRef = useRef(null);
 	const dbAvailableRef = useRef(true);
@@ -765,6 +848,50 @@ const [isSending, setIsSending] = useState(false);
 	const isClearingChatRef = useRef(false);
 	const clearedConversationsRef = useRef(new Set());
 
+	const sendChatBroadcast = useCallback((event, payload) => {
+		const channel = channelRef.current;
+		if (!channel || !realtimeReady) return;
+		void channel.send({ type: "broadcast", event, payload });
+	}, [realtimeReady]);
+
+	const sendTypingState = (typing) => {
+		const targetConversationKey = isAdminOrStaff
+			? activeConversationKeyRef.current
+			: conversationKey;
+		if (!targetConversationKey || !session?.user?.id) return;
+		sendChatBroadcast("chat_typing", {
+			conversationKey: targetConversationKey,
+			senderId: session.user.id,
+			senderRole: isAdmin ? "admin" : isStaff ? "staff" : "client",
+			senderName: displayName,
+			typing,
+		});
+	};
+
+	const handlePromptChange = (event) => {
+		const value = event.target.value;
+		setPrompt(value);
+		if (!session?.user?.id || !realtimeReady) return;
+
+		const typingRef = localTypingRef.current;
+		if (!value.trim()) {
+			if (typingRef.stopTimer) window.clearTimeout(typingRef.stopTimer);
+			typingRef.stopTimer = null;
+			sendTypingState(false);
+			return;
+		}
+
+		if (Date.now() - typingRef.lastSentAt > 900) {
+			sendTypingState(true);
+			typingRef.lastSentAt = Date.now();
+		}
+		if (typingRef.stopTimer) window.clearTimeout(typingRef.stopTimer);
+		typingRef.stopTimer = window.setTimeout(() => {
+			sendTypingState(false);
+			typingRef.stopTimer = null;
+		}, 1800);
+	};
+
 	useEffect(() => {
 		if (!CHAT_BACKEND_CONFIGURED || session) {
 			setChatAuthReady(true);
@@ -775,18 +902,14 @@ const [isSending, setIsSending] = useState(false);
 		setChatAuthReady(false);
 		const ensureGuestSession = async () => {
 			try {
-				const { data, error: sessionError } = await supabase.auth.getSession();
-				if (sessionError) throw sessionError;
-				if (!data.session) {
-					const { error: signInError } = await supabase.auth.signInAnonymously();
-					if (signInError) throw signInError;
-				}
+				await getOrCreateGuestSession();
 				if (!cancelled) setChatAuthError("");
 			} catch (authError) {
 				console.error("Unable to start secure guest chat:", authError);
 				if (!cancelled) {
-					setChatAuthError("Guest chat is unavailable because secure sign-in could not be started.");
-					setError("Guest chat could not start securely. Please try again later.");
+					const authMessage = getGuestAuthErrorMessage(authError);
+					setChatAuthError(authMessage);
+					setError(authMessage);
 					setChatAuthReady(true);
 				}
 			} finally {
@@ -905,7 +1028,7 @@ const canReply = !isAdminOrStaff || adminAvailable;
 		});
 	};
 
-	const persistMessage = async (message) => {
+	const persistMessage = async (message, sourceMessageId = "", accessTokenOverride = "") => {
 		if (isClearingChatRef.current && message.conversationKey === conversationKey) {
 			throw new Error("This chat is being cleared.");
 		}
@@ -915,10 +1038,37 @@ const canReply = !isAdminOrStaff || adminAvailable;
 		}
 
 		const pendingWrite = (async () => {
-			const { error: dbError } = await supabase.from("chat_messages").insert(toDbPayload(message));
-			if (dbError) {
-				console.error("Unable to save chat message:", dbError);
-				throw new Error("Your message could not be saved. Please try again.");
+			const { data: currentSession, error: sessionError } = await supabase.auth.getSession();
+			let accessToken = currentSession?.session?.access_token || accessTokenOverride || session?.access_token;
+			if (sessionError || !accessToken) throw new Error("Secure chat sign-in is required. Please reload and try again.");
+			const requestBody = JSON.stringify({ message: toDbPayload(message), ...(sourceMessageId ? { sourceMessageId } : {}) });
+			const sendRequest = (token) => fetch("/api/chat-message", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: requestBody,
+			});
+			let response = await sendRequest(accessToken);
+			if (response.status === 401) {
+				const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+				if (refreshError || !refreshed?.session?.access_token) {
+					throw new Error("Your secure chat sign-in expired. Reload the page and sign in again.");
+				}
+				accessToken = refreshed.session.access_token;
+				response = await sendRequest(accessToken);
+			}
+			const responseBody = await response.text();
+			let result;
+			try {
+				result = JSON.parse(responseBody);
+			} catch {
+				console.error("Chat API returned a non-JSON response:", response.status, response.headers.get("content-type"));
+				throw new Error("Chat service is unavailable. Restart the local server or try again after deployment.");
+			}
+			if (!response.ok) {
+				throw new Error(result?.error || "Message could not be verified; please try again.");
 			}
 		})();
 		pendingWritesRef.current.add(pendingWrite);
@@ -979,16 +1129,20 @@ const nextSnapshot = isAdminOrStaff
 			? Object.keys(nextSnapshot).length === 0
 			: (nextSnapshot[conversationKey] || []).length === 0;
 
-		if (nextIsEmpty && !clearedConversationsRef.current.has(conversationKey)) {
+		if (!isAdminOrStaff && nextIsEmpty && !clearedConversationsRef.current.has(conversationKey)) {
 			const stored = readHistory();
-			const storedIsEmpty = isAdminOrStaff
-				? Object.keys(stored).length === 0
-				: (stored[conversationKey] || []).length === 0;
+			const storedIsEmpty = (stored[conversationKey] || []).length === 0;
 
 			if (!storedIsEmpty) return stored;
 		}
 
 		setHistoryByConversation(nextSnapshot);
+		if (isAdminOrStaff) {
+			const validConversationKeys = Object.keys(nextSnapshot);
+			if (!validConversationKeys.includes(activeConversationKeyRef.current)) {
+				setActiveConversationKey(validConversationKeys[0] || conversationKey);
+			}
+		}
 
 		return nextSnapshot;
 		} catch (historyError) {
@@ -1202,6 +1356,7 @@ const clearCurrentChat = async () => {
 
 		const channel = supabase.channel(BROADCAST_CHANNEL);
 		channelRef.current = channel;
+		const typingState = localTypingRef.current;
 
 		const applyPresence = () => {
 			const state = channel.presenceState();
@@ -1290,9 +1445,45 @@ const clearCurrentChat = async () => {
 		channel.on("presence", { event: "sync" }, applyPresence);
 		channel.on("presence", { event: "join" }, applyPresence);
 		channel.on("presence", { event: "leave" }, applyPresence);
+		channel.on("broadcast", { event: "chat_typing" }, ({ payload }) => {
+			if (!payload?.conversationKey || payload.senderId === session.user.id) return;
+			const visibleConversationKey = isAdminOrStaff
+				? activeConversationKeyRef.current
+				: conversationKey;
+			if (payload.conversationKey !== visibleConversationKey) return;
+
+			if (!payload.typing) {
+				if (remoteTypingSenderRef.current === payload.senderId) {
+					setRemoteTyping(null);
+					remoteTypingSenderRef.current = null;
+					if (remoteTypingTimerRef.current) window.clearTimeout(remoteTypingTimerRef.current);
+				}
+				return;
+			}
+
+			remoteTypingSenderRef.current = payload.senderId;
+			setRemoteTyping({
+				senderId: payload.senderId,
+				name: payload.senderName || (payload.senderRole === "client" ? "Customer" : "Support"),
+				role: payload.senderRole,
+			});
+			if (remoteTypingTimerRef.current) window.clearTimeout(remoteTypingTimerRef.current);
+			remoteTypingTimerRef.current = window.setTimeout(() => {
+				setRemoteTyping(null);
+				remoteTypingSenderRef.current = null;
+			}, 3000);
+		});
+		channel.on("broadcast", { event: "chat_seen" }, ({ payload }) => {
+			if (!payload?.conversationKey || !payload.messageId || payload.senderId === session.user.id) return;
+			setSeenReceipts((current) => ({
+				...current,
+				[payload.conversationKey]: payload.messageId,
+			}));
+		});
 
 		channel.subscribe(async (status) => {
 			if (status !== "SUBSCRIBED") return;
+			setRealtimeReady(true);
 
 			if (isAdminOrStaff) {
 				if (adminAvailable) {
@@ -1313,6 +1504,16 @@ const clearCurrentChat = async () => {
 		});
 
 		return () => {
+			setRealtimeReady(false);
+			if (typingState.stopTimer) {
+				window.clearTimeout(typingState.stopTimer);
+				typingState.stopTimer = null;
+			}
+			if (remoteTypingTimerRef.current) {
+				window.clearTimeout(remoteTypingTimerRef.current);
+				remoteTypingTimerRef.current = null;
+			}
+			remoteTypingSenderRef.current = null;
 			channel.unsubscribe();
 			channelRef.current = null;
 		};
@@ -1364,10 +1565,23 @@ const clearCurrentChat = async () => {
 		attachments = draftAttachments,
 	) => {
 		const messageId = getMessageId();
-		const targetConversationKey = isAdminOrStaff ? activeConversationKey : conversationKey;
-		const activeSession = session || (CHAT_BACKEND_CONFIGURED ? (await supabase.auth.getSession()).data.session : null);
+		const activeSession = CHAT_BACKEND_CONFIGURED
+			? (await supabase.auth.getSession()).data.session || session
+			: session;
+		if (CHAT_BACKEND_CONFIGURED && !activeSession?.user?.id) {
+			throw new Error("Secure chat sign-in is required. Please reload and try again.");
+		}
+		const targetConversationKey = isAdminOrStaff
+			? activeConversationKey
+			: activeSession?.user?.id || conversationKey;
+		if (!isAdminOrStaff && targetConversationKey !== activeConversationKey) {
+			setActiveConversationKey(targetConversationKey);
+		}
 		const uploadedPaths = [];
 		const uploadedAttachments = [];
+		const totalUploadBytes = (Array.isArray(attachments) ? attachments : [])
+			.reduce((total, attachment) => total + (attachment?.file?.size || 0), 0);
+		let completedUploadBytes = 0;
 		const removeUploaded = async () => {
 			if (uploadedPaths.length === 0) return;
 			const { error: removalError } = await supabase.storage
@@ -1394,30 +1608,45 @@ const clearCurrentChat = async () => {
 				if (!CHAT_BACKEND_CONFIGURED || !activeSession?.user?.id) {
 					throw new Error("Guest chat is still connecting securely. Please wait a moment and try again.");
 				}
+				const fileValidationError = validateChatMedia(attachment.file, attachment.kind);
+				if (fileValidationError) throw new Error(fileValidationError);
 
 				const storagePath = buildChatMediaPath(targetConversationKey, messageId, attachment);
-				const { error: uploadError } = await supabase.storage
-					.from(CHAT_MEDIA_BUCKET)
-					.upload(storagePath, attachment.file, {
-						contentType: attachment.mimeType || attachment.file.type,
-						upsert: false,
-					});
-				if (uploadError) throw uploadError;
+				try {
+					await uploadChatMediaWithProgress(
+						CHAT_MEDIA_BUCKET,
+						storagePath,
+						attachment.file,
+						activeSession.access_token,
+						(loaded) => {
+							const uploaded = completedUploadBytes + loaded;
+							setUploadProgress(totalUploadBytes ? Math.min(99, Math.floor((uploaded / totalUploadBytes) * 100)) : 0);
+						},
+					);
+				} catch (uploadError) {
+					// A network failure can occur after storage accepted the object.
+					// Remove that path so retrying the same message id is safe.
+					await supabase.storage.from(CHAT_MEDIA_BUCKET).remove([storagePath]);
+					throw uploadError;
+				}
 				uploadedPaths.push(storagePath);
+				completedUploadBytes += attachment.file.size;
+				setUploadProgress(totalUploadBytes ? Math.min(99, Math.floor((completedUploadBytes / totalUploadBytes) * 100)) : 0);
 
 				const { data: signedData, error: signedError } = await supabase.storage
 					.from(CHAT_MEDIA_BUCKET)
-					.createSignedUrl(storagePath, 24 * 60 * 60);
+					.createSignedUrl(storagePath, CHAT_MEDIA_SIGNED_URL_SECONDS);
 				if (signedError) throw signedError;
 
 				uploadedAttachments.push({
 					id: attachment.id || getMessageId(),
 					kind: attachment.kind,
-					name: attachment.name,
+					name: attachment.kind === "video" ? "Video" : "Photo",
 					mimeType: attachment.mimeType,
 					url: signedData.signedUrl,
 					path: storagePath,
 					bucket: CHAT_MEDIA_BUCKET,
+					...(typeof attachment.poster === "string" ? { poster: attachment.poster } : {}),
 				});
 			}
 		} catch (uploadError) {
@@ -1443,8 +1672,9 @@ const clearCurrentChat = async () => {
 			throw persistError;
 		}
 		mergeMessage(message);
+		setUploadProgress(100);
 
-		return message;
+		return { ...message, accessToken: activeSession?.access_token || "" };
 	};
 
 	const handleAttachmentSelection = async (event, kind) => {
@@ -1466,6 +1696,7 @@ const clearCurrentChat = async () => {
 				mimeType: file.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
 				file,
 				previewUrl: readFileAsObjectUrl(file),
+				...(kind === "video" ? { poster: await createVideoPoster(file) } : {}),
 			};
 			setDraftAttachments((current) => {
 				const replaced = current.find((item) => item.kind === kind);
@@ -1483,19 +1714,23 @@ const clearCurrentChat = async () => {
 	const clearDraftAttachment = () => {
 		draftAttachments.forEach(revokePreviewUrl);
 		setDraftAttachments([]);
+		setUploadFailed(false);
+		setUploadProgress(0);
 	};
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
 
 		const trimmed = DOMPurify.sanitize(prompt.trim());
-		const censored = censorProfanity(trimmed);
-		
-		// Check if message contains profanity (censored differs from original)
-		const hasProfanity = censored !== trimmed;
-		if (hasProfanity) {
-			setError("Your message contains inappropriate language. Please remove it and try again.");
-			return;
+		if (trimmed) {
+			const moderation = moderateChatText(trimmed, {
+				context: activeMessages.slice(-4).map(getMessageText).join(" ").slice(-2400),
+				role: isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client",
+			});
+			if (!moderation.allowed) {
+				setError(moderation.message);
+				return;
+			}
 		}
 		
 		if (!trimmed && draftAttachments.length === 0) return;
@@ -1517,7 +1752,8 @@ const clearCurrentChat = async () => {
 		if (isAdminOrStaff && !canReply) return;
 
 		setError("");
-		setError("");
+		setUploadFailed(false);
+		setUploadProgress(0);
 		setIsSending(true);
 		pendingScrollToBottomRef.current = true;
 		shouldStickToBottomRef.current = true;
@@ -1529,9 +1765,16 @@ const clearCurrentChat = async () => {
 			if (draftAttachments.length > 0) {
 				clearDraftAttachment();
 			}
+			if (localTypingRef.current.stopTimer) {
+				window.clearTimeout(localTypingRef.current.stopTimer);
+				localTypingRef.current.stopTimer = null;
+			}
+			sendTypingState(false);
 			setPrompt("");
 
-			const shouldTriggerBot = !isAdminOrStaff && (!adminOnline && !staffOnline);
+			// Client chats (including anonymous guests) always receive an assistant
+			// response. Online staff can still join the same conversation.
+			const shouldTriggerBot = !isAdminOrStaff;
 			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
 
 			if (shouldTriggerBot || isQuickQuery) {
@@ -1548,7 +1791,11 @@ const clearCurrentChat = async () => {
 							? "Thanks for sending the video. We will check it and reply as soon as possible."
 							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
 				} else if (shouldTriggerBot) {
-					let aiReply = await callAIChat(trimmed);
+					const currentSession = session || (await supabase.auth.getSession()).data.session;
+					let aiReply = await callAIChat(
+						trimmed,
+						currentSession?.access_token || outgoing.accessToken,
+					);
 					if (!aiReply || isGenericResponse(aiReply)) {
 						const botReply = getBotReply(trimmed);
 						replyText = typeof botReply === "string" ? botReply : botReply.content || "";
@@ -1560,6 +1807,9 @@ const clearCurrentChat = async () => {
 					const botReply = getBotReply(trimmed);
 					replyText = typeof botReply === "string" ? botReply : botReply.content || "";
 					replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+				}
+				if (!moderateAssistantText(replyText).allowed) {
+					replyText = "For details I can’t verify here, please contact authorized Hacienda Amara staff.";
 				}
 
 				if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
@@ -1579,20 +1829,25 @@ const clearCurrentChat = async () => {
 					pendingBotReplyTimersRef.current.delete(botReplyTimer);
 					if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
 
+					pendingScrollToBottomRef.current = true;
+					mergeMessage(botMessage);
 					try {
-						await persistMessage(botMessage);
-						pendingScrollToBottomRef.current = true;
-						mergeMessage(botMessage);
+						await persistMessage(botMessage, outgoing.id, outgoing.accessToken);
 					} catch (botError) {
 						console.error("Unable to save the chat assistant reply:", botError);
-						setError("Your message was sent, but the automatic reply could not be saved.");
+						setError(`The bot replied, but its reply could not be saved to chat history: ${botError?.message || "Please try again."}`);
 					}
 				}, 650);
 				pendingBotReplyTimersRef.current.add(botReplyTimer);
 			}
 		} catch (sendError) {
 			console.error("Unable to send chat message:", sendError);
-			setError(sendError?.message || "Unable to send your message. Please try again.");
+			if (draftAttachments.length > 0) {
+				setUploadFailed(true);
+				setError(`Message not sent. Your attachment is still here; choose Retry upload to try again. ${sendError?.message || ""}`.trim());
+			} else {
+				setError(sendError?.message || "Unable to send your message. Please try again.");
+			}
 		} finally {
 			setIsSending(false);
 		}
@@ -1625,7 +1880,8 @@ const clearCurrentChat = async () => {
 				? "rounded-bl-lg border border-[#ead9c2] bg-[#fff8ef] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]"
 				: "rounded-bl-lg border border-[#ead9c2] bg-[#fffdf8] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]";
 		const messageToneClassName = isRightAligned ? "text-[#fff7eb]" : "text-[#3b2a1a]";
-		const footerText = attachmentSummary || (isRightAligned ? "Delivered" : "");
+		const wasSeen = seenReceipts[message.conversationKey] === message.id;
+		const footerText = attachmentSummary || (isRightAligned ? wasSeen ? "Seen" : "Delivered" : "");
 
 		return (
 			<div
@@ -1733,7 +1989,42 @@ const clearCurrentChat = async () => {
 		);
 	};
 
-const currentThreadMessages = isAdminOrStaff ? activeMessages : historyByConversation[conversationKey] || [];
+const currentThreadMessages = useMemo(
+	() => isAdminOrStaff ? activeMessages : historyByConversation[conversationKey] || EMPTY_MESSAGES,
+	[activeMessages, conversationKey, historyByConversation, isAdminOrStaff],
+);
+
+	useEffect(() => {
+		if (!realtimeReady || !session?.user?.id) return undefined;
+
+		const markLatestIncomingAsSeen = () => {
+			if (document.visibilityState !== "visible") return;
+			const incomingRole = isAdminOrStaff ? "client" : null;
+			const incomingMessage = [...currentThreadMessages].reverse().find((message) =>
+				incomingRole
+					? message.senderRole === incomingRole
+					: ["admin", "staff"].includes(message.senderRole),
+			);
+			if (!incomingMessage) return;
+			sendChatBroadcast("chat_seen", {
+				conversationKey: isAdminOrStaff ? activeConversationKey : conversationKey,
+				messageId: incomingMessage.id,
+				senderId: session.user.id,
+			});
+		};
+
+		markLatestIncomingAsSeen();
+		document.addEventListener("visibilitychange", markLatestIncomingAsSeen);
+		return () => document.removeEventListener("visibilitychange", markLatestIncomingAsSeen);
+	}, [
+		activeConversationKey,
+		conversationKey,
+		currentThreadMessages,
+		isAdminOrStaff,
+		realtimeReady,
+		sendChatBroadcast,
+		session?.user?.id,
+	]);
 
 const chatContent = (
 	<>
@@ -2102,6 +2393,11 @@ const chatContent = (
 										) : (
 											currentThreadMessages.map(renderMessage)
 										)}
+						{remoteTyping && (isAdminOrStaff ? remoteTyping.role === "client" : remoteTyping.role !== "client") && (
+							<p role="status" className="mx-auto mr-auto rounded-full bg-white/90 px-3 py-1.5 text-xs text-slate-600 shadow-sm">
+								{remoteTyping.name} is typing<span aria-hidden="true">...</span>
+							</p>
+						)}
 
 									</div>
 								</div>
@@ -2136,17 +2432,27 @@ const chatContent = (
 									{error && (
 										<div className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
 											{error}
+							{uploadFailed && draftAttachments.length > 0 && (
+								<button
+									type="button"
+									onClick={() => handleSubmit({ preventDefault: () => {} })}
+									disabled={!chatAuthReady || Boolean(chatAuthError) || isSending}
+									className="ml-3 inline-flex rounded-full border border-red-300 px-3 py-1 font-semibold hover:bg-red-100 disabled:opacity-50"
+								>
+									Retry upload
+								</button>
+							)}
 										</div>
 									)}
 									{chatAuthError && (
 										<div role="alert" className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-											{chatAuthError} Enable Anonymous Sign-Ins in Supabase Authentication, then reload this page.
+											{chatAuthError}
 										</div>
 									)}
 									{isSending && draftAttachments.length > 0 && (
 										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-											<span>Uploading media securely…</span>
-											<progress className="progress progress-warning w-24" aria-label="Media upload in progress" />
+							<span>{uploadProgress >= 99 ? "Saving message securely…" : `Uploading media securely… ${uploadProgress}%`}</span>
+							<progress className="progress progress-warning w-24" value={uploadProgress} max="100" aria-label={`Media upload ${uploadProgress}% complete`} />
 										</div>
 									)}
 
@@ -2202,8 +2508,10 @@ const chatContent = (
 															key={attachment.id || getAttachmentSource(attachment)}
 															className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#ead9c2] bg-[#fffaf3] p-2 sm:flex-nowrap"
 														>
-															<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#ead9c2] text-[0.7rem] font-semibold text-slate-700">
-																{attachment.kind === "video" ? "VIDEO" : "PHOTO"}
+										<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#ead9c2] text-[0.7rem] font-semibold text-slate-700">
+											{attachment.kind === "video" && attachment.poster ? (
+												<img src={attachment.poster} alt="Video preview" className="h-full w-full object-cover" />
+											) : attachment.kind === "video" ? "VIDEO" : "PHOTO"}
 															</div>
 															<div className="min-w-0 flex-1">
 																<p className="truncate text-xs font-medium text-slate-900">
@@ -2236,7 +2544,7 @@ const chatContent = (
 											<textarea
 												value={prompt}
 												maxLength={1200}
-												onChange={(event) => setPrompt(event.target.value)}
+								onChange={handlePromptChange}
 												onKeyDown={handleKeyDown}
 												placeholder={
 													isAdminOrStaff && !adminAvailable
@@ -2253,10 +2561,10 @@ const chatContent = (
 											type="submit"
 											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
 											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
-											aria-label="Send message"
-											title={isBubble ? "Send message" : undefined}
+							aria-label={uploadFailed && draftAttachments.length > 0 ? "Retry upload and send message" : "Send message"}
+							title={isBubble ? (uploadFailed ? "Retry upload" : "Send message") : undefined}
 										>
-											{isSending ? <span className="loading loading-spinner loading-xs" /> : isBubble ? <FiSend className="h-4 w-4" /> : "Send"}
+							{isSending ? <span className="loading loading-spinner loading-xs" /> : isBubble ? <FiSend className="h-4 w-4" /> : uploadFailed && draftAttachments.length > 0 ? "Retry upload" : "Send"}
 										</button>
 										</div>
 									</form>

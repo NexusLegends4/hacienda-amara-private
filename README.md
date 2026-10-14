@@ -28,6 +28,23 @@ Chat messages and media are stored in Supabase so clients, guests, staff, and ad
 4. Keep the bucket name `chat-media`. The app accepts JPEG, PNG, WebP, and GIF images up to 10 MB, plus MP4 and WebM videos up to 50 MB. Supabase Storage also enforces a 50 MB maximum.
 5. Configure the existing scheduled cleanup job if you want to remove old chat media automatically.
 
+If guest chat reports `Database error creating anonymous user`, run
+`supabase/20261015_allow_anonymous_profile_email.sql` in the Supabase SQL Editor
+after `supabase/20260415_auth_notifications.sql`. Anonymous Auth users have no
+email, so their profile rows must allow a null email; the migration also keeps
+signup notifications compatible with those rows.
+
+To enforce chat moderation for every database insert, run
+`supabase/20261015_chat_guardrails.sql` after the chat message, staff access,
+and staff verification migrations. It installs the database guardrail trigger
+and tightens chat insert policies. The shared browser/API rules live in
+`src/utils/chat-moderation.js`; the AI endpoint validates the caller, reads
+only that caller's chat context, and checks its complete response before returning it.
+No new secrets or moderation tables are required. The chat API uses the
+existing server-side Supabase service-role key, the Supabase anon-key
+configuration, and server-side `GROQ_API_KEY` for AI replies. Keep all server
+keys out of `VITE_` variables.
+
 The cleanup job removes chat messages and uploaded media older than 24 hours. Uploads use signed URLs; video playback includes the browser's play/pause, timeline, and volume controls. If private storage or anonymous sign-in is not configured, the chat shows an error rather than claiming media was sent successfully.
 
 ## Staff and Admin Email or Authenticator Verification

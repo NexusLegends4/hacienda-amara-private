@@ -14,6 +14,9 @@ export const validateChatMedia = (file, kind) => {
 			? "Choose an MP4 or WebM video file."
 			: "Choose a JPEG, PNG, WebP, or GIF image.";
 	}
+	if (!Number.isFinite(file.size) || file.size <= 0) {
+		return "The selected media file is empty or invalid.";
+	}
 
 	const limit = kind === "video"
 		? CHAT_MEDIA_LIMITS.videoBytes
@@ -25,6 +28,62 @@ export const validateChatMedia = (file, kind) => {
 
 	return "";
 };
+
+export const createVideoPoster = (file) => new Promise((resolve) => {
+	if (typeof document === "undefined" || !file) {
+		resolve("");
+		return;
+	}
+
+	const objectUrl = URL.createObjectURL(file);
+	const video = document.createElement("video");
+	let settled = false;
+	let timeoutId;
+	const finish = (poster = "") => {
+		if (settled) return;
+		settled = true;
+		window.clearTimeout(timeoutId);
+		video.pause();
+		video.removeAttribute("src");
+		video.load();
+		URL.revokeObjectURL(objectUrl);
+		resolve(poster);
+	};
+	const capture = () => {
+		if (settled || !video.videoWidth || !video.videoHeight) return;
+		try {
+			const scale = Math.min(1, 320 / video.videoWidth);
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+			canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+			const context = canvas.getContext("2d");
+			if (!context) return finish();
+			context.drawImage(video, 0, 0, canvas.width, canvas.height);
+			finish(canvas.toDataURL("image/jpeg", 0.55));
+		} catch {
+			finish();
+		}
+	};
+
+	video.preload = "metadata";
+	video.muted = true;
+	video.playsInline = true;
+	video.addEventListener("loadedmetadata", () => {
+		if (Number.isFinite(video.duration) && video.duration > 0.5) {
+			try {
+				video.currentTime = Math.min(0.5, video.duration / 2);
+			} catch {
+				// The first decoded frame will be used when seeking is unavailable.
+			}
+		}
+	});
+	video.addEventListener("loadeddata", capture);
+	video.addEventListener("seeked", capture);
+	video.addEventListener("error", () => finish());
+	timeoutId = window.setTimeout(() => finish(), 8_000);
+	video.src = objectUrl;
+	video.load();
+});
 
 export const buildChatMediaPath = (conversationKey, messageId, attachment) => {
 	const safeConversation = String(conversationKey || "").replace(/[^a-zA-Z0-9-]/g, "");

@@ -115,11 +115,12 @@ const ManageReservations = () => {
 	const updateStatus = async (id, newStatus, reason = "") => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
 		if (!resToUpdate || !["confirmed", "denied", "cancelled"].includes(newStatus)) return;
+		const currentStatus = resToUpdate.status || "pending";
 		if (
 			(newStatus === "confirmed" || newStatus === "denied") &&
-			resToUpdate.status !== "pending"
+			currentStatus !== "pending"
 		) return;
-		if (newStatus === "cancelled" && resToUpdate.status !== "confirmed") return;
+		if (newStatus === "cancelled" && currentStatus !== "confirmed") return;
 
 		setUpdatingReservationId(id);
 		try {
@@ -304,7 +305,9 @@ const ManageReservations = () => {
 								No reservations found.
 							</div>
 						) : (
-							reservations.map((res) => (
+							reservations.map((res) => {
+								const reservationStatus = res.status || "pending";
+								return (
 								<div key={res.id} className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-xl flex flex-col justify-between backdrop-blur transition-all hover:shadow-2xl">
 									<div className="space-y-3">
 										<div className="flex items-center gap-3 border-b border-black/5 pb-3">
@@ -339,48 +342,56 @@ const ManageReservations = () => {
 										<div className="flex items-center justify-between gap-2">
 											<span className={[
 												"badge uppercase text-[10px] font-bold",
-												res.status === "confirmed"
+												reservationStatus === "confirmed"
 													? "badge-success text-white"
-													: ["cancelled", "denied"].includes(res.status)
+													: ["cancelled", "denied"].includes(reservationStatus)
 														? "badge-error text-white"
 														: "badge-warning"
 											].join(" ")}>
-												{res.status || "pending"}
+													{reservationStatus}
 											</span>
-											{canManageReservations && <div className="flex flex-wrap justify-end gap-1.5">
-												<button
-													onClick={() => updateStatus(res.id, "confirmed")}
-													disabled={updatingReservationId !== null || res.status !== "pending"}
-													className="btn btn-sm rounded-full btn-success text-white"
-													title="Accept reservation"
-												>
-													<FiCheckCircle /> Accept
-												</button>
-												<button
-													onClick={() => {
-														setDenyingReservationId(res.id);
-														setRejectionReason("");
-													}}
-													disabled={updatingReservationId !== null || res.status !== "pending"}
-													className="btn btn-sm rounded-full btn-error btn-outline"
-													title="Reject reservation"
-												>
-													<FiXCircle /> Reject
-												</button>
-												<button
-													onClick={() => updateStatus(res.id, "cancelled")}
-													disabled={updatingReservationId !== null || res.status !== "confirmed"}
-													className="btn btn-sm rounded-full btn-warning btn-outline"
-													title="Cancel accepted reservation"
-												>
-													<FiXCircle /> Cancel
-												</button>
-
-											</div>}
+													{canManageReservations && (
+														<div className="flex shrink-0 items-center justify-end gap-1.5">
+															{reservationStatus === "pending" && (
+																<>
+																	<button
+																		onClick={() => updateStatus(res.id, "confirmed")}
+																		disabled={updatingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-success text-white"
+																		title="Accept reservation"
+																	>
+																		<FiCheckCircle /> Accept
+																	</button>
+																	<button
+																		onClick={() => {
+																		setDenyingReservationId(res.id);
+																		setRejectionReason("");
+																	}}
+																		disabled={updatingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-error btn-outline"
+																		title="Reject reservation"
+																	>
+																		<FiXCircle /> Reject
+																	</button>
+																</>
+															)}
+															{reservationStatus === "confirmed" && (
+																<button
+																	onClick={() => updateStatus(res.id, "cancelled")}
+																	disabled={updatingReservationId !== null}
+																	className="btn btn-sm rounded-full btn-warning btn-outline"
+																	title="Cancel accepted reservation"
+																>
+																	<FiXCircle /> Cancel
+																</button>
+															)}
+														</div>
+													)}
 										</div>
 									</div>
 								</div>
-							))
+								);
+							})
 						)}
 					</div>
 				</div>

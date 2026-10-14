@@ -11,7 +11,7 @@ const formatMonth = (month, options = { month: "long", year: "numeric" }) =>
 		timeZone: "UTC",
 	});
 
-const BookingChart = ({ history, predictions }) => {
+const BookingChart = ({ history, predictions, forecastLabel }) => {
 	const points = [...history, ...predictions];
 	const width = 900;
 	const height = 350;
@@ -31,7 +31,7 @@ const BookingChart = ({ history, predictions }) => {
 				viewBox={`0 0 ${width} ${height}`}
 				className="min-w-[760px] w-full"
 				role="img"
-				aria-label="Bar chart comparing monthly booking requests and three AI forecast months"
+				aria-label={`Bar chart comparing monthly booking requests and three ${forecastLabel.toLowerCase()} months`}
 			>
 				{ticks.map((tick, index) => {
 					const y = padding.top + plotHeight - (tick / maximum) * plotHeight;
@@ -112,13 +112,33 @@ const BookingAnalytics = () => {
 		setError("");
 
 		try {
+			const { data: { session: currentSession }, error: sessionError } =
+				await supabase.auth.getSession();
+			if (sessionError) throw sessionError;
+			if (!currentSession?.access_token) {
+				throw new Error("Your sign-in session expired. Sign in again to view Booking Analytics.");
+			}
+
 			const response = await fetch("/api/booking-analytics", {
 				method: "POST",
-				headers: { Authorization: `Bearer ${session.access_token}` },
+				headers: { Authorization: `Bearer ${currentSession.access_token}` },
 			});
-			const result = await response.json();
+			const responseText = await response.text();
+			let result;
+			try {
+				result = responseText ? JSON.parse(responseText) : null;
+			} catch {
+				throw new Error(
+					`Booking Analytics returned an invalid response (HTTP ${response.status}). Check the API deployment and server logs.`,
+				);
+			}
+			if (!result || typeof result !== "object") {
+				throw new Error(
+					`Booking Analytics returned an empty response (HTTP ${response.status}). Check the API deployment and server logs.`,
+				);
+			}
 			if (!response.ok) {
-				throw new Error(result.error || "Unable to load booking analytics.");
+				throw new Error(result.error || `Unable to load booking analytics (HTTP ${response.status}).`);
 			}
 			setAnalytics(result);
 		} catch (loadError) {
@@ -181,6 +201,13 @@ const BookingAnalytics = () => {
 
 	const forecast = analytics?.forecast;
 	const historicalBookingsUnavailable = analytics?.historicalBookingsUnavailable;
+	const forecastReadiness = analytics?.forecastReadiness;
+	const forecastComparisons = analytics?.forecastComparisons || [];
+	const forecastTrackingUnavailable = analytics?.forecastTrackingUnavailable;
+	const forecastTrackingSetupRequired = analytics?.forecastTrackingSetupRequired;
+	const meanAbsoluteError = forecastComparisons.length
+		? forecastComparisons.reduce((total, comparison) => total + Math.abs(comparison.actual - comparison.predicted), 0) / forecastComparisons.length
+		: null;
 
 	return (
 		<MainLayout>
@@ -236,6 +263,20 @@ const BookingAnalytics = () => {
 									</p>
 								</div>
 							)}
+							{forecastTrackingUnavailable && (
+								<div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+									<p className="font-semibold">Forecast accuracy tracking is currently unavailable.</p>
+									<p className="mt-1">{forecastTrackingSetupRequired
+										? <>Run <code className="rounded bg-amber-100 px-1">supabase/20261015_booking_forecast_tracking.sql</code> in the Supabase SQL Editor. Forecasts can still display, but comparisons require this migration.</>
+										: "Check the Supabase logs; current forecasts can still display, but comparisons could not be loaded or saved."}</p>
+								</div>
+							)}
+							{forecastReadiness && !forecastReadiness.sufficient && (
+								<div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+									<p className="font-semibold">A booking forecast is hidden until there is enough recent history.</p>
+									<p className="mt-1">Need {forecastReadiness.minimumMonths} completed months, including {forecastReadiness.minimumActiveMonths} months with bookings and at least {forecastReadiness.minimumBookings} bookings. Current data: {forecastReadiness.completedMonths} months, {forecastReadiness.activeMonths} active months, {forecastReadiness.bookings} bookings.</p>
+								</div>
+							)}
 							<section className="grid gap-4 sm:grid-cols-2" aria-label="Booking highlights">
 								{[
 									{
@@ -284,15 +325,52 @@ const BookingAnalytics = () => {
 									</div>
 									<div className="flex flex-wrap gap-4 text-xs font-semibold text-base-content/70">
 										<span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-[#c77b2a]" /> Historical</span>
-										<span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm border border-dashed border-green-700 bg-green-600/30" /> AI forecast</span>
+										<span className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm border border-dashed border-green-700 bg-green-600/30" /> {analytics.forecastSource === "ai" ? "AI forecast" : analytics.forecastSource === "historical" ? "Historical estimate" : "Forecast"}</span>
 									</div>
 								</div>
 								<div className="mt-6">
-									<BookingChart history={analytics.history} predictions={forecast?.predictions || []} />
+									<BookingChart history={analytics.history} predictions={forecast?.predictions || []} forecastLabel={analytics.forecastSource === "ai" ? "AI forecast" : "historical estimate"} />
 								</div>
 								<p className="mt-2 text-xs leading-5 text-base-content/55">
 									Counts are grouped by booking/check-in date. All live reservation statuses are included; imported schedule entries count as bookings.
 								</p>
+							</section>
+
+							<section className="rounded-[1.5rem] border border-black/5 bg-white/85 p-5 shadow-lg sm:rounded-[2rem] sm:p-7">
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+									<div>
+										<h2 className="text-xl font-bold">Forecast vs actual bookings</h2>
+										<p className="mt-1 text-sm text-base-content/65">Latest forecast made during the month before each completed month.</p>
+									</div>
+									{meanAbsoluteError !== null && (
+										<p className="text-sm font-semibold text-base-content/70">Mean absolute error: {meanAbsoluteError.toFixed(1)} bookings</p>
+									)}
+								</div>
+								{forecastComparisons.length > 0 ? (
+									<div className="mt-5 overflow-x-auto">
+										<table className="table table-zebra w-full">
+											<thead><tr><th>Month</th><th>Predicted</th><th>Actual</th><th>Difference</th><th>Forecast type</th></tr></thead>
+											<tbody>
+												{forecastComparisons.map((comparison) => {
+													const difference = comparison.actual - comparison.predicted;
+													return (
+														<tr key={comparison.month}>
+															<th>{formatMonth(comparison.month)}</th>
+															<td>{comparison.predicted}</td>
+															<td>{comparison.actual}</td>
+															<td className={difference === 0 ? "text-emerald-700" : "text-base-content/75"}>{difference > 0 ? "+" : ""}{difference}</td>
+															<td className="capitalize">{comparison.source}</td>
+														</tr>
+													);
+												})}
+											</tbody>
+										</table>
+									</div>
+								) : (
+									<p className="mt-4 rounded-xl bg-stone-50 p-4 text-sm leading-6 text-base-content/65">
+										Completed-month comparisons will appear after a forecast has been stored and its target month has ended.
+									</p>
+								)}
 							</section>
 
 							<section className="rounded-[1.5rem] border border-green-900/10 bg-white/85 p-5 shadow-lg sm:rounded-[2rem] sm:p-7">
@@ -318,8 +396,9 @@ const BookingAnalytics = () => {
 									</div>
 								)}
 								<p className="mt-4 text-xs leading-5 text-base-content/55">
-									Predictions are AI-generated estimates, not guarantees. They are based on monthly booking counts only and may be inaccurate.
-									{analytics.forecastSource === "historical" && " This is a statistical estimate, not an AI prediction."}
+									{analytics.forecastSource === "ai"
+										? "AI predictions are estimates, not guarantees. They use monthly booking counts only and may be inaccurate."
+										: "Historical trend estimates are not AI predictions or guarantees. They use monthly booking counts only and may be inaccurate."}
 									{analytics.generatedAt && ` Updated ${new Date(analytics.generatedAt).toLocaleString()}.`}
 								</p>
 							</section>
