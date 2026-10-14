@@ -6,7 +6,7 @@ import { supabase } from "../utils/supabase";
 import { clearConversationHistory, registerChatClearHandler } from "../utils/chat-history";
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
-import { FiSend } from "react-icons/fi";
+import { FiSend, FiTrash2 } from "react-icons/fi";
 import { buildChatMediaPath, validateChatMedia } from "../utils/chat-media";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
@@ -1879,12 +1879,15 @@ const chatContent = (
 					)}
 
 						<div className="flex min-w-0 min-h-0 flex-1 flex-col">
-						<div className={isBubble ? "z-10 flex shrink-0 flex-col gap-2 border-b border-black/5 bg-white px-3 py-2" : "flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between"}>
+						<div
+							className={isBubble ? "z-10 flex shrink-0 flex-col gap-2 border-b border-black/5 bg-white px-3 pb-2" : "flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between"}
+							style={isBubble ? { paddingTop: "max(0.5rem, env(safe-area-inset-top))" } : undefined}
+						>
 							<div className="flex min-w-0 items-center gap-3">
 								<button
 									type="button"
 									onClick={() => isBubble ? onClose?.() : navigate(-1)}
-									className={isBubble ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-base font-semibold text-slate-900 transition hover:bg-[#f3dfc6]" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"}
+									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"
 									aria-label={isBubble ? "Close chat" : "Go back"}
 								>
 									{isBubble ? "×" : "<"}
@@ -1931,7 +1934,7 @@ const chatContent = (
 								</div>
 							</div>
 
-							<div className={isBubble ? "flex shrink-0 flex-wrap items-center gap-1.5 lg:justify-end" : "flex flex-wrap items-center gap-2 lg:justify-end"}>
+							<div className={isBubble ? "flex shrink-0 flex-wrap items-center gap-2 lg:justify-end" : "flex flex-wrap items-center gap-2 lg:justify-end"}>
 								{isBubble && isAdminOrStaff && conversations.length > 1 && (
 									<select
 									aria-label="Select customer conversation"
@@ -1969,7 +1972,7 @@ const chatContent = (
                                   type="button"
                                   onClick={refreshMessages}
                                   disabled={loading || isRefreshing}
-                                  className="btn btn-black btn-xs shrink-0 rounded-full px-3"
+                                  className={isBubble ? "btn btn-black btn-sm h-10 min-h-10 w-10 shrink-0 rounded-full p-0" : "btn btn-black btn-xs shrink-0 rounded-full px-3"}
                                   aria-label="Refresh chat messages"
                                   title={isRefreshing ? "Refreshing..." : "Refresh messages"}
                                 >
@@ -1986,20 +1989,18 @@ const chatContent = (
                                   type="button"
                                   onClick={clearCurrentChat}
                                   disabled={loading}
-                                  className="btn btn-ghost btn-xs shrink-0 rounded-full px-3"
+                                  className={isBubble ? "btn btn-ghost btn-sm h-10 min-h-10 w-10 shrink-0 rounded-full p-0" : "btn btn-ghost btn-xs shrink-0 rounded-full px-3"}
                                   aria-label="Clear current chat"
                                   title="Clear current chat"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
+                                  <FiTrash2 className="h-4 w-4" />
                                 </button>
 
                                 {isAdminOrStaff ? (
 									<button
 										type="button"
 										onClick={() => setAdminAvailable((current) => !current)}
-										className="btn btn-black btn-xs shrink-0 rounded-full px-3"
+										className={isBubble ? "btn btn-black btn-sm h-10 min-h-10 shrink-0 rounded-full px-3" : "btn btn-black btn-xs shrink-0 rounded-full px-3"}
 									>
 										{isBubble ? (adminAvailable ? "Offline" : "Online") : (adminAvailable ? "Go offline" : "Go online")}
 									</button>
@@ -2067,7 +2068,7 @@ const chatContent = (
 									onScroll={() => {
 										shouldStickToBottomRef.current = isNearBottom();
 									}}
-									className="flex-1 min-h-0 overflow-y-auto px-2 py-4 sm:px-5"
+									className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-4 sm:px-5"
 								>
 									<div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
 										{loading ? (
@@ -2105,7 +2106,10 @@ const chatContent = (
 									</div>
 								</div>
 
-								<div className={isBubble ? "shrink-0 border-t border-black/5 bg-white px-3 py-2" : "border-t border-black/5 bg-white/75 px-3 py-3 backdrop-blur sm:px-5"}>
+								<div
+									className={isBubble ? "shrink-0 border-t border-black/5 bg-white px-3 py-2" : "border-t border-black/5 bg-white/75 px-3 py-3 backdrop-blur sm:px-5"}
+									style={isBubble ? { paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" } : undefined}
+								>
 									{!isBubble && <div className="mx-auto mb-3 w-full max-w-4xl rounded-[1.25rem] border border-black/5 bg-white px-3 py-3 shadow-sm">
 										<div className="mb-3 flex items-center justify-between gap-3 px-1">
 											<p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-base-content/55">

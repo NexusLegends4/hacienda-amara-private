@@ -11,6 +11,8 @@ const CustomerNotifications = () => {
 	const [reservation, setReservation] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
+	const [copyError, setCopyError] = useState("");
+	const notificationUrl = `${window.location.origin}/customer-notifications/${reservationToken}`;
 
 	const loadNotification = useCallback(async (showLoading = true) => {
 		if (!reservationToken) {
@@ -32,7 +34,6 @@ const CustomerNotifications = () => {
 	}, [reservationToken, navigate]);
 
 	useEffect(() => {
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void loadNotification();
 
 		const channel = supabase
@@ -60,14 +61,28 @@ const CustomerNotifications = () => {
 	}, [loadNotification, reservationToken]);
 
 	const copyNotificationLink = async () => {
-		const notificationUrl = `${window.location.origin}/customer-notifications/${reservationToken}`;
-
+		setCopyError("");
 		try {
-			await navigator.clipboard.writeText(notificationUrl);
+			if (navigator.clipboard?.writeText) {
+				await navigator.clipboard.writeText(notificationUrl);
+			} else {
+				throw new Error("Clipboard access is unavailable.");
+			}
 			setCopied(true);
 			window.setTimeout(() => setCopied(false), 2000);
 		} catch {
-			alert("Unable to copy the notification link.");
+			const input = document.getElementById("reservation-notification-link");
+			if (input instanceof HTMLInputElement) {
+				input.focus();
+				input.select();
+				input.setSelectionRange(0, input.value.length);
+				if (document.execCommand("copy")) {
+					setCopied(true);
+					window.setTimeout(() => setCopied(false), 2000);
+					return;
+				}
+			}
+			setCopyError("Copy was blocked. The link is selected so you can copy it manually.");
 		}
 	};
 
@@ -86,10 +101,10 @@ const CustomerNotifications = () => {
 			: "bg-amber-50 text-amber-800 border-amber-200";
 
 	return (
-		<MainLayout noScroll>
-			<div className="flex-1 bg-[#f0ede7] px-3 py-4 sm:px-4 md:px-6 lg:px-8 min-h-0">
-				<div className="mx-auto max-w-[420px] sm:max-w-[460px] h-full flex flex-col min-h-0">
-					<div className="rounded-[28px] border border-black/5 bg-[#f5f3f0] shadow-[0_22px_40px_rgba(31,24,18,0.12)] flex-1 flex flex-col min-h-0 overflow-hidden">
+		<MainLayout>
+			<div className="min-h-[calc(100dvh-5rem)] bg-[#f0ede7] px-3 py-4 sm:px-4 md:px-6 lg:px-8">
+				<div className="mx-auto max-w-[460px]">
+					<div className="rounded-[28px] border border-black/5 bg-[#f5f3f0] shadow-[0_22px_40px_rgba(31,24,18,0.12)]">
 						<div className="flex items-center justify-between px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
 							<div>
 								<p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
@@ -187,16 +202,24 @@ const CustomerNotifications = () => {
 											Private access link
 										</p>
 										<div className="mt-3 space-y-3">
-											<code className="block w-full rounded-[12px] bg-white px-3 py-2 text-[11px] text-slate-700 break-all">
-												{window.location.href}
-											</code>
+											<input
+												id="reservation-notification-link"
+												type="text"
+												readOnly
+												aria-label="Private reservation notification link"
+												value={notificationUrl}
+												onFocus={(event) => event.currentTarget.select()}
+												className="block w-full select-text rounded-[12px] border-0 bg-white px-3 py-3 text-xs leading-5 text-slate-700 focus:outline-2 focus:outline-offset-2 focus:outline-amber-500"
+											/>
 											<button
 												type="button"
 												onClick={copyNotificationLink}
+												aria-live="polite"
 												className="btn btn-black h-11 min-h-11 w-full rounded-full text-sm font-semibold"
 											>
 												<FiCopy className="w-4 h-4" /> {copied ? "Copied" : "Copy Link"}
 											</button>
+											{copyError && <p role="status" className="text-xs leading-5 text-rose-700">{copyError}</p>}
 										</div>
 										<p className="mt-3 text-xs text-slate-600 leading-5">
 											Keep this private link secure. Anyone who has it can view this reservation update.
