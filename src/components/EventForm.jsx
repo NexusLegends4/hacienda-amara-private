@@ -21,8 +21,6 @@ const EventForm = ({ eventData = null }) => {
 		// Convert the form into a plain object before inserting a new event.
 		const formData = new FormData(formEvent.target);
 		const formDataObject = Object.fromEntries(formData.entries());
-		// Always use fixed location
-		formDataObject.location = "San Jose, Rodriguez, Rizal";
 
 		const { data: eventDataResult, error: eventError } = await supabase
 			.from("events")
@@ -37,8 +35,6 @@ const EventForm = ({ eventData = null }) => {
 		// Reuse the same payload when editing an existing event.
 		const formData = new FormData(formEvent.target);
 		const formDataObject = Object.fromEntries(formData.entries());
-		// Always use fixed location
-		formDataObject.location = "San Jose, Rodriguez, Rizal";
 
 		const { data: eventDataResult, error: eventError } = await supabase
 			.from("events")
@@ -106,9 +102,9 @@ const EventForm = ({ eventData = null }) => {
 							label="Location"
 							placeholder="Location"
 							name="location"
-							defaultValue="San Jose, Rodriguez, Rizal"
-							disabled
-							helperText="Fixed location: Hacienda Amara"
+							defaultValue={eventData?.location || "San Jose, Rodriguez, Rizal"}
+							maxLength={200}
+							required
 						/>
 					</div>
 					<div className="flex-1">
