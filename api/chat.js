@@ -3,6 +3,7 @@ import {
 	createUIMessageStreamResponse,
 } from "ai";
 import { moderateAssistantText, moderateChatText, OFF_TOPIC_REPLY } from "../src/utils/chat-moderation.js";
+import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../src/utils/payment-instructions.js";
 
 const getTextFromMessages = (messages = []) => {
 	const lastUserMessage = [...messages]
@@ -24,6 +25,10 @@ const getReply = (userText) => {
 	if (!moderation.allowed) return moderation.message || OFF_TOPIC_REPLY;
 
 	const t = userText.toLowerCase();
+
+	if (isPaymentInstructionsQuery(userText)) {
+		return PAYMENT_INSTRUCTIONS;
+	}
 
 	if (t.includes("scan") || t.includes("qr")) {
 		return "Open the Scan QR page from the menu, allow camera access, then point your camera at the QR code. It will take you directly to the matching page.";
@@ -65,13 +70,6 @@ const getReply = (userText) => {
 		t.includes("guidelines")
 	) {
 		return "Para sa safety at cleanliness ng lahat, mayroon kaming mga Rules gaya ng: bawal ang food/drinks sa pool, may designated smoking area, at bawal ang glass bottles malapit sa tubig. Maaari niyo pong basahin ang kumpletong guidelines dito: Rules";
-	}
-
-	if (
-		t.includes("pay") || t.includes("bayad") || t.includes("payment") ||
-		t.includes("magbabayad") || t.includes("gcash") || t.includes("bdo")
-	) {
-		return "Scan here to complete payment\n\nGCASH\nMara Jane Garcia\n0968-326-0522\n\nBDO Unibank, Inc.\nMara Jane Garcia\n0101-6000-5035\n\nThe assistant will send the QR code shortly!";
 	}
 
 	if (
