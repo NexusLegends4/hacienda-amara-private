@@ -8,6 +8,7 @@ import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
 import { buildChatMediaPath, createVideoPoster, validateChatMedia } from "../utils/chat-media";
+import { uploadChatMediaResumably } from "../utils/chat-media-upload";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
@@ -474,6 +475,19 @@ const uploadChatMediaWithProgress = (bucket, path, file, accessToken, onProgress
 	const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 	if (!supabaseUrl || !anonKey || !accessToken) {
 		reject(new Error("Secure chat sign-in is required to upload media."));
+		return;
+	}
+
+	if (file.type.startsWith("video/") || file.size > 6 * 1024 * 1024) {
+		uploadChatMediaResumably({
+			bucket,
+			path,
+			file,
+			accessToken,
+			supabaseUrl,
+			anonKey,
+			onProgress,
+		}).then(resolve, reject);
 		return;
 	}
 

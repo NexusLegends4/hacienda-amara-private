@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildChatMediaPath, validateChatMedia } from "../chat-media";
+import { getChatMediaResumableEndpoint } from "../chat-media-upload";
 
 describe("validateChatMedia", () => {
 	it("accepts supported video formats and rejects unsupported formats", () => {
@@ -17,6 +18,18 @@ describe("validateChatMedia", () => {
 		expect(validateChatMedia({ type: "image/jpeg", size: 11 * 1024 * 1024 }, "image"))
 			.toMatch(/10 MB/);
 		expect(validateChatMedia({ type: "image/png", size: 10 * 1024 * 1024 }, "image")).toBe("");
+	});
+});
+
+describe("getChatMediaResumableEndpoint", () => {
+	it("uses Supabase's direct storage host for project URLs", () => {
+		expect(getChatMediaResumableEndpoint("https://project-ref.supabase.co"))
+			.toBe("https://project-ref.storage.supabase.co/storage/v1/upload/resumable");
+	});
+
+	it("preserves custom storage origins while replacing any URL path", () => {
+		expect(getChatMediaResumableEndpoint("https://storage.example.com/base"))
+			.toBe("https://storage.example.com/storage/v1/upload/resumable");
 	});
 });
 
