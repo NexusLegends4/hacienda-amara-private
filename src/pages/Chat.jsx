@@ -2552,7 +2552,7 @@ const chatContent = (
 											onChange={(event) => handleAttachmentSelection(event, "video")}
 										/>
 
-										<div className={isBubble ? "flex w-full gap-2" : "flex w-full gap-2 sm:w-auto sm:flex-col md:flex-row"}>
+										<div className={isBubble ? "flex w-full gap-2" : "flex w-full gap-2 flex-col sm:flex-row sm:w-auto"}>
 											<button
 												type="button"
 												onClick={() => photoInputRef.current?.click()}

@@ -223,10 +223,12 @@ const AdminReservations = () => {
 					)}
 
 					<div className="rounded-[1.5rem] border border-black/5 bg-white shadow-xl overflow-hidden sm:rounded-[2rem]">
-						<div className="grid grid-cols-7 bg-black py-3 text-center text-[10px] font-bold uppercase tracking-wide text-white sm:text-xs sm:tracking-widest">
-							{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div key={day}>{day}</div>)}
+						<div className="overflow-x-auto">
+							<div className="grid grid-cols-7 bg-black py-3 text-center text-[10px] font-bold uppercase tracking-wide text-white sm:text-xs sm:tracking-widest min-w-[500px]">
+								{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div key={day}>{day}</div>)}
+							</div>
+							<div className="grid grid-cols-7 min-w-[500px]">{loading ? <div className="col-span-7 flex h-64 items-center justify-center"><span className="loading loading-spinner loading-lg" aria-label="Loading reservations" /></div> : renderCalendar()}</div>
 						</div>
-						<div className="grid grid-cols-7">{loading ? <div className="col-span-7 flex h-64 items-center justify-center"><span className="loading loading-spinner loading-lg" aria-label="Loading reservations" /></div> : renderCalendar()}</div>
 					</div>
 
 					<section aria-live="polite" className="rounded-[1.5rem] border border-black/5 bg-white/80 p-5 shadow-lg sm:rounded-[2rem] sm:p-7">

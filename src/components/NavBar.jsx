@@ -297,7 +297,7 @@ const NavBar = () => {
 				<div className="fixed inset-0 z-40 lg:hidden">
 					<div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={closeMobile} />
 
-					<div className="absolute top-0 right-0 h-full w-full max-w-sm bg-base-100 shadow-2xl flex flex-col overflow-y-auto">
+					<div className="absolute top-0 right-0 h-full w-full max-w-[90vw] max-w-sm bg-base-100 shadow-2xl flex flex-col overflow-y-auto">
 						<div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-base-200">
 							<div>
 								<p className="font-bold text-base-content sm:text-lg">Hacienda Amara</p>

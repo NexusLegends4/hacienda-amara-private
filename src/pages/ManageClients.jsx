@@ -376,7 +376,7 @@ const ManageClients = () => {
 						</div>
 					</div>
 
-					<div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+					<div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
 						<div className="rounded-[2rem] border border-black/5 bg-white/85 p-5 shadow-xl backdrop-blur sm:p-6">
 							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 								<div>
