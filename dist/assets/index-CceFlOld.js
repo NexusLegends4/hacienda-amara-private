@@ -352,7 +352,7 @@ ${V}`}class Sr extends Error{constructor({message:e,code:n,cause:a,name:u}){var 
                       font-semibold\r
                       text-sm\r
                       sm:text-base\r
-                      transition-all\r
+                      transition-colors duration-150\r
                       disabled:opacity-50\r
                       disabled:cursor-not-allowed\r
                       hover:bg-black/90\r
@@ -361,7 +361,7 @@ ${V}`}class Sr extends Error{constructor({message:e,code:n,cause:a,name:u}){var 
                       focus:ring-black\r
                       focus:ring-offset-2\r
                       min-w-[180px]\r
-                    `,children:a?l.jsxs(l.Fragment,{children:[l.jsxs("svg",{className:"animate-spin -ml-1 mr-2 h-4 w-4 text-white",xmlns:"http://www.w3.org/2000/svg",fill:"none",viewBox:"0 0 24 24",children:[l.jsx("circle",{className:"opacity-25",cx:"12",cy:"12",r:"10",stroke:"currentColor",strokeWidth:"4"}),l.jsx("path",{className:"opacity-75",fill:"currentColor",d:"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"})]}),"Signing in..."]}):"Sign In"})]}),l.jsxs("div",{className:"mt-8",children:[l.jsx("div",{className:"relative",children:l.jsx("div",{className:"relative flex justify-center text-sm",children:l.jsx("span",{className:"px-4 bg-transparent text-slate-500",children:"Or continue with"})})}),l.jsx("div",{className:"mt-6 flex justify-center",children:l.jsxs("button",{type:"button",onClick:()=>se("google"),disabled:a,className:`\r
+                    `,children:a?l.jsxs(l.Fragment,{children:[l.jsxs("svg",{className:"animate-spin -ml-1 mr-2 h-4 w-4 text-white flex-shrink-0",xmlns:"http://www.w3.org/2000/svg",fill:"none",viewBox:"0 0 24 24",children:[l.jsx("circle",{className:"opacity-25",cx:"12",cy:"12",r:"10",stroke:"currentColor",strokeWidth:"4"}),l.jsx("path",{className:"opacity-75",fill:"currentColor",d:"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"})]}),"Signing in..."]}):"Sign In"})]}),l.jsxs("div",{className:"mt-8",children:[l.jsx("div",{className:"relative",children:l.jsx("div",{className:"relative flex justify-center text-sm",children:l.jsx("span",{className:"px-4 bg-transparent text-slate-500",children:"Or continue with"})})}),l.jsx("div",{className:"mt-6 flex justify-center",children:l.jsxs("button",{type:"button",onClick:()=>se("google"),disabled:a,className:`\r
                         flex\r
                         items-center\r
                         justify-center\r
@@ -372,7 +372,7 @@ ${V}`}class Sr extends Error{constructor({message:e,code:n,cause:a,name:u}){var 
                         text-sm\r
                         font-medium\r
                         text-slate-700\r
-                        transition-all\r
+                        transition-colors duration-150\r
                         hover:bg-slate-50\r
                         disabled:opacity-50\r
                         disabled:cursor-not-allowed\r
