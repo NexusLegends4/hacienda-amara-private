@@ -22,6 +22,7 @@ const NavBar = () => {
 	const { session, profile, setSession, setProfile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const displayName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim();
+	const showLogin = !session || session.user?.is_anonymous === true;
 	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -169,7 +170,7 @@ const NavBar = () => {
 						<NavLink to="/rules" className={navLinkClass}>Rules</NavLink>
 						
 
-{!session && (
+{showLogin && (
 							<>
 								<NavLink to="/customer-notifications" className={navLinkClass} aria-label="Customer Notifications">
 									<FiBell className="text-base" />
@@ -330,7 +331,7 @@ const NavBar = () => {
 							<NavLink to="/rules" className={mobileLinkClass} onClick={closeMobile}>Rules</NavLink>
 							
 
-							{!session && (
+							{showLogin && (
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/customer-notifications" className={mobileLinkClass} onClick={closeMobile} aria-label="Customer Notifications">
