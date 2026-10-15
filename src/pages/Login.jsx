@@ -823,6 +823,8 @@ const Login = () => {
                     disabled={isSubmitting}
                     className="
                       w-full
+                      max-w-[280px]
+                      mx-auto
                       rounded-xl
                       bg-black
                       text-white
@@ -839,7 +841,6 @@ const Login = () => {
                       focus:ring-2
                       focus:ring-black
                       focus:ring-offset-2
-                      min-w-[180px]
                     "
                   >
                     {isSubmitting ? (
