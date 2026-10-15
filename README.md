@@ -25,7 +25,7 @@ Chat messages and media are stored in Supabase so clients, guests, staff, and ad
 1. Run `supabase/20260406_chat_media.sql` and the existing chat message migrations, including `supabase/20261004_staff_chat_access.sql`.
 2. Run `supabase/20261012_staff_admin_totp_mfa.sql` and `supabase/20261012_staff_email_otp_auth.sql` if they have not already been applied.
 3. Run `supabase/20261013_secure_chat_media.sql`. It makes the `chat-media` bucket private and restricts access to the conversation owner and verified staff/admin users.
-4. Keep the bucket name `chat-media`. The app accepts JPEG, PNG, WebP, and GIF images up to 10 MB, plus MP4 and WebM videos up to 50 MB. Supabase Storage also enforces a 50 MB maximum.
+4. Keep the bucket name `chat-media`. The app accepts JPEG, PNG, WebP, and GIF images up to 10 MB, plus MP4 and WebM videos up to 500 MiB. Run `supabase/20261016_chat_media_500mb_uploads.sql` to raise the bucket limit, and set the project's global Storage file size limit to at least 500 MiB.
 5. Configure the existing scheduled cleanup job if you want to remove old chat media automatically.
 
 If guest chat reports `Database error creating anonymous user`, run

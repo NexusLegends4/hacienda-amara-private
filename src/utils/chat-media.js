@@ -1,6 +1,6 @@
 export const CHAT_MEDIA_LIMITS = {
 	imageBytes: 10 * 1024 * 1024,
-	videoBytes: 50 * 1024 * 1024,
+	videoBytes: 500 * 1024 * 1024,
 };
 
 const SUPPORTED_MIME_TYPES = {

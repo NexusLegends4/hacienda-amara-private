@@ -13,8 +13,10 @@ describe("validateChatMedia", () => {
 	it("enforces different image and video size limits", () => {
 		expect(validateChatMedia({ type: "video/mp4", size: 0 }, "video"))
 			.toMatch(/empty or invalid/);
-		expect(validateChatMedia({ type: "video/mp4", size: 51 * 1024 * 1024 }, "video"))
-			.toMatch(/50 MB/);
+		expect(validateChatMedia({ type: "video/mp4", size: 500 * 1024 * 1024 }, "video"))
+			.toBe("");
+		expect(validateChatMedia({ type: "video/mp4", size: 501 * 1024 * 1024 }, "video"))
+			.toMatch(/500 MB/);
 		expect(validateChatMedia({ type: "image/jpeg", size: 11 * 1024 * 1024 }, "image"))
 			.toMatch(/10 MB/);
 		expect(validateChatMedia({ type: "image/png", size: 10 * 1024 * 1024 }, "image")).toBe("");

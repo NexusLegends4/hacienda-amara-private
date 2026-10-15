@@ -6,7 +6,7 @@ values (
 	'chat-media',
 	'chat-media',
 	false,
-	52428800,
+	524288000,
 	array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm']
 )
 on conflict (id) do update
