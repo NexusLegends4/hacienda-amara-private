@@ -29,6 +29,11 @@ export const validateChatMedia = (file, kind) => {
 	return "";
 };
 
+export const isValidVideoPoster = (poster) =>
+	typeof poster === "string"
+	&& poster.length <= 48_000
+	&& /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(poster);
+
 export const createVideoPoster = (file) => new Promise((resolve) => {
 	if (typeof document === "undefined" || !file) {
 		resolve("");

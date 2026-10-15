@@ -7,7 +7,7 @@ import { clearConversationHistory, registerChatClearHandler } from "../utils/cha
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
-import { buildChatMediaPath, createVideoPoster, validateChatMedia } from "../utils/chat-media";
+import { buildChatMediaPath, createVideoPoster, isValidVideoPoster, validateChatMedia } from "../utils/chat-media";
 import { uploadChatMediaResumably } from "../utils/chat-media-upload";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
@@ -1668,7 +1668,7 @@ const clearCurrentChat = async () => {
 					url: signedData.signedUrl,
 					path: storagePath,
 					bucket: CHAT_MEDIA_BUCKET,
-					...(typeof attachment.poster === "string" ? { poster: attachment.poster } : {}),
+					...(isValidVideoPoster(attachment.poster) ? { poster: attachment.poster } : {}),
 				});
 			}
 		} catch (uploadError) {

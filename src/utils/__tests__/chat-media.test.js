@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChatMediaPath, validateChatMedia } from "../chat-media";
+import { buildChatMediaPath, isValidVideoPoster, validateChatMedia } from "../chat-media";
 import {
 	getChatMediaResumableEndpoint,
 	isResumableUploadNetworkError,
@@ -23,6 +23,15 @@ describe("validateChatMedia", () => {
 		expect(validateChatMedia({ type: "image/jpeg", size: 11 * 1024 * 1024 }, "image"))
 			.toMatch(/10 MB/);
 		expect(validateChatMedia({ type: "image/png", size: 10 * 1024 * 1024 }, "image")).toBe("");
+	});
+});
+
+describe("isValidVideoPoster", () => {
+	it("accepts bounded JPEG data URLs and rejects oversized or malformed previews", () => {
+		expect(isValidVideoPoster("data:image/jpeg;base64,YWJj")).toBe(true);
+		expect(isValidVideoPoster(`data:image/jpeg;base64,${"A".repeat(48_000)}`)).toBe(false);
+		expect(isValidVideoPoster("data:image/png;base64,YWJj")).toBe(false);
+		expect(isValidVideoPoster("")).toBe(false);
 	});
 });
 
