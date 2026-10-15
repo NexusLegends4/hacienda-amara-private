@@ -6,7 +6,7 @@ values (
 	'chat-media',
 	'chat-media',
 	false,
-	524288000,
+	52428800,
 	array[
 		'image/jpeg',
 		'image/png',
