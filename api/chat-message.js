@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { isValidVideoPoster } from "../src/utils/chat-media.js";
 import { moderateAssistantText, moderateChatText } from "../src/utils/chat-moderation.js";
 import { classifyChatMessage } from "../server/utils/groq-moderation.js";
 
@@ -202,14 +203,7 @@ export async function POST(request) {
 		if (attachment.kind === "video" && !attachment.mimeType.startsWith("video/")) {
 			return makeResponse(400, { error: "Attachment could not be verified." });
 		}
-		const poster = attachment.poster;
-		if (poster != null && (
-			typeof poster !== "string"
-			|| poster.length > 48_000
-			|| !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(poster)
-		)) {
-			return makeResponse(400, { error: "Video preview could not be verified." });
-		}
+		const poster = isValidVideoPoster(attachment.poster) ? attachment.poster : "";
 
 		if (attachment.path) {
 			if (attachment.bucket !== MEDIA_BUCKET || !attachment.path.startsWith(`conversations/${conversationKey}/`)) {
