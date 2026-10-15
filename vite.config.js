@@ -191,6 +191,9 @@ export default defineConfig(({ mode }) => {
 	}
 
 	return {
+		optimizeDeps: {
+			exclude: ["@ffmpeg/ffmpeg"],
+		},
 		plugins: [
 			react(),
 			tailwindcss(),

@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-ffmpeg-assets.js",
     "dev": "vite",
+    "prebuild": "node scripts/copy-ffmpeg-assets.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -12,6 +14,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
     "@supabase/supabase-js": "^2.48.5",
     "@tailwindcss/vite": "^4.2.2",
     "@vercel/speed-insights": "^2.0.0",

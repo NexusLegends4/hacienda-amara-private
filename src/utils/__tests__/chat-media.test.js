@@ -9,8 +9,9 @@ describe("validateChatMedia", () => {
 	it("accepts supported video formats and rejects unsupported formats", () => {
 		expect(validateChatMedia({ type: "video/mp4", size: 1024 }, "video")).toBe("");
 		expect(validateChatMedia({ type: "video/webm", size: 1024 }, "video")).toBe("");
-		expect(validateChatMedia({ type: "video/quicktime", size: 1024 }, "video"))
-			.toMatch(/MP4 or WebM/);
+		expect(validateChatMedia({ type: "video/quicktime", size: 1024 }, "video")).toBe("");
+		expect(validateChatMedia({ type: "video/x-matroska", size: 1024 }, "video"))
+			.toMatch(/MP4, WebM, or MOV/);
 	});
 
 	it("enforces different image and video size limits", () => {

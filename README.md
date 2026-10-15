@@ -20,7 +20,7 @@ If you are developing a production application, we recommend using TypeScript wi
 To store the optional contact number shown in Edit Profile, run
 `supabase/20261012_profile_contact_number.sql` in the Supabase SQL Editor.
 
-Chat messages and media are stored in Supabase so clients, guests, staff, and admins can revisit a conversation. Guest chats use Supabase anonymous sign-in; guests do not need to create a visible account. Enable **Anonymous Sign-Ins** in Supabase **Authentication → Sign In / Providers**.
+Chat messages and media are stored in Supabase so clients, guests, staff, and admins can revisit a conversation. Guest chats use Supabase anonymous sign-in; guests do not need to create a visible account. Enable **Anonymous Sign-Ins** in Supabase **Authentication → Sign In / Providers**. Chat videos are converted in the browser to H.264/AAC MP4 before upload so they play on common browsers. The first conversion loads the self-hosted FFmpeg WebAssembly core (about 31 MiB); source and license details are served from `/ffmpeg/SOURCE.txt`.
 
 1. Run `supabase/20260406_chat_media.sql` and the existing chat message migrations, including `supabase/20261004_staff_chat_access.sql`.
 2. Run `supabase/20261012_staff_admin_totp_mfa.sql` and `supabase/20261012_staff_email_otp_auth.sql` if they have not already been applied.
