@@ -10,6 +10,7 @@ import { FiSend, FiTrash2 } from "react-icons/fi";
 import { buildChatMediaPath, createVideoPoster, isValidVideoPoster, validateChatMedia } from "../utils/chat-media";
 import { uploadChatMediaResumably } from "../utils/chat-media-upload";
 import { transcodeChatVideo } from "../utils/chat-video-transcode";
+import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../utils/payment-instructions";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
@@ -69,8 +70,6 @@ const HACIENDA_AMARA_FACEBOOK_URL = "https://www.facebook.com/HaciendaAmara/";
 const HACIENDA_AMARA_FACEBOOK_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
 	HACIENDA_AMARA_FACEBOOK_URL,
 )}`;
-const HACIENDA_AMARA_PAYMENT_QR =
-	"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https%3A%2F%2Fwww.facebook.com%2Fphoto.php%3Ffbid%3D122155733210749963%26set%3Dpb.61572498911618.-2207520000%26type%3D3";
 const HACIENDA_AMARA_LOCATION_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
 	HACIENDA_AMARA_MAPS_URL,
 )}`;
@@ -238,21 +237,11 @@ const getBotReply = (text) => {
 	}
 
 	if (includesAny(["required down payment", "down payment", "downpayment", "dp"])) {
-		return "Yes, a down payment is required to secure your reservation.";
+		return PAYMENT_INSTRUCTIONS;
 	}
 
 	if (includesAny(["booking process", "how to book", "reserve", "reservation process", "confirm booking", "security deposit", "deposit", "balance payment", "downpayment policy"])) {
-		return `Thank you for choosing Hacienda Amara Private Resort and Events Place! 
-
-Should you wish to reserve the date?
-
-- We require at least 50% down payment and ₱2,000 refundable security deposit for the confirmation of your booking.
-
-- BALANCE will be settled at least a day prior to date of stay.
-
-- DOWN PAYMENT is non-refundable.
-
-- REFUNDABLE SECURITY DEPOSIT shall be refunded upon Check-Out.`;
+		return PAYMENT_INSTRUCTIONS;
 	}
 
 	if (includesAny(["full payment", "remaining balance", "settled before", "settled on the event date"])) {
@@ -328,18 +317,7 @@ Should you wish to reserve the date?
 	}
 
 	if (includesAny(["where to pay", "how to pay", "saan ako magbabayad", "saan magbabayad", "saan ako mag babayad", "payment qr", "mode of payment", "payment details", "payment info", "payment instruction", "bayad", "pay"])) {
-		return {
-			content: "Scan here to\ncomplete payment\n\nGCASH\nMara Jane Garcia\n0968-326-0522\n\nBDO Unibank, Inc.\nMara Jane Garcia\n0101-6000-5035",
-			attachments: [
-				{
-					id: "payment-qr",
-					kind: "image",
-					name: "Payment QR",
-					mimeType: "image/jpeg",
-					url: HACIENDA_AMARA_PAYMENT_QR,
-				},
-			],
-		};
+		return PAYMENT_INSTRUCTIONS;
 	}
 
 	if (includesAny(["availability", "available po", "slot", "booking", "reserve", "reserve po", "reservation", "book"])) {
@@ -1843,6 +1821,8 @@ const clearCurrentChat = async () => {
 						: hasVideo
 							? "Thanks for sending the video. We will check it and reply as soon as possible."
 							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
+				} else if (isPaymentInstructionsQuery(trimmed)) {
+					replyText = PAYMENT_INSTRUCTIONS;
 				} else {
 					// Check FAQ keywords first for instant accurate responses
 					const botReply = getBotReply(trimmed);

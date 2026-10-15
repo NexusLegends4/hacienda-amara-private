@@ -3,6 +3,7 @@ import {
 	moderateAssistantText,
 	moderateChatText,
 } from "../src/utils/chat-moderation.js";
+import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../src/utils/payment-instructions.js";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = "llama-3.1-8b-instant";
@@ -142,6 +143,9 @@ export async function POST(request) {
 
 	if (isRateLimited(rateLimitKey(request, userId))) {
 		return Response.json({ error: "Too many messages sent; please wait a minute." }, { status: 429, headers: { "Retry-After": "60" } });
+	}
+	if (isPaymentInstructionsQuery(userText)) {
+		return createReply(PAYMENT_INSTRUCTIONS);
 	}
 	if (!GROQ_API_KEY) {
 		console.warn("GROQ_API_KEY not available, returning fallback response");
