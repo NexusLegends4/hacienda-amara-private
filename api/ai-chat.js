@@ -143,7 +143,10 @@ export async function POST(request) {
 	if (isRateLimited(rateLimitKey(request, userId))) {
 		return Response.json({ error: "Too many messages sent; please wait a minute." }, { status: 429, headers: { "Retry-After": "60" } });
 	}
-	if (!GROQ_API_KEY) return Response.json({ error: "AI assistant is temporarily unavailable." }, { status: 503 });
+	if (!GROQ_API_KEY) {
+		console.warn("GROQ_API_KEY not available, returning fallback response");
+		return Response.json({ error: "AI assistant is temporarily unavailable." }, { status: 503 });
+	}
 
 	try {
 		const upstream = await fetch("https://api.groq.com/openai/v1/chat/completions", {

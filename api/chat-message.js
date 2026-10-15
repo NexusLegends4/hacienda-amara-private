@@ -282,10 +282,16 @@ export async function POST(request) {
 			apiKey: process.env.GROQ_API_KEY,
 		});
 		if (!moderation.allowed) {
-			return makeResponse(moderation.unavailable ? 503 : 400, {
-				error: moderation.user_message || "We couldn't verify your message right now. Please try again shortly.",
-				...(moderation.unavailable ? {} : { reason: moderation.category }),
-			});
+			// If moderation is unavailable (not a policy violation), allow the message through with a warning
+			if (moderation.unavailable) {
+				console.warn("Groq moderation unavailable, allowing message through:", moderation.user_message);
+				moderation = { allowed: true, category: "allowed", reason: "moderation_unavailable_fallback" };
+			} else {
+				return makeResponse(moderation.unavailable ? 503 : 400, {
+					error: moderation.user_message || "We couldn't verify your message right now. Please try again shortly.",
+					...(moderation.unavailable ? {} : { reason: moderation.category }),
+				});
+			}
 		}
 	}
 

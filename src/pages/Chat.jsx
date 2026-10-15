@@ -241,6 +241,20 @@ const getBotReply = (text) => {
 		return "Yes, a down payment is required to secure your reservation.";
 	}
 
+	if (includesAny(["booking process", "how to book", "reserve", "reservation process", "confirm booking", "security deposit", "deposit", "balance payment", "downpayment policy"])) {
+		return `Thank you for choosing Hacienda Amara Private Resort and Events Place! 
+
+Should you wish to reserve the date?
+
+- We require at least 50% down payment and ₱2,000 refundable security deposit for the confirmation of your booking.
+
+- BALANCE will be settled at least a day prior to date of stay.
+
+- DOWN PAYMENT is non-refundable.
+
+- REFUNDABLE SECURITY DEPOSIT shall be refunded upon Check-Out.`;
+	}
+
 	if (includesAny(["full payment", "remaining balance", "settled before", "settled on the event date"])) {
 		return "The remaining balance should be settled before or on the event date, based on the agreed terms.";
 	}
@@ -1829,23 +1843,31 @@ const clearCurrentChat = async () => {
 						: hasVideo
 							? "Thanks for sending the video. We will check it and reply as soon as possible."
 							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
-				} else if (shouldTriggerBot) {
-					const currentSession = session || (await supabase.auth.getSession()).data.session;
-					let aiReply = await callAIChat(
-						trimmed,
-						currentSession?.access_token || outgoing.accessToken,
-					);
-					if (!aiReply || isGenericResponse(aiReply)) {
-						const botReply = getBotReply(trimmed);
+				} else {
+					// Check FAQ keywords first for instant accurate responses
+					const botReply = getBotReply(trimmed);
+					const hasFaqMatch = typeof botReply === "string" 
+						? !botReply.includes("Thanks for your message. If you need more help")
+						: (botReply.content && !botReply.content.includes("Thanks for your message. If you need more help"));
+					
+					if (hasFaqMatch) {
+						// FAQ keyword matched - use rule-based response
 						replyText = typeof botReply === "string" ? botReply : botReply.content || "";
 						replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
 					} else {
-						replyText = aiReply;
+						// No FAQ match - try AI for open-ended questions
+						const currentSession = session || (await supabase.auth.getSession()).data.session;
+						let aiReply = await callAIChat(
+							trimmed,
+							currentSession?.access_token || outgoing.accessToken,
+						);
+						if (!aiReply || isGenericResponse(aiReply)) {
+							replyText = typeof botReply === "string" ? botReply : botReply.content || "";
+							replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+						} else {
+							replyText = aiReply;
+						}
 					}
-				} else {
-					const botReply = getBotReply(trimmed);
-					replyText = typeof botReply === "string" ? botReply : botReply.content || "";
-					replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
 				}
 				if (!moderateAssistantText(replyText).allowed) {
 					replyText = "For details I can’t verify here, please contact authorized Hacienda Amara staff.";
