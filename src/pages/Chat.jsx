@@ -113,6 +113,9 @@ const getProfileDisplayName = (profile) => {
 	return [profile.firstname, profile.lastname].filter(Boolean).join(" ").trim();
 };
 
+const hasClientMessage = (messages = []) =>
+	Array.isArray(messages) && messages.some((message) => message?.senderRole === "client");
+
 const getConversationProfileId = (messages = []) => {
 	const threadMessages = Array.isArray(messages) ? messages : [];
 
@@ -972,7 +975,7 @@ const [uploadFailed, setUploadFailed] = useState(false);
 return [...ids];
 	}, [historyByConversation, isAdminOrStaff]);
 
-const canReply = !isAdminOrStaff || adminAvailable;
+const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMessages));
 
 	const scrollMessagesToBottom = (behavior = "smooth") => {
 		const container = messageListRef.current;
@@ -1119,7 +1122,9 @@ const canReply = !isAdminOrStaff || adminAvailable;
 
 const nextSnapshot = isAdminOrStaff
 			? Object.fromEntries(
-					Object.entries(grouped).filter(([key]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY),
+					Object.entries(grouped).filter(
+						([key, messages]) => key !== LEGACY_CUSTOMER_CONVERSATION_KEY && hasClientMessage(messages),
+					),
 			  )
 			: {
 					[conversationKey]: grouped[conversationKey] || [],
@@ -1201,16 +1206,19 @@ const nextSnapshot = isAdminOrStaff
 			}
 
 			if (!refreshed) {
-				const stored = readHistory();
-
-				setHistoryByConversation(
-					isAdminOrStaff ? stored : { [conversationKey]: stored[conversationKey] || [] },
-				);
+				if (isAdminOrStaff) {
+					setHistoryByConversation({});
+					setActiveConversationKey("");
+					setError("Saved customer conversations could not be loaded. Refresh before replying.");
+				} else {
+					const stored = readHistory();
+					setHistoryByConversation({ [conversationKey]: stored[conversationKey] || [] });
+				}
 			} else {
 				setHistoryByConversation(refreshed);
 			}
 
-			setError("");
+			if (refreshed || !isAdminOrStaff) setError("");
 			pendingScrollToBottomRef.current = true;
 			shouldStickToBottomRef.current = true;
 
@@ -1271,10 +1279,13 @@ const clearCurrentChat = async () => {
 			if (profile || session) {
 				const loaded = await refreshFromDb();
 				if (!loaded) {
-					const stored = readHistory();
-					setHistoryByConversation(
-						isAdminOrStaff ? stored : { [conversationKey]: stored[conversationKey] || [] },
-					);
+					if (isAdminOrStaff) {
+						setHistoryByConversation({});
+						setActiveConversationKey("");
+					} else {
+						const stored = readHistory();
+						setHistoryByConversation({ [conversationKey]: stored[conversationKey] || [] });
+					}
 				}
 			} else {
 				// Clear chat history for guests on page refresh
@@ -1292,9 +1303,6 @@ const clearCurrentChat = async () => {
 
 			if (!isAdminOrStaff) {
 				setActiveConversationKey(conversationKey);
-			} else {
-				const keys = Object.keys(readHistory());
-				setActiveConversationKey(keys[0] || conversationKey);
 			}
 
 			setLoading(false);
@@ -2436,13 +2444,18 @@ const chatContent = (
 								<button
 									type="button"
 									onClick={() => handleSubmit({ preventDefault: () => {} })}
-									disabled={!chatAuthReady || Boolean(chatAuthError) || isSending}
+									disabled={!chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !canReply)}
 									className="ml-3 inline-flex rounded-full border border-red-300 px-3 py-1 font-semibold hover:bg-red-100 disabled:opacity-50"
 								>
 									Retry upload
 								</button>
 							)}
 										</div>
+									)}
+									{isAdminOrStaff && adminAvailable && !hasClientMessage(activeMessages) && (
+										<p role="status" className="mx-auto mb-3 max-w-4xl text-sm text-slate-600">
+											Select a customer conversation with a saved message before sending.
+										</p>
 									)}
 									{chatAuthError && (
 										<div role="alert" className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -2559,7 +2572,7 @@ const chatContent = (
 
 										<button
 											type="submit"
-											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !adminAvailable)}
+											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !canReply)}
 											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
 							aria-label={uploadFailed && draftAttachments.length > 0 ? "Retry upload and send message" : "Send message"}
 							title={isBubble ? (uploadFailed ? "Retry upload" : "Send message") : undefined}
