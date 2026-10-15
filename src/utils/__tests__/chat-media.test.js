@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildChatMediaPath, validateChatMedia } from "../chat-media";
-import { getChatMediaResumableEndpoint } from "../chat-media-upload";
+import {
+	getChatMediaResumableEndpoint,
+	isResumableUploadNetworkError,
+} from "../chat-media-upload";
 
 describe("validateChatMedia", () => {
 	it("accepts supported video formats and rejects unsupported formats", () => {
@@ -32,6 +35,20 @@ describe("getChatMediaResumableEndpoint", () => {
 	it("preserves custom storage origins while replacing any URL path", () => {
 		expect(getChatMediaResumableEndpoint("https://storage.example.com/base"))
 			.toBe("https://storage.example.com/storage/v1/upload/resumable");
+	});
+});
+
+describe("isResumableUploadNetworkError", () => {
+	it("identifies TUS failures that received no HTTP response", () => {
+		expect(isResumableUploadNetworkError({
+			originalRequest: {},
+			originalResponse: null,
+		})).toBe(true);
+		expect(isResumableUploadNetworkError({
+			originalRequest: {},
+			originalResponse: { getStatus: () => 403 },
+		})).toBe(false);
+		expect(isResumableUploadNetworkError(new Error("Upload setup failed"))).toBe(false);
 	});
 });
 
