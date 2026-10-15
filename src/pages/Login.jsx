@@ -828,8 +828,8 @@ const Login = () => {
                       rounded-xl
                       bg-black
                       text-white
-                      py-2.5
-                      sm:py-3
+                      px-6
+                      py-3
                       font-semibold
                       text-sm
                       sm:text-base
@@ -841,12 +841,16 @@ const Login = () => {
                       focus:ring-2
                       focus:ring-black
                       focus:ring-offset-2
+                      flex
+                      items-center
+                      justify-center
+                      gap-2
                     "
                   >
                     {isSubmitting ? (
                       <>
                         <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white flex-shrink-0"
+                          className="animate-spin h-4 w-4 text-white flex-shrink-0"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -865,10 +869,10 @@ const Login = () => {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           />
                         </svg>
-                        Signing in...
+                        <span>Signing in...</span>
                       </>
                     ) : (
-                      "Sign In"
+                      <span>Sign In</span>
                     )}
                   </button>
                 </form>
