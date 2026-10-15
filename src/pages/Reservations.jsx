@@ -53,9 +53,10 @@ const Reservations = () => {
 	const profileName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ");
 	const profileEmail = profile?.email || "";
 	const profilePhone = (profile?.contact_number || "").replace(/\D/g, "").slice(0, 12);
-	const bookingName = guestName ?? profileName;
-	const bookingEmail = guestEmail ?? profileEmail;
-	const bookingPhone = guestPhone ?? profilePhone;
+	const isLoggedInClient = profile?.role === "client";
+	const bookingName = isLoggedInClient ? profileName : (guestName ?? profileName);
+	const bookingEmail = isLoggedInClient ? profileEmail : (guestEmail ?? profileEmail);
+	const bookingPhone = isLoggedInClient ? profilePhone : (guestPhone ?? profilePhone);
 	const bookingCancelEmail = cancelEmail ?? profileEmail;
 	const bookingCancelPhone = cancelPhone ?? profilePhone;
 
@@ -307,16 +308,50 @@ const Reservations = () => {
 							<div className="space-y-6">
 								<div className="grid gap-4 sm:grid-cols-2">
 									<div className="form-control sm:col-span-2 mb-4">
-										<label className="label-text font-bold mb-4 block">Full Name</label> <input type="text" className="input input-bordered rounded-2xl px-4 py-3" value={bookingName} onChange={e => setGuestName(e.target.value)} required minLength="2" placeholder="Your full name" />
+										<label className="label-text font-bold mb-4 block">Full Name</label> 
+										<input 
+											type="text" 
+											className="input input-bordered rounded-2xl px-4 py-3" 
+											value={bookingName} 
+											onChange={isLoggedInClient ? undefined : (e => setGuestName(e.target.value))}
+											readOnly={isLoggedInClient}
+											required 
+											minLength="2" 
+											placeholder="Your full name" 
+										/>
+										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit name in Profile page</p>}
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Email Address</label>
-										<input type="email" className="input input-bordered rounded-2xl px-4" value={bookingEmail} onChange={e => setGuestEmail(e.target.value)} required placeholder="you@example.com" />
+										<input 
+											type="email" 
+											className="input input-bordered rounded-2xl px-4" 
+											value={bookingEmail} 
+											onChange={isLoggedInClient ? undefined : (e => setGuestEmail(e.target.value))}
+											readOnly={isLoggedInClient}
+											required 
+											placeholder="you@example.com" 
+										/>
+										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit email in Profile page</p>}
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
-										<input inputMode="numeric" autoComplete="tel" className="input input-bordered rounded-2xl px-4" value={bookingPhone} onChange={e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12))} required minLength="11" maxLength="12" pattern="(?:09\d{9}|639\d{9})" placeholder="09XX XXX XXXX" aria-label="Philippine mobile number" />
+										<input 
+											inputMode="numeric" 
+											autoComplete="tel" 
+											className="input input-bordered rounded-2xl px-4" 
+											value={bookingPhone} 
+											onChange={isLoggedInClient ? undefined : (e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12)))}
+											readOnly={isLoggedInClient}
+											required 
+											minLength="11" 
+											maxLength="12" 
+											pattern="(?:09\d{9}|639\d{9})" 
+											placeholder="09XX XXX XXXX" 
+											aria-label="Philippine mobile number" 
+										/>
 										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
+										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit phone in Profile page</p>}
 									</div>
 								</div>
 								<div className="pt-4">

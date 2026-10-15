@@ -5,8 +5,31 @@ import { supabase } from "../utils/supabase";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
-import { FiUser, FiMail, FiShield, FiPhone } from "react-icons/fi";
+import { FiUser, FiMail, FiShield, FiPhone, FiAlertCircle } from "react-icons/fi";
 import DOMPurify from "dompurify";
+
+const validateName = (name) => {
+	const trimmed = name.trim();
+	if (!trimmed) return "This field is required";
+	if (!/^[A-Za-z\s'-]+$/.test(trimmed)) return "Letters, spaces, hyphens, and apostrophes only";
+	if (trimmed.length < 2) return "Must be at least 2 characters";
+	return null;
+};
+
+const validateEmail = (email) => {
+	const trimmed = email.trim().toLowerCase();
+	if (!trimmed) return "Email is required";
+	if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(trimmed)) return "Must be a valid @gmail.com address";
+	return null;
+};
+
+const validatePhone = (phone) => {
+	const trimmed = phone.trim();
+	if (!trimmed) return "Contact number is required";
+	const digitsOnly = trimmed.replace(/\D/g, "");
+	if (!/^(?:09\d{9}|639\d{9})$/.test(digitsOnly)) return "Must be a valid Philippine mobile number (09XXXXXXXXX or 639XXXXXXXXX)";
+	return null;
+};
 
 const EditProfile = () => {
 	const { session, profile, setProfile } = useContext(SessionContext);
@@ -101,24 +124,55 @@ const EditProfile = () => {
 		}
 	};
 
+	const [formData, setFormData] = useState({
+		firstname: profile?.firstname || "",
+		lastname: profile?.lastname || "",
+		email: profile?.email || "",
+		contact_number: profile?.contact_number || "",
+	});
+	const [fieldErrors, setFieldErrors] = useState({});
+
+	const handleInputChange = (field, value) => {
+		let filteredValue = value;
+		let error = null;
+
+		if (field === "firstname" || field === "lastname") {
+			filteredValue = value.replace(/[^A-Za-z\s'-]/g, "");
+			error = validateName(filteredValue);
+		} else if (field === "email") {
+			filteredValue = value.toLowerCase();
+			error = validateEmail(filteredValue);
+		} else if (field === "contact_number") {
+			filteredValue = value.replace(/\D/g, "");
+			error = validatePhone(filteredValue);
+		}
+
+		setFormData(prev => ({ ...prev, [field]: filteredValue }));
+		setFieldErrors(prev => ({ ...prev, [field]: error }));
+	};
+
 	const handleSubmit = async (event) => {
-		// Save only the editable profile fields back to Supabase.
 		event.preventDefault();
-		const formData = new FormData(event.target);
-		const signupForm = {
-			firstname: DOMPurify.sanitize(formData.get("firstname")),
-			lastname: DOMPurify.sanitize(formData.get("lastname")),
-			email: DOMPurify.sanitize(formData.get("email")),
-			contact_number: DOMPurify.sanitize(formData.get("contact_number") || ""),
+		
+		const errors = {
+			firstname: validateName(formData.firstname),
+			lastname: validateName(formData.lastname),
+			email: validateEmail(formData.email),
+			contact_number: validatePhone(formData.contact_number),
 		};
+
+		if (Object.values(errors).some(e => e)) {
+			setFieldErrors(errors);
+			return;
+		}
 
 		const { data: profileData, error: profileError } = await supabase
 			.from("profiles")
 			.update({
-				firstname: signupForm.firstname,
-				lastname: signupForm.lastname,
-				email: signupForm.email.trim(),
-				contact_number: signupForm.contact_number.trim(),
+				firstname: formData.firstname.trim(),
+				lastname: formData.lastname.trim(),
+				email: formData.email.trim().toLowerCase(),
+				contact_number: formData.contact_number.trim(),
 			})
 			.eq("id", session.user.id)
 			.select()
@@ -281,40 +335,48 @@ const EditProfile = () => {
 									placeholder="Enter your first name"
 									label="First name"
 									type="text"
-									defaultValue={profile?.firstname}
+									value={formData.firstname}
+									onChange={(e) => handleInputChange("firstname", e.target.value)}
 									autoComplete="given-name"
 									maxLength={80}
 									required
+									error={fieldErrors.firstname}
 								/>
 								<Input
 									name="lastname"
 									placeholder="Enter your last name"
 									label="Last name"
 									type="text"
-									defaultValue={profile?.lastname}
+									value={formData.lastname}
+									onChange={(e) => handleInputChange("lastname", e.target.value)}
 									autoComplete="family-name"
 									maxLength={80}
 									required
+									error={fieldErrors.lastname}
 								/>
 							</div>
 
 							<Input
 								name="email"
-								placeholder="Enter your email"
+								placeholder="Enter your email (must be @gmail.com)"
 								label="Email"
 								type="email"
-								defaultValue={profile?.email}
+								value={formData.email}
+								onChange={(e) => handleInputChange("email", e.target.value)}
+								error={fieldErrors.email}
 							/>
 
 							<Input
 								name="contact_number"
-								placeholder="Enter your contact number"
+								placeholder="Enter your contact number (09XXXXXXXXX)"
 								label="Contact Number"
 								type="tel"
-								defaultValue={profile?.contact_number}
+								value={formData.contact_number}
+								onChange={(e) => handleInputChange("contact_number", e.target.value)}
 								autoComplete="tel"
 								maxLength={20}
 								required
+								error={fieldErrors.contact_number}
 							/>
 
 							<div className="rounded-2xl bg-base-200/80 px-4 py-4 text-sm leading-6 text-base-content/70">
