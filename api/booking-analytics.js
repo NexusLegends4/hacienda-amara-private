@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { hasStaffVerificationClaim } from "./utils/auth.js";
+import { hasStaffVerificationClaim } from "../server/utils/auth.js";
 import {
   assessForecastHistory,
   countBookingsByMonth,
@@ -14,7 +14,7 @@ import {
   isBookingAnalyticsAdmin,
   parseBookingForecast,
   selectForecastComparisons,
-} from "./utils/booking-analytics.js";
+} from "../server/utils/booking-analytics.js";
 
 const GROQ_MODEL = "llama-3.1-8b-instant";
 const SNAPSHOT_PAGE_SIZE = 1000;

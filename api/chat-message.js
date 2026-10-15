@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { moderateAssistantText, moderateChatText } from "../src/utils/chat-moderation.js";
-import { classifyChatMessage } from "./utils/groq-moderation.js";
+import { classifyChatMessage } from "../server/utils/groq-moderation.js";
 
 const MEDIA_PREFIX = "__HACIENDA_MEDIA__";
 const MEDIA_BUCKET = "chat-media";

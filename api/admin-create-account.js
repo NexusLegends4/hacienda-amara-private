@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { hasStaffVerificationClaim } from "./utils/auth.js";
+import { hasStaffVerificationClaim } from "../server/utils/auth.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 

@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { hasStaffVerificationClaim } from "./utils/auth.js";
+import { hasStaffVerificationClaim } from "../server/utils/auth.js";
 
 const allowedStatuses = new Set(["confirmed", "denied", "cancelled"]);
 

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { hasRecentEmailVerification } from "./utils/password-reset.js";
+import { hasRecentEmailVerification } from "../server/utils/password-reset.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
