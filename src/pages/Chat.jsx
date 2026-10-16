@@ -7,8 +7,9 @@ import { clearConversationHistory, registerChatClearHandler } from "../utils/cha
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
-import { buildChatMediaPath, createVideoPoster, isValidVideoPoster, validateChatMedia } from "../utils/chat-media";
+import { buildChatMediaPath, createImageModerationPreview, createVideoModerationFrames, createVideoPoster, isValidVideoPoster, validateChatMedia } from "../utils/chat-media";
 import { uploadChatMediaResumably } from "../utils/chat-media-upload";
+import { moderateChatMediaFrames } from "../utils/chat-media-moderation";
 import { transcodeChatVideo } from "../utils/chat-video-transcode";
 import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../utils/payment-instructions";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
@@ -832,6 +833,7 @@ const [uploadProgress, setUploadProgress] = useState(0);
 const [uploadFailed, setUploadFailed] = useState(false);
 const [isPreparingVideo, setIsPreparingVideo] = useState(false);
 const [videoPreparationProgress, setVideoPreparationProgress] = useState(0);
+const [isModeratingMedia, setIsModeratingMedia] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
   const [chatAuthError, setChatAuthError] = useState("");
@@ -1715,6 +1717,16 @@ const clearCurrentChat = async () => {
 				: file;
 			const preparedValidationError = validateChatMedia(preparedFile, kind);
 			if (preparedValidationError) throw new Error(preparedValidationError);
+
+			setIsModeratingMedia(true);
+			setError("");
+			const moderationFrames = kind === "video"
+				? await createVideoModerationFrames(preparedFile, 5)
+				: [await createImageModerationPreview(preparedFile)];
+			const { data: authData, error: authError } = await supabase.auth.getSession();
+			if (authError) throw authError;
+			await moderateChatMediaFrames(moderationFrames, authData.session?.access_token);
+
 			const attachment = {
 				id: getMessageId(),
 				kind,
@@ -1735,6 +1747,7 @@ const clearCurrentChat = async () => {
 			console.error("Unable to prepare chat attachment:", attachmentError);
 			setError(attachmentError?.message || "Unable to prepare the selected file.");
 		} finally {
+			setIsModeratingMedia(false);
 			if (kind === "video") {
 				setIsPreparingVideo(false);
 				setVideoPreparationProgress(0);
@@ -2497,10 +2510,15 @@ const chatContent = (
 									)}
 									{isPreparingVideo && (
 										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-											<span>Converting video for browser playback… {Math.round(videoPreparationProgress * 100)}%</span>
+												<span>Preparing high-quality video for playback… {Math.round(videoPreparationProgress * 100)}%</span>
 											<progress className="progress progress-warning w-24" value={videoPreparationProgress * 100} max="100" aria-label={`Video conversion ${Math.round(videoPreparationProgress * 100)}% complete`} />
 										</div>
 									)}
+					{isModeratingMedia && (
+						<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+							<span className="loading loading-spinner loading-sm" /> Checking media for nudity and explicit content…
+						</div>
+					)}
 									{isSending && draftAttachments.length > 0 && (
 										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
 							<span>{uploadProgress >= 99 ? "Saving message securely…" : `Uploading media securely… ${uploadProgress}%`}</span>
@@ -2511,6 +2529,9 @@ const chatContent = (
 									<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
 										Press Enter to send. Shift + Enter for a new line.
 									</p>
+					<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
+						Selected photos and sampled video frames are screened automatically before upload.
+					</p>
 
 									<form
 										onSubmit={handleSubmit}
@@ -2522,6 +2543,7 @@ const chatContent = (
 											accept="image/jpeg,image/png,image/webp,image/gif"
 											capture="environment"
 											className="hidden"
+							disabled={isSending || isPreparingVideo || isModeratingMedia}
 											onChange={(event) => handleAttachmentSelection(event, "image")}
 										/>
 										<input
@@ -2529,6 +2551,7 @@ const chatContent = (
 											type="file"
 											accept="video/mp4,video/webm,video/quicktime,.mov"
 											className="hidden"
+							disabled={isSending || isPreparingVideo || isModeratingMedia}
 											onChange={(event) => handleAttachmentSelection(event, "video")}
 										/>
 
@@ -2536,7 +2559,7 @@ const chatContent = (
 											<button
 												type="button"
 												onClick={() => photoInputRef.current?.click()}
-												disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || (isAdminOrStaff && !adminAvailable)}
+								disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || isModeratingMedia || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Photo
@@ -2544,7 +2567,7 @@ const chatContent = (
 											<button
 												type="button"
 												onClick={() => videoInputRef.current?.click()}
-												disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || (isAdminOrStaff && !adminAvailable)}
+								disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || isModeratingMedia || (isAdminOrStaff && !adminAvailable)}
 												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
 											>
 												Video

@@ -174,6 +174,122 @@ const localBookingAnalyticsApi = {
 	},
 };
 
+const localReservationStatusNotificationApi = {
+	name: "local-reservation-status-notification-api",
+	configureServer(server) {
+		server.middlewares.use("/api/reservation-status-notification", async (request, response) => {
+			if (request.method !== "POST") {
+				response.statusCode = 405;
+				response.setHeader("Allow", "POST");
+				response.setHeader("Content-Type", "application/json");
+				response.end(JSON.stringify({ error: "Method not allowed." }));
+				return;
+			}
+
+			try {
+				const chunks = [];
+				let requestBytes = 0;
+				for await (const chunk of request) {
+					requestBytes += chunk.length;
+					if (requestBytes <= 16_384) chunks.push(chunk);
+				}
+				if (requestBytes > 16_384) {
+					response.statusCode = 413;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Notification request is too large." }));
+					return;
+				}
+
+				const headers = new Headers();
+				for (const name of ["content-type", "authorization", "x-forwarded-for", "x-real-ip"]) {
+					const value = request.headers[name];
+					if (typeof value === "string") headers.set(name, value);
+				}
+				const apiRequest = new Request(`http://${request.headers.host || "localhost"}${request.url}`, {
+					method: "POST",
+					headers,
+					body: Buffer.concat(chunks),
+				});
+				const { POST } = await import("./api/reservation-status-notification.js");
+				const apiResponse = await POST(apiRequest);
+				response.statusCode = apiResponse.status;
+				apiResponse.headers.forEach((value, name) => response.setHeader(name, value));
+				response.end(Buffer.from(await apiResponse.arrayBuffer()));
+			} catch (error) {
+				console.error("Local reservation notification API failed:", error);
+				if (!response.headersSent) {
+					response.statusCode = 500;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Reservation notification could not be sent." }));
+				} else {
+					response.end();
+				}
+			}
+		});
+	},
+	configurePreviewServer(server) {
+		localReservationStatusNotificationApi.configureServer(server);
+	},
+};
+
+const localChatMediaModerationApi = {
+	name: "local-chat-media-moderation-api",
+	configureServer(server) {
+		server.middlewares.use("/api/chat-media-moderation", async (request, response) => {
+			if (request.method !== "POST") {
+				response.statusCode = 405;
+				response.setHeader("Allow", "POST");
+				response.setHeader("Content-Type", "application/json");
+				response.end(JSON.stringify({ error: "Method not allowed." }));
+				return;
+			}
+
+			try {
+				const chunks = [];
+				let requestBytes = 0;
+				for await (const chunk of request) {
+					requestBytes += chunk.length;
+					if (requestBytes <= 1_500_000) chunks.push(chunk);
+				}
+				if (requestBytes > 1_500_000) {
+					response.statusCode = 413;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Media safety screening request is too large." }));
+					return;
+				}
+
+				const headers = new Headers();
+				for (const name of ["content-type", "authorization", "x-forwarded-for", "x-real-ip"]) {
+					const value = request.headers[name];
+					if (typeof value === "string") headers.set(name, value);
+				}
+				const apiRequest = new Request(`http://${request.headers.host || "localhost"}${request.url}`, {
+					method: "POST",
+					headers,
+					body: Buffer.concat(chunks),
+				});
+				const { POST } = await import("./api/chat-media-moderation.js");
+				const apiResponse = await POST(apiRequest);
+				response.statusCode = apiResponse.status;
+				apiResponse.headers.forEach((value, name) => response.setHeader(name, value));
+				response.end(Buffer.from(await apiResponse.arrayBuffer()));
+			} catch (error) {
+				console.error("Local chat media moderation failed:", error);
+				if (!response.headersSent) {
+					response.statusCode = 500;
+					response.setHeader("Content-Type", "application/json");
+					response.end(JSON.stringify({ error: "Media safety screening is unavailable." }));
+				} else {
+					response.end();
+				}
+			}
+		});
+	},
+	configurePreviewServer(server) {
+		localChatMediaModerationApi.configureServer(server);
+	},
+};
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
@@ -181,6 +297,9 @@ export default defineConfig(({ mode }) => {
 		process.env.GROQ_API_KEY = env.GROQ_API_KEY;
 	}
 	for (const key of ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY"]) {
+		if (!process.env[key] && env[key]) process.env[key] = env[key];
+	}
+	for (const key of ["GMAIL_USER", "GMAIL_APP_PASSWORD"]) {
 		if (!process.env[key] && env[key]) process.env[key] = env[key];
 	}
 	if (!process.env.SUPABASE_URL && env.VITE_SUPABASE_URL) {
@@ -191,6 +310,13 @@ export default defineConfig(({ mode }) => {
 	}
 
 	return {
+		define: {
+			// Supabase's project URL is public client configuration. Support the
+			// server-side SUPABASE_URL name used by this project as a build fallback.
+			"import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+				env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
+			),
+		},
 		optimizeDeps: {
 			exclude: ["@ffmpeg/ffmpeg"],
 		},
@@ -200,6 +326,8 @@ export default defineConfig(({ mode }) => {
 			localAiChatApi,
 			localChatMessageApi,
 			localBookingAnalyticsApi,
+			localReservationStatusNotificationApi,
+			localChatMediaModerationApi,
 			VitePWA({
 				registerType: "autoUpdate",
 				includeAssets: ["favicon.svg", "icons.svg"],

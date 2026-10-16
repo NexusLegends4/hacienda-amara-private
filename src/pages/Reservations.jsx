@@ -10,6 +10,8 @@ const PH_HOLIDAYS_2026 = [
 	"2026-05-01", "2026-06-12", "2026-08-21", "2026-08-31", "2026-11-01", "2026-11-02",
 	"2026-11-30", "2026-12-08", "2026-12-24", "2026-12-25", "2026-12-30", "2026-12-31",
 ];
+const REVIEWER_NAME_KEY = "hacienda-reviewer-name";
+const REVIEWER_EMAIL_KEY = "hacienda-reviewer-email";
 
 const isWeekendOrHoliday = (dateStr) => {
 	if (!dateStr) return false;
@@ -240,6 +242,12 @@ const Reservations = () => {
 			return;
 		} else {
 			setReservationConflict(false);
+			try {
+				localStorage.setItem(REVIEWER_NAME_KEY, bookingName.trim());
+				localStorage.setItem(REVIEWER_EMAIL_KEY, bookingEmail.trim().toLowerCase());
+			} catch {
+				// A successful booking should continue even if browser storage is unavailable.
+			}
 			alert("Reservation submitted! Resort staff will contact you for confirmation.");
 			navigate(`/customer-notifications/${reservationId}`);
 		}

@@ -124,15 +124,20 @@ const ManageReservations = () => {
 
 		setUpdatingReservationId(id);
 		try {
-			const { error } = await supabase
+			const { data: updatedReservation, error } = await supabase
 				.from("reservations")
 				.update({
 					status: newStatus,
 					rejection_reason: newStatus === "denied" ? reason.trim() || null : null,
 				})
-				.eq("id", id);
+				.eq("id", id)
+				.select("id, status")
+				.maybeSingle();
 
 			if (error) throw error;
+			if (!updatedReservation) {
+				throw new Error("No reservation was updated. Check that the latest reservation permission migration is applied and try again.");
+			}
 
 			const clientName = reservationGuestName(resToUpdate);
 			const clientEmail = resToUpdate.guest_email || resToUpdate.profiles?.email;
@@ -234,7 +239,7 @@ const ManageReservations = () => {
 		<MainLayout>
 			<div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 sm:px-4 sm:py-6 md:px-6">
 				<div className="mx-auto max-w-7xl space-y-6">
-					<div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-2xl backdrop-blur sm:rounded-[2rem] md:p-8">
+					<div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-5 shadow-2xl backdrop-blur sm:rounded-[2rem] sm:p-6 md:p-8">
 						<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 							<div className="max-w-2xl">
 								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
@@ -247,7 +252,7 @@ const ManageReservations = () => {
 									Monitor real-time room availability and approve incoming reservation requests.
 								</p>
 							</div>
-							<div className="flex flex-wrap gap-3">
+							<div className="flex flex-wrap gap-2 sm:gap-3">
 								<button onClick={() => fetchReservations(true)} className="btn btn-outline rounded-full" title="Refresh List">
 									<FiRefreshCw className={loading ? "animate-spin" : ""} /> Refresh
 								</button>
@@ -295,7 +300,7 @@ const ManageReservations = () => {
 						)}
 					</section>
 
-					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+					<div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
 						{loading ? (
 							<div className="col-span-full h-64 flex items-center justify-center">
 								<span className="loading loading-spinner loading-lg"></span>
@@ -308,7 +313,7 @@ const ManageReservations = () => {
 							reservations.map((res) => {
 								const reservationStatus = res.status || "pending";
 								return (
-								<div key={res.id} className="rounded-[1.5rem] border border-black/5 bg-white/70 p-6 shadow-xl flex flex-col justify-between backdrop-blur transition-all hover:shadow-2xl">
+								<div key={res.id} className="min-w-0 rounded-[1.5rem] border border-black/5 bg-white/70 p-4 shadow-xl flex flex-col justify-between backdrop-blur transition-all hover:shadow-2xl sm:p-6">
 									<div className="space-y-3">
 										<div className="flex items-center gap-3 border-b border-black/5 pb-3">
 											<div className="h-10 w-10 overflow-hidden rounded-full bg-amber-100 flex items-center justify-center font-bold text-amber-800 text-xs shadow-inner shrink-0">
@@ -339,7 +344,7 @@ const ManageReservations = () => {
 										</p>
 									</div>
 									<div className="mt-6 pt-4 border-t border-black/5 flex flex-col gap-3">
-										<div className="flex items-center justify-between gap-2">
+										<div className="flex flex-wrap items-center justify-between gap-2">
 											<span className={[
 												"badge uppercase text-[10px] font-bold",
 												reservationStatus === "confirmed"
@@ -351,7 +356,7 @@ const ManageReservations = () => {
 													{reservationStatus}
 											</span>
 													{canManageReservations && (
-														<div className="flex shrink-0 items-center justify-end gap-1.5">
+												<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
 															{reservationStatus === "pending" && (
 																<>
 																	<button

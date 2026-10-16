@@ -332,52 +332,51 @@ const ManageClients = () => {
 
 	return (
 		<MainLayout>
-			<div className="min-h-[calc(100vh-4rem)] bg-[linear-gradient(180deg,_#fffaf0_0%,_#fff4e3_45%,_#f9ead3_100%)] px-4 py-8 sm:px-6 lg:px-8">
-				<div className="mx-auto max-w-7xl space-y-6">
-					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur md:p-8">
-						<div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+			<div className="min-h-[calc(100vh-4rem)] w-full min-w-0 overflow-x-hidden bg-[linear-gradient(180deg,_#fffaf0_0%,_#fff4e3_45%,_#f9ead3_100%)] px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+				<div className="mx-auto w-full max-w-7xl min-w-0 space-y-5 sm:space-y-6">
+					<div className="rounded-[1.5rem] border border-black/5 bg-white/80 p-5 shadow-2xl backdrop-blur sm:rounded-[2rem] sm:p-6 md:p-8">
+						<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 							<div className="max-w-3xl">
-								<p className="text-sm font-medium uppercase tracking-[0.3em] text-base-content/50">
-									Staff Accounts
+								<p className="text-sm font-medium uppercase tracking-[0.18em] text-base-content/55">
+									Admin Dashboard
 								</p>
-								<h1 className="mt-3 text-3xl font-black tracking-tight text-base-content md:text-5xl">
-									Manage staff profiles and promote accounts
+								<h1 className="mt-3 break-words text-3xl font-black tracking-tight text-base-content md:text-4xl">
+									Manage Clients
 								</h1>
 								<p className="mt-3 max-w-2xl text-sm leading-6 text-base-content/70 md:text-base">
-									Open a staff account, update their details, and change their
-									role to admin when they are ready to manage the system.
+									Search accounts, update profile details, and manage account access.
 								</p>
 							</div>
-							<div className="flex flex-wrap gap-3">
-								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
+							<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-2 text-sm font-medium text-base-content/70 sm:px-4">
 									<FiUsers />
 									<span>{profiles.filter((entry) => normalizeRole(entry.role) === "staff").length} staff</span>
 								</div>
-								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-4 py-2 text-sm font-medium text-base-content/70">
+								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-2 text-sm font-medium text-base-content/70 sm:px-4">
 									<FiShield />
 									<span>{profiles.filter((entry) => entry.role === "admin").length} admins</span>
 								</div>
 								<button
 									type="button"
 									onClick={refreshProfiles}
-									className="btn btn-outline rounded-full"
+									className="btn btn-outline btn-sm rounded-full sm:btn-md"
 								>
 									<FiRefreshCw />
 									Refresh
 								</button>
-								<button type="button" onClick={() => { setShowCreateForm(true); setStatus(""); }} className="btn btn-black rounded-full">
+								<button type="button" onClick={() => { setShowCreateForm(true); setStatus(""); }} className="btn btn-black btn-sm rounded-full sm:btn-md">
 									<FiPlus />
 									Add account
 								</button>
-								<button onClick={() => navigate(-1)} className="btn btn-black rounded-full">
+								<button onClick={() => navigate(-1)} className="btn btn-black btn-sm rounded-full sm:btn-md">
 									Back
 								</button>
 							</div>
 						</div>
 					</div>
 
-					<div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-						<div className="rounded-[2rem] border border-black/5 bg-white/85 p-5 shadow-xl backdrop-blur sm:p-6">
+					<div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+						<div className="w-full min-w-0 rounded-[1.5rem] border border-black/5 bg-white/85 p-4 shadow-xl backdrop-blur sm:rounded-[2rem] sm:p-6">
 							<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 								<div>
 									<h2 className="text-xl font-bold text-base-content">Accounts</h2>
@@ -442,13 +441,13 @@ const ManageClients = () => {
 											type="button"
 											onClick={() => selectProfile(entry)}
 											className={[
-												"flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition",
+												"flex w-full min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition sm:gap-4 sm:p-4",
 												isSelected
 													? "border-black bg-black text-white shadow-lg"
 													: "border-base-300 bg-base-100 hover:border-base-content/25 hover:bg-base-200",
 											].join(" ")}
 										>
-											<div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-sm font-bold text-slate-800">
+											<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-sm font-bold text-slate-800 sm:h-14 sm:w-14">
 												{entry.avatar_url ? (
 													<img
 														src={entry.avatar_url}
@@ -460,8 +459,8 @@ const ManageClients = () => {
 												)}
 											</div>
 											<div className="min-w-0 flex-1">
-												<div className="flex items-center justify-between gap-3">
-													<p className="truncate font-semibold">
+												<div className="flex min-w-0 items-center justify-between gap-2">
+													<p className="min-w-0 truncate text-sm font-semibold sm:text-base">
 														{avatarAlt}
 													</p>
 													<span
@@ -490,7 +489,7 @@ const ManageClients = () => {
 							</div>
 						</div>
 
-						<div className="rounded-[2rem] border border-black/5 bg-white/85 p-5 shadow-xl backdrop-blur sm:p-6">
+						<div className="min-w-0 rounded-[1.5rem] border border-black/5 bg-white/85 p-4 shadow-xl backdrop-blur sm:rounded-[2rem] sm:p-6">
 							{showCreateForm ? (
 								<form onSubmit={handleCreate} className="space-y-6">
 									<div className="border-b border-base-200 pb-5">
@@ -511,13 +510,13 @@ const ManageClients = () => {
 									<div className="flex flex-wrap gap-3 pt-2"><button type="submit" disabled={creating} className="btn btn-black rounded-full px-6"><FiPlus />{creating ? "Creating..." : "Create account"}</button><button type="button" onClick={() => setShowCreateForm(false)} className="btn btn-outline rounded-full px-6">Cancel</button></div>
 								</form>
 							) : selectedProfile ? (
-								<form onSubmit={handleSave} className="space-y-6">
-									<div className="flex items-start justify-between gap-4 border-b border-base-200 pb-5">
-										<div>
+								<form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
+									<div className="flex items-start justify-between gap-3 border-b border-base-200 pb-4 sm:gap-4 sm:pb-5">
+										<div className="min-w-0">
 											<p className="text-xs font-semibold uppercase tracking-[0.22em] text-base-content/45">
 												Selected account
 											</p>
-											<h2 className="mt-2 text-2xl font-black text-base-content">
+											<h2 className="mt-2 break-words text-xl font-black text-base-content sm:text-2xl">
 												{getDisplayName(selectedProfile)}
 											</h2>
 											<p className="mt-2 text-sm text-base-content/60">
@@ -526,7 +525,7 @@ const ManageClients = () => {
 										</div>
 										<span
 											className={[
-												"badge badge-lg border-0 px-4 py-3",
+											"badge badge-md shrink-0 border-0 px-3 py-2 sm:badge-lg sm:px-4 sm:py-3",
 												form.role === "admin"
 													? "bg-emerald-500 text-white"
 													: "bg-amber-400 text-slate-900",
@@ -536,8 +535,8 @@ const ManageClients = () => {
 										</span>
 									</div>
 
-									<div className="flex items-center gap-4 rounded-3xl border border-base-300 bg-base-100 p-4">
-										<div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-xl font-bold text-slate-800">
+									<div className="flex min-w-0 items-center gap-3 rounded-2xl border border-base-300 bg-base-100 p-3 sm:gap-4 sm:rounded-3xl sm:p-4">
+										<div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-lg font-bold text-slate-800 sm:h-20 sm:w-20 sm:text-xl">
 											{selectedProfile.avatar_url ? (
 												<img
 													src={selectedProfile.avatar_url}
@@ -549,19 +548,12 @@ const ManageClients = () => {
 											)}
 										</div>
 										<div className="min-w-0">
-											<p className="text-sm font-semibold text-base-content">
-												Profile snapshot
-											</p>
-											<p className="truncate text-sm text-base-content/60">
+										<p className="text-xs font-semibold uppercase tracking-[0.16em] text-base-content/50 sm:text-sm">
+											{normalizeRole(selectedProfile.role) === "admin" ? "Administrator" : normalizeRole(selectedProfile.role) === "staff" ? "Staff account" : "Client account"}
+										</p>
+										<p className="mt-1 break-all text-sm text-base-content/65">
 												{selectedProfile.email || "No email on file"}
 											</p>
-											<p className="mt-1 text-xs uppercase tracking-[0.2em] text-base-content/45">
-											{normalizeRole(selectedProfile.role) === "admin"
-												? "Administrator"
-												: normalizeRole(selectedProfile.role) === "staff"
-												? "Staff"
-												: "Client"}
-										</p>
 											{selectedIsDeleted && (
 												<p className="mt-2 inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
 													Deleted account
@@ -655,11 +647,11 @@ const ManageClients = () => {
 											{status}
 										</div>
 									)}
-									<div className="flex flex-wrap gap-3 pt-2">
+									<div className="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap sm:gap-3">
 										<button
 											type="submit"
 											disabled={saving}
-											className="btn btn-black rounded-full px-6"
+											className="btn btn-black w-full rounded-full px-5 sm:w-auto sm:px-6"
 										>
 											<FiSave />
 											{saving ? "Saving..." : "Save changes"}
@@ -667,7 +659,7 @@ const ManageClients = () => {
 										<button
 											type="button"
 											onClick={handleReset}
-											className="btn btn-outline rounded-full px-6"
+											className="btn btn-outline w-full rounded-full px-5 sm:w-auto sm:px-6"
 										>
 											Reset form
 										</button>
@@ -677,7 +669,7 @@ const ManageClients = () => {
 												onClick={handleDeleteToggle}
 												disabled={deleting}
 												className={[
-													"btn rounded-full px-6",
+											"btn w-full rounded-full px-5 sm:w-auto sm:px-6",
 													selectedIsDeleted ? "btn-success" : "btn-error",
 												].join(" ")}
 											>

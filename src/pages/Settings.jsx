@@ -84,8 +84,8 @@ const Settings = () => {
 
 	return (
 		<MainLayout>
-			<div className="min-h-screen bg-base-200 px-4 py-12">
-				<div className="mx-auto max-w-7xl space-y-12">
+			<div className="min-h-screen bg-base-200 px-3 py-6 sm:px-4 sm:py-10">
+				<div className="mx-auto max-w-7xl space-y-6 sm:space-y-10">
 					<div>
 						<button
 							type="button"
@@ -96,7 +96,7 @@ const Settings = () => {
 						</button>
 					</div>
 
-					<div className="rounded-3xl border border-base-300 bg-base-100 p-12 shadow-sm md:p-14">
+					<div className="rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-8 md:p-14">
 						<div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
 							<div className="max-w-2xl">
 								<p className="text-sm font-medium uppercase tracking-[0.35em] text-base-content/60">
@@ -123,10 +123,10 @@ const Settings = () => {
 						</div>
 					</div>
 
-					<div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+					<div className="grid min-w-0 gap-5 sm:gap-8 lg:grid-cols-[1.15fr_0.85fr]">
 						<form
 							onSubmit={handleSavePreferences}
-							className="rounded-3xl border border-base-300 bg-base-100 p-12 shadow-sm"
+							className="min-w-0 rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-8 md:p-12"
 						>
 							<div className="flex items-center gap-3">
 								<div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -140,9 +140,9 @@ const Settings = () => {
 								</div>
 							</div>
 
-							<div className="mt-12 space-y-6">
+							<div className="mt-7 space-y-5 sm:mt-10 sm:space-y-6">
 								{profile?.role === "admin" ? (
-									<label className="flex items-center justify-between rounded-2xl border border-base-300 px-5 py-5 transition hover:border-base-400">
+									<label className="flex flex-col gap-4 rounded-2xl border border-base-300 px-4 py-4 transition hover:border-base-400 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-5">
 										<div className="pr-4">
 											<div className="flex items-center gap-2">
 												<FaShieldAlt className="text-base-content/60" />
@@ -155,7 +155,7 @@ const Settings = () => {
 											</span>
 										</div>
 										<select
-											className="select select-bordered select-sm w-36"
+										className="select select-bordered select-sm w-full sm:w-36"
 											value={effectiveRole}
 											onChange={(event) => setRole(event.target.value)}
 										>
@@ -181,18 +181,18 @@ const Settings = () => {
 								)}
 							</div>
 
-							<div className="mt-18 border-t border-base-200 pt-8">
-								<div className="flex flex-wrap gap-5">
+							<div className="mt-10 border-t border-base-200 pt-6 sm:mt-14 sm:pt-8">
+								<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-5">
 									<button
 										type="submit"
-										className="btn btn-black rounded-full px-6"
+										className="btn btn-black w-full rounded-full px-6 sm:w-auto"
 									>
 										Save changes
 									</button>
 									<button
 										type="button"
 										onClick={handleResetPreferences}
-										className="btn btn-black rounded-full px-6"
+										className="btn btn-black w-full rounded-full px-6 sm:w-auto"
 									>
 										Reset defaults
 									</button>
@@ -202,7 +202,7 @@ const Settings = () => {
 
 						<form
 							onSubmit={handlePasswordChange}
-							className="rounded-3xl border border-base-300 bg-base-100 p-12 shadow-sm"
+							className="min-w-0 rounded-3xl border border-base-300 bg-base-100 p-5 shadow-sm sm:p-8 md:p-12"
 						>
 							<div className="flex items-center gap-3">
 								<div className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary/15 text-secondary">
@@ -216,7 +216,7 @@ const Settings = () => {
 								</div>
 							</div>
 
-							<div className="mt-14 ml-4 space-y-12 md:ml-8">
+							<div className="mt-7 space-y-7 sm:mt-10 sm:ml-4 sm:space-y-10 md:ml-8">
 								<label className="form-control max-w-2xl">
 									<div className="label">
 										<span className="label-text">New password</span>
@@ -249,7 +249,7 @@ const Settings = () => {
 
 								<button
 									type="submit"
-									className="btn btn-black rounded-full px-6"
+									className="btn btn-black w-full rounded-full px-6 sm:w-auto"
 								>
 									Update password
 								</button>

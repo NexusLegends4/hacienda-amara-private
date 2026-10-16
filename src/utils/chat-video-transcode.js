@@ -38,13 +38,13 @@ const transcodeVideo = async (file, onProgress) => {
 			"-i", inputName,
 			"-map", "0:v:0",
 			"-map", "0:a:0?",
-			"-vf", "scale=-2:min(720\\,ih)",
 			"-c:v", "libx264",
 			"-preset", "veryfast",
-			"-crf", "28",
+			// Keep the source dimensions and use a visually high-quality encode.
+			"-crf", "18",
 			"-pix_fmt", "yuv420p",
 			"-c:a", "aac",
-			"-b:a", "96k",
+			"-b:a", "192k",
 			"-movflags", "+faststart",
 			outputName,
 		]);
@@ -57,7 +57,7 @@ const transcodeVideo = async (file, onProgress) => {
 			throw new Error("Video conversion produced an empty file.");
 		}
 		if (output.byteLength > CHAT_MEDIA_LIMITS.videoBytes) {
-			throw new Error("The converted video exceeds Supabase Free’s 50 MB limit. Trim the video and try again.");
+			throw new Error("The prepared video exceeds this project's 50 MB upload limit. Choose a shorter video or reduce its size.");
 		}
 
 		const outputBaseName = file.name.replace(/\.[^.]+$/, "") || "video";

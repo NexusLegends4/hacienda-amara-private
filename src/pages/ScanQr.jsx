@@ -252,7 +252,12 @@ const ScanQr = () => {
 					// Laptops/desktops often have no "environment" camera: pick one by id.
 					const list = await Html5Qrcode.getCameras();
 					if (!list?.length) throw firstError;
-					const preferred = list.find((c) => /back|rear|environment/i.test(c.label)) || list[0];
+					// On phones, the first camera is usually the selfie camera. If the
+					// browser hides labels before permission is granted, the rear camera
+					// is commonly enumerated last, so prefer it as the mobile fallback.
+					const labeledRearCamera = list.find((c) => /back|rear|environment|world/i.test(c.label));
+					const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+					const preferred = labeledRearCamera || (isMobileDevice ? list[list.length - 1] : list[0]);
 					await startWith({ deviceId: { exact: preferred.id } });
 				}
 
@@ -533,8 +538,8 @@ const ScanQr = () => {
 											>
 												<option value="">Automatic</option>
 												{cameras.map((camera, index) => (
-													<option key={camera.id} value={camera.id}>
-														{camera.label || `Camera ${index + 1}`}
+									<option key={camera.id} value={camera.id}>
+										{camera.label || `Camera ${index + 1}${/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && index === cameras.length - 1 ? " (rear camera)" : ""}`}
 													</option>
 												))}
 											</select>
