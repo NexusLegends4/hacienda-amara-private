@@ -63,9 +63,30 @@ const HomePage = () => {
   const getStartedPath = "/events";
 
   const images = [
-    "/images/hacienda-amara-1.jpg",
-    "/images/hacienda-amara-2.jpg",
-    "/images/hacienda-amara-3.jpg",
+    {
+      src: "/images/hacienda-amara-1.jpg",
+      webp: "/images/hacienda-amara-1.webp",
+      avif: "/images/hacienda-amara-1.avif",
+      srcset: "/images/hacienda-amara-1-356w.webp 356w, /images/hacienda-amara-1-712w.webp 712w, /images/hacienda-amara-1-1068w.webp 1068w, /images/hacienda-amara-1-1424w.webp 1424w",
+      alt: "Hacienda Amara interior",
+      isLcp: true,
+    },
+    {
+      src: "/images/hacienda-amara-2.jpg",
+      webp: "/images/hacienda-amara-2.webp",
+      avif: "/images/hacienda-amara-2.avif",
+      srcset: "/images/hacienda-amara-2-356w.webp 356w, /images/hacienda-amara-2-712w.webp 712w, /images/hacienda-amara-2-1068w.webp 1068w, /images/hacienda-amara-2-1424w.webp 1424w",
+      alt: "Hacienda Amara interior",
+      isLcp: false,
+    },
+    {
+      src: "/images/hacienda-amara-3.jpg",
+      webp: "/images/hacienda-amara-3.webp",
+      avif: "/images/hacienda-amara-3.avif",
+      srcset: "/images/hacienda-amara-3-356w.webp 356w, /images/hacienda-amara-3-712w.webp 712w, /images/hacienda-amara-3-1068w.webp 1068w, /images/hacienda-amara-3-1424w.webp 1424w",
+      alt: "Hacienda Amara exterior at night",
+      isLcp: false,
+    },
   ];
 
   return (
@@ -258,15 +279,22 @@ const HomePage = () => {
                 2xl:h-[380px]
               "
             >
-              <img
-                src={images[0]}
-                alt="Hacienda Amara interior"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[0].srcset} />
+                <source type="image/webp" srcSet={images[0].srcset} />
+                <img
+                  src={images[0].src}
+                  alt={images[0].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  fetchPriority="high"
+                  width="1424"
+                  height="801"
+                />
+              </picture>
             </div>
 
 
@@ -287,15 +315,22 @@ const HomePage = () => {
                 2xl:h-[240px]
               "
             >
-              <img
-                src={images[1]}
-                alt="Hacienda Amara interior"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[1].srcset} />
+                <source type="image/webp" srcSet={images[1].srcset} />
+                <img
+                  src={images[1].src}
+                  alt={images[1].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  loading="lazy"
+                  width="1424"
+                  height="801"
+                />
+              </picture>
             </div>
 
 
@@ -316,15 +351,22 @@ const HomePage = () => {
                 2xl:h-[240px]
               "
             >
-              <img
-                src={images[2]}
-                alt="Hacienda Amara exterior at night"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[2].srcset} />
+                <source type="image/webp" srcSet={images[2].srcset} />
+                <img
+                  src={images[2].src}
+                  alt={images[2].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  loading="lazy"
+                  width="1424"
+                  height="1068"
+                />
+              </picture>
             </div>
 
           </div>
@@ -341,7 +383,7 @@ const HomePage = () => {
             "
           >
 
-            {/* IMAGE 1 */}
+            {/* IMAGE 1 - LCP Image */}
             <div
               className="
                 rounded-2xl
@@ -350,15 +392,22 @@ const HomePage = () => {
                 sm:h-[240px]
               "
             >
-              <img
-                src={images[0]}
-                alt="Hacienda Amara interior"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[0].srcset} />
+                <source type="image/webp" srcSet={images[0].srcset} />
+                <img
+                  src={images[0].src}
+                  alt={images[0].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  fetchPriority="high"
+                  width="1424"
+                  height="801"
+                />
+              </picture>
             </div>
 
             {/* IMAGE 2 */}
@@ -370,15 +419,22 @@ const HomePage = () => {
                 sm:h-[190px]
               "
             >
-              <img
-                src={images[1]}
-                alt="Hacienda Amara interior"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[1].srcset} />
+                <source type="image/webp" srcSet={images[1].srcset} />
+                <img
+                  src={images[1].src}
+                  alt={images[1].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  loading="lazy"
+                  width="1424"
+                  height="801"
+                />
+              </picture>
             </div>
 
             {/* IMAGE 3 */}
@@ -390,15 +446,22 @@ const HomePage = () => {
                 sm:h-[190px]
               "
             >
-              <img
-                src={images[2]}
-                alt="Hacienda Amara exterior at night"
-                className="
-                  w-full
-                  h-full
-                  object-cover
-                "
-              />
+              <picture>
+                <source type="image/avif" srcSet={images[2].srcset} />
+                <source type="image/webp" srcSet={images[2].srcset} />
+                <img
+                  src={images[2].src}
+                  alt={images[2].alt}
+                  className="
+                    w-full
+                    h-full
+                    object-cover
+                  "
+                  loading="lazy"
+                  width="1424"
+                  height="1068"
+                />
+              </picture>
             </div>
 
           </div>

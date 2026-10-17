@@ -226,6 +226,8 @@ const ScanQr = () => {
 				const size = Math.floor(Math.min(width, height) * 0.7);
 				return { width: size, height: size };
 			},
+			// Mobile optimization: prefer back camera
+			rememberLastUsedCamera: true,
 		};
 
 		const startWith = (cameraConfig) =>
@@ -239,25 +241,58 @@ const ScanQr = () => {
 			setCameraError(null);
 
 			try {
+				// First, try to get cameras to see what's available
+				let cameraList = [];
 				try {
-					await startWith(
-						selectedCameraId
-							? { deviceId: { exact: selectedCameraId } }
-							: { facingMode: "environment" },
+					cameraList = await Html5Qrcode.getCameras();
+				} catch {
+					// Camera list not available yet, will try without it
+				}
+
+				// Determine the best camera to start with
+				let initialCameraConfig;
+				
+				if (selectedCameraId) {
+					// User has selected a specific camera
+					initialCameraConfig = { deviceId: { exact: selectedCameraId } };
+				} else if (cameraList.length > 0) {
+					// We have camera list, find the best one
+					const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+					
+					// Look for explicitly labeled back/rear camera
+					const labeledRearCamera = cameraList.find((c) => 
+						/back|rear|environment|world/i.test(c.label)
 					);
+					
+					if (labeledRearCamera) {
+						initialCameraConfig = { deviceId: { exact: labeledRearCamera.id } };
+					} else if (isMobileDevice && cameraList.length > 1) {
+						// On mobile, the last camera is often the back camera
+						initialCameraConfig = { deviceId: { exact: cameraList[cameraList.length - 1].id } };
+					} else {
+						// Default to environment facing mode
+						initialCameraConfig = { facingMode: "environment" };
+					}
+				} else {
+					// No camera list available, use facing mode
+					initialCameraConfig = { facingMode: "environment" };
+				}
+
+				try {
+					await startWith(initialCameraConfig);
 				} catch (firstError) {
 					// A blocked permission can't be fixed by trying another camera.
 					if (selectedCameraId || cancelled || isPermissionDenied(firstError)) throw firstError;
 
-					// Laptops/desktops often have no "environment" camera: pick one by id.
+					// If environment mode failed, try to get cameras and pick one
 					const list = await Html5Qrcode.getCameras();
 					if (!list?.length) throw firstError;
-					// On phones, the first camera is usually the selfie camera. If the
-					// browser hides labels before permission is granted, the rear camera
-					// is commonly enumerated last, so prefer it as the mobile fallback.
-					const labeledRearCamera = list.find((c) => /back|rear|environment|world/i.test(c.label));
+					
+					// Prefer rear camera on mobile
 					const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+					const labeledRearCamera = list.find((c) => /back|rear|environment|world/i.test(c.label));
 					const preferred = labeledRearCamera || (isMobileDevice ? list[list.length - 1] : list[0]);
+					
 					await startWith({ deviceId: { exact: preferred.id } });
 				}
 

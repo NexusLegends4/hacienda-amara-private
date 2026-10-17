@@ -1,0 +1,30 @@
+# Hacienda Amara robots.txt
+User-agent: *
+Allow: /
+
+# Disallow private/admin routes
+Disallow: /profile
+Disallow: /edit-profile
+Disallow: /manage-events
+Disallow: /manage-packages
+Disallow: /manage-clients
+Disallow: /admin-reservations
+Disallow: /manage-reviews
+Disallow: /admin-notifications
+Disallow: /client-notifications
+Disallow: /add-event
+Disallow: /edit-event
+Disallow: /edit-package
+Disallow: /scan-qr
+Disallow: /chat
+Disallow: /settings
+Disallow: /manage-reservations
+Disallow: /manage-announcements
+Disallow: /booking-analytics
+Disallow: /log-in
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth/callback
+
+# Sitemap
+Sitemap: https://hacienda-amara-private.vercel.app/sitemap.xml
