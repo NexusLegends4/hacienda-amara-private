@@ -68,6 +68,7 @@ const HomePage = () => {
       webp: "/images/hacienda-amara-1.webp",
       avif: "/images/hacienda-amara-1.avif",
       srcset: "/images/hacienda-amara-1-356w.webp 356w, /images/hacienda-amara-1-712w.webp 712w, /images/hacienda-amara-1-1068w.webp 1068w, /images/hacienda-amara-1-1424w.webp 1424w",
+      sizes: "(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw",
       alt: "Hacienda Amara interior",
       isLcp: true,
     },
@@ -76,6 +77,7 @@ const HomePage = () => {
       webp: "/images/hacienda-amara-2.webp",
       avif: "/images/hacienda-amara-2.avif",
       srcset: "/images/hacienda-amara-2-356w.webp 356w, /images/hacienda-amara-2-712w.webp 712w, /images/hacienda-amara-2-1068w.webp 1068w, /images/hacienda-amara-2-1424w.webp 1424w",
+      sizes: "(max-width: 768px) 100vw, 50vw",
       alt: "Hacienda Amara interior",
       isLcp: false,
     },
@@ -84,6 +86,7 @@ const HomePage = () => {
       webp: "/images/hacienda-amara-3.webp",
       avif: "/images/hacienda-amara-3.avif",
       srcset: "/images/hacienda-amara-3-356w.webp 356w, /images/hacienda-amara-3-712w.webp 712w, /images/hacienda-amara-3-1068w.webp 1068w, /images/hacienda-amara-3-1424w.webp 1424w",
+      sizes: "(max-width: 768px) 100vw, 50vw",
       alt: "Hacienda Amara exterior at night",
       isLcp: false,
     },
@@ -280,8 +283,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[0].srcset} />
-                <source type="image/webp" srcSet={images[0].srcset} />
+                <source type="image/avif" srcSet={images[0].srcset} sizes={images[0].sizes} />
+                <source type="image/webp" srcSet={images[0].srcset} sizes={images[0].sizes} />
                 <img
                   src={images[0].src}
                   alt={images[0].alt}
@@ -293,6 +296,7 @@ const HomePage = () => {
                   fetchPriority="high"
                   width="1424"
                   height="801"
+                  sizes={images[0].sizes}
                 />
               </picture>
             </div>
@@ -316,8 +320,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[1].srcset} />
-                <source type="image/webp" srcSet={images[1].srcset} />
+                <source type="image/avif" srcSet={images[1].srcset} sizes={images[1].sizes} />
+                <source type="image/webp" srcSet={images[1].srcset} sizes={images[1].sizes} />
                 <img
                   src={images[1].src}
                   alt={images[1].alt}
@@ -329,6 +333,7 @@ const HomePage = () => {
                   loading="lazy"
                   width="1424"
                   height="801"
+                  sizes={images[1].sizes}
                 />
               </picture>
             </div>
@@ -352,8 +357,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[2].srcset} />
-                <source type="image/webp" srcSet={images[2].srcset} />
+                <source type="image/avif" srcSet={images[2].srcset} sizes={images[2].sizes} />
+                <source type="image/webp" srcSet={images[2].srcset} sizes={images[2].sizes} />
                 <img
                   src={images[2].src}
                   alt={images[2].alt}
@@ -365,6 +370,7 @@ const HomePage = () => {
                   loading="lazy"
                   width="1424"
                   height="1068"
+                  sizes={images[2].sizes}
                 />
               </picture>
             </div>
@@ -393,8 +399,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[0].srcset} />
-                <source type="image/webp" srcSet={images[0].srcset} />
+                <source type="image/avif" srcSet={images[0].srcset} sizes={images[0].sizes} />
+                <source type="image/webp" srcSet={images[0].srcset} sizes={images[0].sizes} />
                 <img
                   src={images[0].src}
                   alt={images[0].alt}
@@ -406,6 +412,7 @@ const HomePage = () => {
                   fetchPriority="high"
                   width="1424"
                   height="801"
+                  sizes={images[0].sizes}
                 />
               </picture>
             </div>
@@ -420,8 +427,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[1].srcset} />
-                <source type="image/webp" srcSet={images[1].srcset} />
+                <source type="image/avif" srcSet={images[1].srcset} sizes={images[1].sizes} />
+                <source type="image/webp" srcSet={images[1].srcset} sizes={images[1].sizes} />
                 <img
                   src={images[1].src}
                   alt={images[1].alt}
@@ -433,6 +440,7 @@ const HomePage = () => {
                   loading="lazy"
                   width="1424"
                   height="801"
+                  sizes={images[1].sizes}
                 />
               </picture>
             </div>
@@ -447,8 +455,8 @@ const HomePage = () => {
               "
             >
               <picture>
-                <source type="image/avif" srcSet={images[2].srcset} />
-                <source type="image/webp" srcSet={images[2].srcset} />
+                <source type="image/avif" srcSet={images[2].srcset} sizes={images[2].sizes} />
+                <source type="image/webp" srcSet={images[2].srcset} sizes={images[2].sizes} />
                 <img
                   src={images[2].src}
                   alt={images[2].alt}
@@ -460,6 +468,7 @@ const HomePage = () => {
                   loading="lazy"
                   width="1424"
                   height="1068"
+                  sizes={images[2].sizes}
                 />
               </picture>
             </div>
