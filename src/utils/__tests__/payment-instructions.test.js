@@ -11,6 +11,8 @@ describe("payment instructions", () => {
 		expect(PAYMENT_INSTRUCTIONS).toContain("Mara Jane Rosales-Garcia");
 		expect(PAYMENT_INSTRUCTIONS).toContain("010160005035");
 		expect(PAYMENT_INSTRUCTIONS).toContain("manual staff verification");
+		expect(PAYMENT_INSTRUCTIONS).toContain("PayMongo checkout");
+		expect(PAYMENT_INSTRUCTIONS).toContain("at least one day before your stay");
 		expect(moderateAssistantText(PAYMENT_INSTRUCTIONS).allowed).toBe(true);
 	});
 

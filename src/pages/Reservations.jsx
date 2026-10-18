@@ -4,20 +4,10 @@ import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle, FiXCircle } from "react-icons/fi";
-
-const PH_HOLIDAYS_2026 = [
-	"2026-01-01", "2026-02-17", "2026-03-20", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-09",
-	"2026-05-01", "2026-06-12", "2026-08-21", "2026-08-31", "2026-11-01", "2026-11-02",
-	"2026-11-30", "2026-12-08", "2026-12-24", "2026-12-25", "2026-12-30", "2026-12-31",
-];
+import { calculateBookingTotal, isWeekendOrHoliday } from "../utils/booking-pricing";
+import { MANUAL_PAYMENT_CHANNELS } from "../utils/payment-instructions";
 const REVIEWER_NAME_KEY = "hacienda-reviewer-name";
 const REVIEWER_EMAIL_KEY = "hacienda-reviewer-email";
-
-const isWeekendOrHoliday = (dateStr) => {
-	if (!dateStr) return false;
-	const day = new Date(dateStr + "T00:00:00").getDay();
-	return [0, 5, 6].includes(day) || PH_HOLIDAYS_2026.includes(dateStr);
-};
 
 const isPhilippinePhoneNumber = (phone) => /^(?:09\d{9}|639\d{9})$/.test(phone);
 const dateKey = (date) => [
@@ -38,6 +28,8 @@ const Reservations = () => {
 	const [guestPhone, setGuestPhone] = useState(null);
 	const [selectedPackageId, setSelectedPackageId] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [pendingCheckout, setPendingCheckout] = useState(null);
+	const [checkoutError, setCheckoutError] = useState("");
 	const [reservedBookings, setReservedBookings] = useState([]);
 	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
 	const [availabilityLoading, setAvailabilityLoading] = useState(true);
@@ -153,12 +145,7 @@ const Reservations = () => {
 		});
 	})() : false;
 	const pricing = useMemo(() => {
-		if (!date || !selectedPackage) return 0;
-		const extraGuests = Math.max(0, guests - Number(selectedPackage.max_guests || 20));
-		// Use max_price for weekends/holidays, base_price (min_price) for weekdays
-		const isWeekendHoliday = isWeekendOrHoliday(date);
-		const basePrice = isWeekendHoliday ? Number(selectedPackage.max_price || 0) : Number(selectedPackage.base_price || 0);
-		return basePrice + extraGuests * Number(selectedPackage.additional_guest_price || 0);
+		return calculateBookingTotal(date, selectedPackage, guests);
 	}, [date, selectedPackage, guests]);
 
 	const checkOutDate = selectedPackage ? (() => {
@@ -214,9 +201,41 @@ const Reservations = () => {
 		];
 	})();
 	const todayDate = dateKey(new Date());
+	const downPaymentAmount = Math.round(pricing * 50) / 100;
+	const checkoutAmount = downPaymentAmount + 2_000;
+	const balanceDue = pricing - downPaymentAmount;
+
+	const startCheckout = async (reservationId, email) => {
+		setLoading(true);
+		setCheckoutError("");
+		try {
+			const response = await fetch("/api/paymongo-checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ reservationId, email }),
+			});
+			let result;
+			try {
+				result = await response.json();
+			} catch {
+				throw new Error("Checkout service returned an invalid response. Please retry.");
+			}
+			if (!response.ok || !result.checkoutUrl) {
+				throw new Error(result.error || "PayMongo checkout could not be started. Please retry.");
+			}
+			window.location.assign(result.checkoutUrl);
+		} catch (error) {
+			setCheckoutError(error instanceof Error ? error.message : "PayMongo checkout could not be started. Please retry.");
+			setLoading(false);
+		}
+	};
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		if (pendingCheckout) {
+			await startCheckout(pendingCheckout.reservationId, pendingCheckout.email);
+			return;
+		}
 		if (availabilityLoading) { alert("Checking availability. Please wait a moment."); return; }
 		if (availabilityError) { alert(availabilityError); return; }
 		if (pricing <= 0 || isDateUnavailable) { alert("Please select an available date."); return; }
@@ -242,16 +261,17 @@ const Reservations = () => {
 			return;
 		} else {
 			setReservationConflict(false);
+			const checkout = { reservationId, email: bookingEmail.trim().toLowerCase() };
+			setPendingCheckout(checkout);
 			try {
 				localStorage.setItem(REVIEWER_NAME_KEY, bookingName.trim());
 				localStorage.setItem(REVIEWER_EMAIL_KEY, bookingEmail.trim().toLowerCase());
 			} catch {
 				// A successful booking should continue even if browser storage is unavailable.
 			}
-			alert("Reservation submitted! Resort staff will contact you for confirmation.");
-			navigate(`/customer-notifications/${reservationId}`);
+			await startCheckout(checkout.reservationId, checkout.email);
 		}
-		setLoading(false);
+		if (!pendingCheckout) setLoading(false);
 	};
 
 	const handleCancelReservation = async (event) => {
@@ -494,9 +514,42 @@ const Reservations = () => {
 										<span className="font-bold text-lg">Total Amount</span>
 										<span className="text-3xl font-black">{pricing > 0 ? `₱${pricing.toLocaleString()}` : "—"}</span>
 									</div>
+									<div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6">
+										<p className="font-bold text-amber-950">Booking payment terms</p>
+										<ul className="mt-2 list-disc space-y-1 pl-5 text-amber-950/90">
+											<li>At least 50% down payment plus a ₱2,000 refundable security deposit is required to confirm your booking.</li>
+											<li>The remaining balance must be settled at least one day before your stay.</li>
+											<li>The down payment is non-refundable.</li>
+											<li>The security deposit is refunded upon check-out.</li>
+										</ul>
+									</div>
+									<div className="space-y-1 text-sm">
+										<div className="flex justify-between"><span>Down payment (50%)</span><span>₱{downPaymentAmount.toLocaleString()}</span></div>
+										<div className="flex justify-between"><span>Refundable security deposit</span><span>₱2,000</span></div>
+										<div className="flex justify-between font-bold"><span>Due now via PayMongo</span><span>₱{checkoutAmount.toLocaleString()}</span></div>
+										<div className="flex justify-between text-base-content/70"><span>Balance due before stay</span><span>₱{balanceDue.toLocaleString()}</span></div>
+									</div>
+									<details className="rounded-xl border border-black/10 bg-white/70 p-4 text-sm">
+										<summary className="cursor-pointer font-bold">Manual transfer details (if arranged with staff)</summary>
+										<div className="mt-3 space-y-3">
+											{MANUAL_PAYMENT_CHANNELS.map((channel) => (
+												<div key={channel.name}>
+													<p className="font-semibold">{channel.name}</p>
+													<p>Account name: {channel.accountName}</p>
+													<p>{channel.accountNumberLabel}: {channel.accountNumber}</p>
+												</div>
+											))}
+											<p className="text-xs text-slate-600">Use only one payment method. After an agreed bank transfer, attach your receipt in chat for manual staff verification. A transfer is not automatically recorded as paid by PayMongo.</p>
+										</div>
+									</details>
+									{checkoutError && (
+										<p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-800">
+											{checkoutError} Your booking has been saved; retry checkout below. Reference: {pendingCheckout?.reservationId}
+										</p>
+									)}
 								</div>
-								<button disabled={loading || availabilityLoading || pricing === 0 || isDateUnavailable || Boolean(availabilityError)} className="btn btn-black w-full rounded-full h-14 mt-6">
-									{loading ? <span className="loading loading-spinner"></span> : <><FiCheckCircle /> Confirm Reservation</>}
+								<button disabled={loading || (!pendingCheckout && (availabilityLoading || pricing === 0 || isDateUnavailable || Boolean(availabilityError)))} className="btn btn-black w-full rounded-full h-14 mt-6">
+									{loading ? <span className="loading loading-spinner"></span> : <><FiCheckCircle /> {pendingCheckout ? "Retry PayMongo Checkout" : "Book and Continue to PayMongo"}</>}
 								</button>
 							</div>
 						</form>

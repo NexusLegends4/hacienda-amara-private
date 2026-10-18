@@ -75,6 +75,29 @@ order by c.relname;
 
 Users who cannot access their email or authenticator app will need an administrator to help restore account access. Authenticator setup keys are secrets; users should not share or store them in public notes. Supabase's default email service may be restricted or rate-limited; use a configured SMTP provider if codes do not arrive reliably.
 
+## PayMongo Booking Payments
+
+The booking form creates a PayMongo-hosted checkout for 50% of the booking total plus the ₱2,000 refundable security deposit. The private reservation page also provides PayMongo checkout for the remaining balance, which is due at least one day before the stay. A successful PayMongo payment does not automatically approve the reservation; resort staff still confirm bookings.
+
+1. In the PayMongo Dashboard, open **Settings → Developers** and copy the **Secret API key**. Use a test key (`sk_test_...`) while testing. After the checkout and webhook work in test mode, switch to your live secret key (`sk_live_...`).
+2. Run `supabase/20261018_paymongo_booking_payments.sql` in the Supabase SQL Editor.
+3. In Vercel **Project → Settings → Environment Variables**, add these server-only variables:
+
+   ```env
+   PAYMONGO_SECRET_KEY=sk_test_your_secret_key
+   PAYMONGO_WEBHOOK_SECRET=your_webhook_signing_secret
+   APP_URL=https://your-production-domain
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   ```
+
+   `APP_URL` should be your public site origin, without a trailing slash. Set test keys for Vercel Preview and live keys for Production. Never use `VITE_` for PayMongo or Supabase service-role secrets, and never share the secret keys in chat or source control.
+4. In PayMongo **Settings → Webhooks**, register `https://your-production-domain/api/paymongo-webhook`, subscribe to `checkout_session.payment.paid`, and copy that webhook's signing secret into `PAYMONGO_WEBHOOK_SECRET`.
+5. Enable the payment methods you want to accept in PayMongo, deploy the app, and test with PayMongo's test key and test payment methods before switching to live mode. The customer is redirected to PayMongo from booking and can retry from their private reservation notification page.
+
+PayMongo's hosted checkout is created by `/api/paymongo-checkout`; only the signed webhook marks the payment as received. The API secret and webhook signing secret must remain server-side.
+The Vercel API routes are not served by plain `vite`; use a Vercel Preview deployment or `vercel dev` to test the complete hosted checkout flow.
+
 ## Reservation Email Notifications
 
 Reservation status emails are sent through Gmail SMTP. Enable 2-Step Verification on the sending Google account, then create a Google App Password for this application. Add these Vercel environment variables:

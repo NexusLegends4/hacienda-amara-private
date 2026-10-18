@@ -12,7 +12,17 @@ const CustomerNotifications = () => {
 	const [loading, setLoading] = useState(true);
 	const [copied, setCopied] = useState(false);
 	const [copyError, setCopyError] = useState("");
+	const [paymentEmail, setPaymentEmail] = useState(() => {
+		try {
+			return localStorage.getItem("hacienda-reviewer-email") || "";
+		} catch {
+			return "";
+		}
+	});
+	const [checkoutLoading, setCheckoutLoading] = useState(false);
+	const [checkoutError, setCheckoutError] = useState("");
 	const notificationUrl = `${window.location.origin}/customer-notifications/${reservationToken}`;
+	const paymentReturn = new URLSearchParams(window.location.search).get("payment");
 
 	const loadNotification = useCallback(async (showLoading = true) => {
 		if (!reservationToken) {
@@ -83,6 +93,36 @@ const CustomerNotifications = () => {
 				}
 			}
 			setCopyError("Copy was blocked. The link is selected so you can copy it manually.");
+		}
+	};
+
+	const continueToCheckout = async (event) => {
+		event.preventDefault();
+		setCheckoutError("");
+		setCheckoutLoading(true);
+		try {
+			const response = await fetch("/api/paymongo-checkout", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					reservationId: reservationToken,
+					email: paymentEmail.trim().toLowerCase(),
+					paymentType: reservation?.payment_status === "down_payment_paid" ? "balance" : "deposit",
+				}),
+			});
+			let result;
+			try {
+				result = await response.json();
+			} catch {
+				throw new Error("Checkout service returned an invalid response. Please retry.");
+			}
+			if (!response.ok || !result.checkoutUrl) {
+				throw new Error(result.error || "PayMongo checkout could not be started. Please retry.");
+			}
+			window.location.assign(result.checkoutUrl);
+		} catch (error) {
+			setCheckoutError(error instanceof Error ? error.message : "PayMongo checkout could not be started. Please retry.");
+			setCheckoutLoading(false);
 		}
 	};
 
@@ -179,6 +219,83 @@ const CustomerNotifications = () => {
 											<p className="mt-2 text-lg font-bold text-slate-900">{reservation.room_type}</p>
 											<p className="mt-1 text-sm text-slate-600">{reservation.check_in}</p>
 										</div>
+									</div>
+
+									<div className="rounded-[18px] border border-amber-200 bg-amber-50 p-4">
+										<p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-900">Payment summary</p>
+										<div className="mt-3 space-y-1 text-sm text-amber-950">
+											<p className="flex justify-between gap-3"><span>Booking total</span><span>₱{Number(reservation.total_price || 0).toLocaleString()}</span></p>
+											<p className="flex justify-between gap-3"><span>Down payment (50%, non-refundable)</span><span>₱{Number(reservation.down_payment_amount || Math.round(Number(reservation.total_price || 0) * 50) / 100).toLocaleString()}</span></p>
+											<p className="flex justify-between gap-3"><span>Refundable security deposit</span><span>₱{Number(reservation.security_deposit_amount || 2_000).toLocaleString()}</span></p>
+											<p className="flex justify-between gap-3 font-bold">
+												<span>{reservation.payment_status === "down_payment_paid" ? "Remaining balance" : "Due now"}</span>
+												<span>₱{(reservation.payment_status === "fully_paid"
+													? 0
+													: reservation.payment_status === "down_payment_paid"
+														? Number(reservation.balance_due || 0)
+														: Number(reservation.down_payment_amount || Math.round(Number(reservation.total_price || 0) * 50) / 100) + Number(reservation.security_deposit_amount || 2_000)
+												).toLocaleString()}</span>
+											</p>
+											{reservation.payment_status !== "fully_paid" && reservation.payment_status !== "down_payment_paid" && (
+												<p className="flex justify-between gap-3"><span>Balance due at least one day before stay</span><span>₱{Number(reservation.balance_due ?? (Number(reservation.total_price || 0) - Math.round(Number(reservation.total_price || 0) * 50) / 100)).toLocaleString()}</span></p>
+											)}
+										</div>
+										{reservation.payment_status === "fully_paid" ? (
+											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
+												PayMongo has confirmed the down payment, security deposit, and remaining balance. The ₱2,000 security deposit remains refundable upon check-out. Resort staff will separately confirm your reservation.
+											</p>
+										) : reservation.payment_status === "down_payment_paid" ? (
+											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
+												PayMongo has confirmed the down payment and refundable security deposit. Settle the remaining balance at least one day before your stay.
+											</p>
+										) : reservation.payment_status !== "down_payment_paid" && !["cancelled", "denied", "rejected"].includes(String(reservation.status).toLowerCase()) ? (
+											<form onSubmit={continueToCheckout} className="mt-4 space-y-3">
+												<label className="block text-sm font-semibold text-amber-950" htmlFor="booking-payment-email">Booking email</label>
+												<input
+													id="booking-payment-email"
+													type="email"
+													autoComplete="email"
+													required
+													value={paymentEmail}
+													onChange={(event) => setPaymentEmail(event.target.value)}
+													className="input input-bordered w-full rounded-xl bg-white"
+												/>
+												{["success", "balance_success"].includes(paymentReturn) && (
+													<p role="status" className="text-sm text-amber-900">PayMongo returned you to this page. We are waiting for its secure payment confirmation; this page will update automatically.</p>
+												)}
+												{["cancelled", "balance_cancelled"].includes(paymentReturn) && (
+													<p role="status" className="text-sm text-amber-900">Checkout was not completed. You can retry securely below.</p>
+												)}
+												{checkoutError && <p role="alert" className="text-sm font-medium text-rose-700">{checkoutError}</p>}
+												<button type="submit" disabled={checkoutLoading} className="btn btn-black h-11 w-full rounded-full">
+													{checkoutLoading ? <span className="loading loading-spinner" /> : "Pay down payment and deposit securely"}
+												</button>
+											</form>
+										) : reservation.payment_status === "down_payment_paid" && !["cancelled", "denied", "rejected"].includes(String(reservation.status).toLowerCase()) ? (
+											<form onSubmit={continueToCheckout} className="mt-4 space-y-3">
+												<label className="block text-sm font-semibold text-amber-950" htmlFor="booking-payment-email">Booking email</label>
+												<input
+													id="booking-payment-email"
+													type="email"
+													autoComplete="email"
+													required
+													value={paymentEmail}
+													onChange={(event) => setPaymentEmail(event.target.value)}
+													className="input input-bordered w-full rounded-xl bg-white"
+												/>
+												{paymentReturn === "balance_success" && (
+													<p role="status" className="text-sm text-amber-900">PayMongo returned you to this page. We are waiting for its secure balance-payment confirmation.</p>
+												)}
+												{paymentReturn === "balance_cancelled" && (
+													<p role="status" className="text-sm text-amber-900">Balance checkout was not completed. You can retry securely below.</p>
+												)}
+												{checkoutError && <p role="alert" className="text-sm font-medium text-rose-700">{checkoutError}</p>}
+												<button type="submit" disabled={checkoutLoading} className="btn btn-black h-11 w-full rounded-full">
+													{checkoutLoading ? <span className="loading loading-spinner" /> : "Pay remaining balance with PayMongo"}
+												</button>
+											</form>
+										) : null}
+										<p className="mt-3 text-xs leading-5 text-amber-900">The balance is due at least one day before your stay. The ₱2,000 security deposit is refundable upon check-out. The down payment is non-refundable.</p>
 									</div>
 
 									{reservation.status === "confirmed" && (

@@ -106,22 +106,34 @@ const BookingAnalytics = () => {
 	const [error, setError] = useState("");
 	const profileRole = profile?.role;
 
+	const resolveAccessToken = useCallback(async () => {
+		const { data: currentSessionData, error: getSessionError } = await supabase.auth.getSession();
+		if (getSessionError) throw getSessionError;
+
+		if (currentSessionData?.session?.access_token) {
+			return currentSessionData.session.access_token;
+		}
+
+		const { data: refreshedSessionData, error: refreshError } = await supabase.auth.refreshSession();
+		if (refreshError) throw refreshError;
+		if (refreshedSessionData?.session?.access_token) {
+			return refreshedSessionData.session.access_token;
+		}
+
+		throw new Error("Your sign-in session expired. Sign in again to view Booking Analytics.");
+	}, []);
+
 	const loadAnalytics = useCallback(async (showLoading = true) => {
-		if (!session?.access_token) return;
+		if (!session?.user?.id) return;
 		if (showLoading) setLoading(true);
 		setError("");
 
 		try {
-			const { data: { session: currentSession }, error: sessionError } =
-				await supabase.auth.getSession();
-			if (sessionError) throw sessionError;
-			if (!currentSession?.access_token) {
-				throw new Error("Your sign-in session expired. Sign in again to view Booking Analytics.");
-			}
+			const accessToken = await resolveAccessToken();
 
 			const response = await fetch("/api/booking-analytics", {
 				method: "POST",
-				headers: { Authorization: `Bearer ${currentSession.access_token}` },
+				headers: { Authorization: `Bearer ${accessToken}` },
 			});
 			const responseText = await response.text();
 			let result;
@@ -146,7 +158,7 @@ const BookingAnalytics = () => {
 		} finally {
 			if (showLoading) setLoading(false);
 		}
-	}, [session?.access_token]);
+	}, [session?.user?.id, resolveAccessToken]);
 
 	useEffect(() => {
 		if (!session) {

@@ -342,6 +342,22 @@ const ManageReservations = () => {
 										<p className="text-sm font-bold mt-1 text-primary">
 											Total: P{res.total_price?.toLocaleString()}
 										</p>
+										<div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+											<p className="font-bold">
+												Payment: {{
+													checkout_pending: "Checkout pending",
+													down_payment_paid: "Down payment + deposit received",
+													fully_paid: "Fully paid",
+													refunded: "Refunded",
+												}[res.payment_status] || "Unpaid"}
+											</p>
+											<p className="mt-1 text-[10px] text-amber-800">Manual transfers require separate staff verification.</p>
+											<p className="mt-1">Received: ₱{Number(res.amount_paid || 0).toLocaleString()}</p>
+											<p>Balance due: ₱{Number(res.payment_status === "fully_paid" ? 0 : res.balance_due || 0).toLocaleString()}</p>
+											{res.security_deposit_amount > 0 && (
+												<p>Refundable security deposit: ₱{Number(res.security_deposit_amount).toLocaleString()}</p>
+											)}
+										</div>
 									</div>
 									<div className="mt-6 pt-4 border-t border-black/5 flex flex-col gap-3">
 										<div className="flex flex-wrap items-center justify-between gap-2">
