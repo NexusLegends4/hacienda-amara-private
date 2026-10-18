@@ -107,6 +107,8 @@ const BookingAnalytics = () => {
 	const profileRole = profile?.role;
 
 	const resolveAccessToken = useCallback(async () => {
+		if (session?.access_token) return session.access_token;
+
 		const { data: currentSessionData, error: getSessionError } = await supabase.auth.getSession();
 		if (getSessionError) throw getSessionError;
 
@@ -121,7 +123,8 @@ const BookingAnalytics = () => {
 		}
 
 		throw new Error("Your sign-in session expired. Sign in again to view Booking Analytics.");
-	}, []);
+	}, [session?.access_token]);
+
 
 	const loadAnalytics = useCallback(async (showLoading = true) => {
 		if (!session?.user?.id) return;
@@ -133,7 +136,7 @@ const BookingAnalytics = () => {
 
 			const response = await fetch("/api/booking-analytics", {
 				method: "POST",
-				headers: { Authorization: `Bearer ${accessToken}` },
+				headers: { Authorization: "Bearer " + accessToken },
 			});
 			const responseText = await response.text();
 			let result;
