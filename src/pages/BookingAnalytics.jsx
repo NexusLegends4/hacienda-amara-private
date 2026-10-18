@@ -132,12 +132,24 @@ const BookingAnalytics = () => {
 		setError("");
 
 		try {
-			const accessToken = await resolveAccessToken();
-
-			const response = await fetch("/api/booking-analytics", {
+			let accessToken = await resolveAccessToken();
+			let response = await fetch("/api/booking-analytics", {
 				method: "POST",
 				headers: { Authorization: "Bearer " + accessToken },
 			});
+			if (response.status === 401) {
+				const { data: refreshedSessionData, error: refreshError } =
+					await supabase.auth.refreshSession();
+				if (refreshError) throw refreshError;
+				accessToken = refreshedSessionData.session?.access_token;
+				if (!accessToken) {
+					throw new Error("Your sign-in session expired. Sign in again to view Booking Analytics.");
+				}
+				response = await fetch("/api/booking-analytics", {
+					method: "POST",
+					headers: { Authorization: "Bearer " + accessToken },
+				});
+			}
 			const responseText = await response.text();
 			let result;
 			try {
@@ -150,6 +162,11 @@ const BookingAnalytics = () => {
 			if (!result || typeof result !== "object") {
 				throw new Error(
 					`Booking Analytics returned an empty response (HTTP ${response.status}). Check the API deployment and server logs.`,
+				);
+			}
+			if (response.status === 401) {
+				throw new Error(
+					"Supabase rejected the session after it was refreshed. Check that the frontend and server Supabase URL and anon key point to the same project, then sign out and back in.",
 				);
 			}
 			if (!response.ok) {
