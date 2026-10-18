@@ -21,6 +21,24 @@ const SNAPSHOT_PAGE_SIZE = 1000;
 
 const json = (body, status = 200) => Response.json(body, { status });
 
+function getUrlHost(value) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return "invalid-url";
+  }
+}
+
+function getTokenIssuerHost(accessToken) {
+  try {
+    const [, payload] = accessToken.split(".");
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return new URL(claims.iss).host;
+  } catch {
+    return "unreadable";
+  }
+}
+
 async function getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey) {
   const authorization = request.headers.get("authorization") || "";
   const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
@@ -39,7 +57,12 @@ async function getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey) {
   });
   const { data: userData, error: userError } = await authClient.auth.getUser(accessToken);
   if (userError || !userData.user) {
-    console.warn("Booking Analytics session validation failed:", userError?.code || "unknown error");
+    console.warn("Booking Analytics session validation failed:", {
+      errorCode: userError?.code || "unknown",
+      errorStatus: userError?.status || "unknown",
+      supabaseHost: getUrlHost(supabaseUrl),
+      tokenIssuerHost: getTokenIssuerHost(accessToken),
+    });
     return { error: "Supabase rejected your sign-in session. Sign in again.", status: 401 };
   }
 
@@ -177,8 +200,8 @@ async function updateAndReadForecastComparisons(supabase, completedHistory, curr
 }
 
 export async function POST(request) {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
