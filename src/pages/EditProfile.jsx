@@ -31,7 +31,7 @@ const validateEmail = (email) => {
 
 const validatePhone = (phone) => {
 	if (!phone.trim()) return "Contact number is required";
-	if (!isPhilippineMobileNumber(phone)) return "Use a Philippine mobile number in +639XXXXXXXXX format";
+	if (!isPhilippineMobileNumber(phone)) return "Enter an 11-digit Philippine mobile number starting with 09";
 	return null;
 };
 
@@ -147,7 +147,7 @@ const EditProfile = () => {
 			filteredValue = value.toLowerCase();
 			error = validateEmail(filteredValue);
 		} else if (field === "contact_number") {
-			filteredValue = value.replace(/[^\d+\s()-]/g, "");
+			filteredValue = value.replace(/\D/g, "").slice(0, 11);
 			error = validatePhone(filteredValue);
 		}
 
@@ -372,13 +372,13 @@ const EditProfile = () => {
 
 							<Input
 								name="contact_number"
-								placeholder="+639XXXXXXXXX"
+								placeholder="0929 746 7879"
 								label="Contact Number"
 								type="tel"
 								value={formData.contact_number}
 								onChange={(e) => handleInputChange("contact_number", e.target.value)}
 								autoComplete="tel"
-								maxLength={20}
+								maxLength={11}
 								required
 								error={fieldErrors.contact_number}
 							/>

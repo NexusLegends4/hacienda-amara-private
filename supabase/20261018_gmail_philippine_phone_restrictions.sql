@@ -1,4 +1,4 @@
--- Restrict account and contact details to Gmail and +63 Philippine mobile numbers.
+-- Restrict account and contact details to Gmail and 11-digit Philippine mobile numbers.
 -- Existing rows are left untouched; validation applies to new accounts and changed contact fields.
 
 create or replace function public.enforce_gmail_philippine_contacts()
@@ -45,8 +45,8 @@ begin
     end if;
     if phone_changed
       and nullif(btrim(phone_value), '') is not null
-      and btrim(phone_value) !~ '^[+]639[0-9]{9}$' then
-      raise exception 'Contact number must use +639XXXXXXXXX format.'
+      and btrim(phone_value) !~ '^09[0-9]{9}$' then
+      raise exception 'Contact number must use the 11-digit 09XXXXXXXXX format.'
         using errcode = '23514';
     end if;
 
@@ -66,8 +66,8 @@ begin
         raise exception 'Guest email must use @gmail.com.'
           using errcode = '23514';
       end if;
-      if phone_value is null or btrim(phone_value) !~ '^[+]639[0-9]{9}$' then
-        raise exception 'Guest phone must use +639XXXXXXXXX format.'
+      if phone_value is null or btrim(phone_value) !~ '^09[0-9]{9}$' then
+        raise exception 'Guest phone must use the 11-digit 09XXXXXXXXX format.'
           using errcode = '23514';
       end if;
     end if;

@@ -76,7 +76,7 @@ const ViewEvent = () => {
 			errors.phone = "Phone number is required";
 		} else {
 			if (!isPhilippineMobileNumber(guestPhone)) {
-				errors.phone = "Use a Philippine mobile number in +639XXXXXXXXX format";
+				errors.phone = "Enter an 11-digit Philippine mobile number starting with 09";
 			}
 		}
 
@@ -244,7 +244,7 @@ const ViewEvent = () => {
 									{formErrors.email && <p className="mt-1 text-sm text-error">{formErrors.email}</p>}
 								</div>
 								<div>
-									<input className={`input input-bordered w-full ${formErrors.phone ? 'border-error' : ''}`} value={guestPhone} onChange={(e) => { setGuestPhone(e.target.value); if (formErrors.phone) setFormErrors(prev => ({...prev, phone: undefined})); }} placeholder="Phone number (e.g., +639XX XXX XXXX)" type="tel" required />
+									<input className={`input input-bordered w-full ${formErrors.phone ? 'border-error' : ''}`} value={guestPhone} onChange={(e) => { setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 11)); if (formErrors.phone) setFormErrors(prev => ({...prev, phone: undefined})); }} placeholder="0929 746 7879" type="tel" inputMode="numeric" minLength="11" maxLength="11" pattern="09[0-9]{9}" required />
 									{formErrors.phone && <p className="mt-1 text-sm text-error">{formErrors.phone}</p>}
 								</div>
 							</div>

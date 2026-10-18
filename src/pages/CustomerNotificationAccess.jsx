@@ -23,7 +23,7 @@ const CustomerNotificationAccess = () => {
 			return;
 		}
 		if (!isPhilippineMobileNumber(phone)) {
-			alert("Enter a Philippine mobile number in +639XXXXXXXXX format.");
+			alert("Enter an 11-digit Philippine mobile number starting with 09.");
 			return;
 		}
 		setLoading(true);
@@ -96,9 +96,13 @@ const CustomerNotificationAccess = () => {
 										type="tel"
 										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={phone}
-										onChange={(event) => setPhone(event.target.value)}
-										placeholder="+639XX XXX XXXX"
+										onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))}
+										placeholder="0929 746 7879"
 										required
+										minLength="11"
+										maxLength="11"
+										pattern="09[0-9]{9}"
+										inputMode="numeric"
 									/>
 								</div>
 							</label>

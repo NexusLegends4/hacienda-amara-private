@@ -4,6 +4,7 @@ import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.j
 import {
 	isGmailAddress,
 	isPhilippineMobileNumber,
+	getPhilippineMobileNumberForInput,
 	normalizePhilippineMobileNumber,
 } from "../src/utils/contact-validation.js";
 
@@ -140,7 +141,7 @@ export async function POST(request) {
 		const phone = normalizePhilippineMobileNumber(body?.phone);
 		const checkIn = String(body?.checkIn || "");
 		if (!isGmailAddress(email) || !isPhilippineMobileNumber(phone) || !/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) {
-			return json({ error: "Use the booking Gmail address, a +639 Philippine mobile number, and the reservation date." }, 400);
+			return json({ error: "Use the booking Gmail address, an 11-digit Philippine mobile number starting with 09, and the reservation date." }, 400);
 		}
 		const { data, error } = await supabase
 			.from("reservations")
@@ -153,7 +154,7 @@ export async function POST(request) {
 		}
 		const matches = (data || []).filter((candidate) =>
 			String(candidate.guest_email || "").trim().toLowerCase() === email &&
-			normalizePhilippineMobileNumber(candidate.guest_phone) === phone,
+			getPhilippineMobileNumberForInput(candidate.guest_phone) === phone,
 		);
 		if (matches.length > 1) {
 			return json({ error: "More than one active reservation matched. Please contact resort staff." }, 409);

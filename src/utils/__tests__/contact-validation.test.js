@@ -14,17 +14,19 @@ describe("contact validation", () => {
 		expect(isGmailAddress("person@yahoo.com")).toBe(false);
 	});
 
-	it("accepts only Philippine mobile numbers with the +63 country code", () => {
-		expect(isPhilippineMobileNumber("+639171234567")).toBe(true);
-		expect(isPhilippineMobileNumber("+63 917-123-4567")).toBe(true);
-		expect(isPhilippineMobileNumber("09171234567")).toBe(false);
-		expect(isPhilippineMobileNumber("639171234567")).toBe(false);
+	it("accepts only 11-digit Philippine mobile numbers in local format", () => {
+		expect(isPhilippineMobileNumber("09297467879")).toBe(true);
+		expect(isPhilippineMobileNumber("0929 746 7879")).toBe(true);
+		expect(isPhilippineMobileNumber("0929-746-7879")).toBe(true);
+		expect(isPhilippineMobileNumber("0929746787")).toBe(false);
+		expect(isPhilippineMobileNumber("092974678799")).toBe(false);
+		expect(isPhilippineMobileNumber("639297467879")).toBe(false);
 		expect(isPhilippineMobileNumber("+14155552671")).toBe(false);
 	});
 
 	it("normalizes formatted numbers and legacy profile values", () => {
-		expect(normalizePhilippineMobileNumber("+63 917-123-4567")).toBe("+639171234567");
-		expect(getPhilippineMobileNumberForInput("09171234567")).toBe("+639171234567");
-		expect(getPhilippineMobileNumberForInput("639171234567")).toBe("+639171234567");
+		expect(normalizePhilippineMobileNumber("0929 746 7879")).toBe("09297467879");
+		expect(getPhilippineMobileNumberForInput("0929 746 7879")).toBe("09297467879");
+		expect(getPhilippineMobileNumberForInput("+639297467879")).toBe("09297467879");
 	});
 });

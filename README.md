@@ -77,9 +77,9 @@ Users who cannot access their email or authenticator app will need an administra
 
 ## Gmail Accounts and Philippine Phone Numbers
 
-The system accepts account and guest contact email addresses ending in `@gmail.com` only. Philippine mobile numbers must use the international `+639XXXXXXXXX` format; local `09...` and other country codes are rejected for new or changed contact details. Existing records are not rewritten by the migration.
+The system accepts account and guest contact email addresses ending in `@gmail.com` only. Philippine mobile numbers must contain exactly 11 digits and start with `09` (for example, `0929 746 7879`); international prefixes and other country codes are rejected for new or changed contact details. Existing records are not rewritten by the migration.
 
-Run `supabase/20261018_gmail_philippine_phone_restrictions.sql` in the Supabase SQL Editor before deploying the matching frontend/API changes. The migration enforces the restrictions in Supabase Auth and on profile, guest reservation, and event registration changes, in addition to the form and API validation.
+Run `supabase/20261018_gmail_philippine_phone_restrictions.sql` and then `supabase/20261018_gmail_philippine_phone_local_format.sql` in the Supabase SQL Editor before deploying the matching frontend/API changes. The migrations enforce the restrictions in Supabase Auth and on profile, guest reservation, and event registration changes, in addition to the form and API validation.
 
 ## PayMongo Booking Payments
 

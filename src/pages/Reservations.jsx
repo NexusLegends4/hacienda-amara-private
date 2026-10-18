@@ -249,7 +249,7 @@ const Reservations = () => {
 			return;
 		}
 		if (!isPhilippineMobileNumber(bookingPhone)) {
-			alert("Please enter a Philippine mobile number in +639XXXXXXXXX format.");
+			alert("Please enter an 11-digit Philippine mobile number starting with 09.");
 			return;
 		}
 		const normalizedEmail = bookingEmail.trim().toLowerCase();
@@ -294,7 +294,7 @@ const Reservations = () => {
 				throw new Error("Please use the Gmail address used when booking.");
 			}
 			if (!isPhilippineMobileNumber(bookingCancelPhone)) {
-				throw new Error("Enter the booking phone number in +639XXXXXXXXX format.");
+				throw new Error("Enter the booking phone number as 11 digits starting with 09.");
 			}
 			const response = await fetch("/api/reservation-cancellation", {
 				method: "POST",
@@ -402,15 +402,16 @@ const Reservations = () => {
 											autoComplete="tel" 
 											className="input input-bordered rounded-2xl px-4" 
 											value={bookingPhone} 
-											onChange={isLoggedInClient ? undefined : (e => setGuestPhone(e.target.value.replace(/[^\d+\s()-]/g, "")))}
+											onChange={isLoggedInClient ? undefined : (e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 11)))}
 											readOnly={isLoggedInClient}
 											required 
-											minLength="13"
-											maxLength="20"
-											placeholder="+639XX XXX XXXX"
+											minLength="11"
+											maxLength="11"
+											pattern="09[0-9]{9}"
+											placeholder="0929 746 7879"
 											aria-label="Philippine mobile number"
 										/>
-										<p className="label-text-alt mt-1">Use a Philippine mobile number starting with +63, e.g. +639XXXXXXXXX.</p>
+										<p className="label-text-alt mt-1">Enter 11 digits starting with 09, e.g. 0929 746 7879.</p>
 										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit phone in Profile page</p>}
 									</div>
 								</div>
@@ -610,7 +611,7 @@ const Reservations = () => {
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
-								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="+639XXXXXXXXX" value={bookingCancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+								<input type="tel" inputMode="numeric" pattern="09[0-9]{9}" minLength="11" maxLength="11" className="input input-bordered rounded-2xl bg-white px-4" placeholder="0929 746 7879" value={bookingCancelPhone} onChange={(event) => setCancelPhone(event.target.value.replace(/\D/g, "").slice(0, 11))} required />
 							</div>
 							<div className="lg:col-start-4 lg:row-span-3 self-end pt-12 md:col-span-3 lg:col-span-1">
 								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full">
