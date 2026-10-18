@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
+import { getInitialPaymentDecision } from "../server/utils/reservation-payment-decision.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -72,7 +73,7 @@ export async function POST(request) {
 	});
 	const { data: reservation, error: lookupError } = await supabase
 		.from("reservations")
-		.select("id, status, payment_status, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
+		.select("id, status, payment_status, initial_payment_deadline_at, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
 		.eq("id", reservationId)
 		.maybeSingle();
 	if (lookupError) {
@@ -109,6 +110,9 @@ export async function POST(request) {
 			return json({ error: "Unable to record payment reference." }, 503);
 		}
 	}
+	if (!isBalancePayment && reservation.payment_status === "down_payment_paid") {
+		return json({ received: true });
+	}
 	if (reservation.payment_status === "fully_paid" || (isBalancePayment && reservation.payment_status !== "down_payment_paid")) {
 		if (!isBalancePayment && reservation.status === "cancelled") {
 			await refundSecurityDeposit(
@@ -134,24 +138,68 @@ export async function POST(request) {
 			payment_confirmed_at: new Date().toISOString(),
 			paymongo_checkout_payment_id: paidPayment.id,
 		};
-	const { error: updateError } = await supabase
+	const updateValues = { ...paymentUpdate };
+	const initialPaymentDecision = isBalancePayment
+		? null
+		: getInitialPaymentDecision(reservation);
+	const isLateInitialPayment = initialPaymentDecision?.late || false;
+	if (!isBalancePayment && reservation.status === "pending") {
+		updateValues.status = initialPaymentDecision.status;
+		updateValues.rejection_reason = initialPaymentDecision.late
+			? "Automatically denied because initial payment was not received within one hour. A later payment requires staff review."
+			: null;
+		if (initialPaymentDecision.late) updateValues.late_payment_received_at = new Date().toISOString();
+	} else if (!isBalancePayment && reservation.status === "denied") {
+		updateValues.rejection_reason = "Automatically denied because initial payment was not received within one hour. A later PayMongo payment was received and requires staff review.";
+		updateValues.late_payment_received_at = new Date().toISOString();
+	}
+
+	let updateQuery = supabase
 		.from("reservations")
-		.update(paymentUpdate)
+		.update(updateValues)
 		.eq("id", reservation.id)
 		.eq(isBalancePayment ? "paymongo_balance_checkout_session_id" : "paymongo_checkout_session_id", sessionId)
 		.eq("payment_status", isBalancePayment ? "down_payment_paid" : "checkout_pending");
-	if (updateError) {
-		console.error("Unable to record confirmed PayMongo payment:", updateError.code || updateError.message);
+	if (!isBalancePayment && reservation.status === "pending") {
+		updateQuery = updateQuery.eq("status", "pending");
+		updateQuery = isLateInitialPayment
+			? updateQuery.or(`initial_payment_deadline_at.is.null,initial_payment_deadline_at.lte.${new Date().toISOString()}`)
+			: updateQuery.gt("initial_payment_deadline_at", new Date().toISOString());
+	} else if (!isBalancePayment && reservation.status === "denied") {
+		updateQuery = updateQuery.eq("status", "denied");
+	} else if (!isBalancePayment) {
+		updateQuery = updateQuery.eq("status", reservation.status);
+	}
+
+	const { data: updatedReservation, error: updateError } = await updateQuery
+		.select("id")
+		.maybeSingle();
+	if (updateError || !updatedReservation) {
+		console.error("Unable to record confirmed PayMongo payment:", updateError?.code || updateError?.message || "reservation state changed");
+		const { data: currentReservation, error: currentError } = await supabase
+			.from("reservations")
+			.select("status, payment_status, paymongo_checkout_payment_id, paymongo_balance_payment_id")
+			.eq("id", reservation.id)
+			.maybeSingle();
+		if (
+			!currentError &&
+			currentReservation?.payment_status === (isBalancePayment ? "fully_paid" : "down_payment_paid") &&
+			(isBalancePayment
+				? currentReservation.paymongo_balance_payment_id
+				: currentReservation.paymongo_checkout_payment_id) === paidPayment.id
+		) {
+			return json({ received: true });
+		}
 		return json({ error: "Unable to record payment confirmation." }, 503);
 	}
 	if (!isBalancePayment && reservation.status === "cancelled") {
 		await refundSecurityDeposit(
 			supabase,
-			{ ...reservation, paymongo_checkout_payment_id: paidPayment.id },
+			{ ...reservation, ...paymentUpdate },
 			process.env.PAYMONGO_SECRET_KEY,
 			`Security deposit refund for cancelled reservation ${reservation.id}`,
 		);
 	}
 
-	return json({ received: true });
+	return json({ received: true, ...(isLateInitialPayment ? { paymentRequiresReview: true } : {}) });
 }

@@ -147,6 +147,9 @@ const CustomerNotifications = () => {
 				reservation?.security_deposit_refund_status === "processing"
 				? "The security-deposit refund needs staff review. Please contact Hacienda Amara; do not assume the refund has been completed."
 				: null;
+	const latePaymentMessage = reservation?.late_payment_received_at
+		? "PayMongo received payment after this booking had been automatically denied. The reservation remains denied while resort staff reviews the payment; please contact Hacienda Amara."
+		: null;
 
 	return (
 		<MainLayout>
@@ -208,10 +211,17 @@ const CustomerNotifications = () => {
 												{statusLabel}
 											</p>
 											<p className="mt-1 text-sm sm:text-base font-semibold leading-snug">
-												{reservation.message}
+												{reservation.status === "pending"
+													? "Complete the initial PayMongo payment within one hour of starting checkout. Successful payment automatically accepts the booking; if payment is not received in time, it is automatically denied."
+													: reservation.message}
 											</p>
 										</div>
 									</div>
+									{latePaymentMessage && (
+										<p role="alert" className="rounded-[18px] border border-rose-300 bg-rose-50 p-4 text-sm font-semibold text-rose-900">
+											{latePaymentMessage}
+										</p>
+									)}
 
 									<div className="grid gap-3">
 										<div className="rounded-[18px] bg-[#f1f1ef] p-4">
@@ -250,13 +260,19 @@ const CustomerNotifications = () => {
 										</div>
 										{reservation.payment_status === "fully_paid" ? (
 											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
-												PayMongo has confirmed the down payment, security deposit, and remaining balance. The ₱2,000 security deposit remains refundable upon check-out. Resort staff will separately confirm your reservation.
+												PayMongo has confirmed the down payment, security deposit, and remaining balance. Your reservation was automatically accepted after the initial payment. The ₱2,000 security deposit remains refundable upon check-out.
 											</p>
 										) : reservation.payment_status === "down_payment_paid" ? (
 											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
-												PayMongo has confirmed the down payment and refundable security deposit. Settle the remaining balance at least one day before your stay.
+												{latePaymentMessage
+													? "This payment arrived after the one-hour deadline. Your reservation remains denied and the payment is flagged for staff review."
+													: "PayMongo has confirmed the down payment and refundable security deposit, and your reservation was automatically accepted. Settle the remaining balance at least one day before your stay."}
 											</p>
 										) : reservation.payment_status !== "down_payment_paid" && !["cancelled", "denied", "rejected"].includes(String(reservation.status).toLowerCase()) ? (
+											<>
+											<p role="status" className="mt-3 rounded-xl border border-amber-300 bg-white/80 p-3 text-sm font-semibold text-amber-950">
+												Complete the initial PayMongo payment within one hour of starting checkout. Payment automatically accepts your reservation; if payment is not received in time, the request is automatically denied.
+											</p>
 											<form onSubmit={continueToCheckout} className="mt-4 space-y-3">
 												<label className="block text-sm font-semibold text-amber-950" htmlFor="booking-payment-email">Booking email</label>
 												<input
@@ -280,6 +296,7 @@ const CustomerNotifications = () => {
 													{checkoutLoading ? <span className="loading loading-spinner" /> : "Pay down payment and deposit securely"}
 												</button>
 											</form>
+											</>
 										) : reservation.payment_status === "down_payment_paid" && !["cancelled", "denied", "rejected"].includes(String(reservation.status).toLowerCase()) ? (
 											<form onSubmit={continueToCheckout} className="mt-4 space-y-3">
 												<label className="block text-sm font-semibold text-amber-950" htmlFor="booking-payment-email">Booking email</label>

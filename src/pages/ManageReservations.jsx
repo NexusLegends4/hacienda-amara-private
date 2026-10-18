@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import { FiCalendar, FiRefreshCw, FiXCircle } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -39,8 +39,6 @@ const ManageReservations = () => {
 	const [loading, setLoading] = useState(true);
 	const [updatingReservationId, setUpdatingReservationId] = useState(null);
 	const [refundingReservationId, setRefundingReservationId] = useState(null);
-	const [denyingReservationId, setDenyingReservationId] = useState(null);
-	const [rejectionReason, setRejectionReason] = useState("");
 	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
 	const [maintenanceStart, setMaintenanceStart] = useState("");
 	const [maintenanceEnd, setMaintenanceEnd] = useState("");
@@ -123,15 +121,11 @@ const ManageReservations = () => {
 		}
 	}, [canManageReservations, fetchMaintenance, fetchReservations]);
 
-	const updateStatus = async (id, newStatus, reason = "") => {
+	const updateStatus = async (id, newStatus) => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
-		if (!resToUpdate || !["confirmed", "denied", "cancelled"].includes(newStatus)) return;
+		if (!resToUpdate || newStatus !== "cancelled") return;
 		const currentStatus = resToUpdate.status || "pending";
-		if (
-			(newStatus === "confirmed" || newStatus === "denied") &&
-			currentStatus !== "pending"
-		) return;
-		if (newStatus === "cancelled" && currentStatus !== "confirmed") return;
+		if (currentStatus !== "confirmed") return;
 
 		setUpdatingReservationId(id);
 		try {
@@ -154,21 +148,6 @@ const ManageReservations = () => {
 					throw new Error(result.error || "The reservation could not be cancelled.");
 				}
 				cancellationRefund = result.refund;
-			} else {
-				const { data: updatedReservation, error } = await supabase
-					.from("reservations")
-					.update({
-						status: newStatus,
-						rejection_reason: newStatus === "denied" ? reason.trim() || null : null,
-					})
-					.eq("id", id)
-					.select("id, status")
-					.maybeSingle();
-
-				if (error) throw error;
-				if (!updatedReservation) {
-					throw new Error("No reservation was updated. Check that the latest reservation permission migration is applied and try again.");
-				}
 			}
 
 			const clientName = reservationGuestName(resToUpdate);
@@ -188,7 +167,6 @@ const ManageReservations = () => {
 							status: newStatus,
 							roomType: resToUpdate.room_type,
 							checkIn: resToUpdate.check_in,
-							rejectionReason: newStatus === "denied" ? reason.trim() : "",
 						}),
 					});
 					const result = await response.json();
@@ -199,18 +177,13 @@ const ManageReservations = () => {
 				}
 			}
 
-			const actionLabels = {
-				confirmed: "accepted",
-				denied: "denied",
-				cancelled: "cancelled",
-			};
 			const refundMessage = cancellationRefund?.status === "pending" || cancellationRefund?.status === "succeeded"
 				? " The ₱2,000 security-deposit refund was initiated; the down payment and any paid balance are not included."
 				: cancellationRefund?.status === "manual_review"
 					? " The security-deposit refund needs manual review in PayMongo."
 					: "";
 			alert(
-				`Reservation for ${clientName} was ${actionLabels[newStatus]}.` +
+				`Reservation for ${clientName} was cancelled.` +
 				refundMessage +
 				(emailError ? ` However, the email notification failed: ${emailError}` : ""),
 			);
@@ -254,15 +227,6 @@ const ManageReservations = () => {
 		} finally {
 			setRefundingReservationId(null);
 		}
-	};
-
-	const submitRejection = async (event) => {
-		event.preventDefault();
-		const id = denyingReservationId;
-		if (!id || rejectionReason.length > 300) return;
-		setDenyingReservationId(null);
-		await updateStatus(id, "denied", rejectionReason);
-		setRejectionReason("");
 	};
 
 	const addMaintenance = async (event) => {
@@ -424,6 +388,11 @@ const ManageReservations = () => {
 												}[res.payment_status] || "Unpaid"}
 											</p>
 											<p className="mt-1 text-[10px] text-amber-800">Manual transfers require separate staff verification.</p>
+											{res.late_payment_received_at && (
+												<p role="alert" className="mt-2 rounded-lg bg-rose-100 p-2 font-semibold text-rose-900">
+													Late PayMongo payment received after denial — staff review required.
+												</p>
+											)}
 											<p className="mt-1">Received: ₱{Number(res.amount_paid || 0).toLocaleString()}</p>
 											<p>Balance due: ₱{Number(res.payment_status === "fully_paid" ? 0 : res.balance_due || 0).toLocaleString()}</p>
 											{res.security_deposit_amount > 0 && (
@@ -449,27 +418,11 @@ const ManageReservations = () => {
 													{canManageReservations && (
 												<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
 															{reservationStatus === "pending" && (
-																<>
-																	<button
-																		onClick={() => updateStatus(res.id, "confirmed")}
-																		disabled={updatingReservationId !== null}
-																		className="btn btn-sm rounded-full btn-success text-white"
-																		title="Accept reservation"
-																	>
-																		<FiCheckCircle /> Accept
-																	</button>
-																	<button
-																		onClick={() => {
-																		setDenyingReservationId(res.id);
-																		setRejectionReason("");
-																	}}
-																		disabled={updatingReservationId !== null}
-																		className="btn btn-sm rounded-full btn-error btn-outline"
-																		title="Reject reservation"
-																	>
-																		<FiXCircle /> Reject
-																	</button>
-																</>
+																<span className="text-xs font-semibold text-amber-800">
+																	{res.payment_status === "checkout_pending"
+																		? "Awaiting payment · auto-denied after 1 hour"
+																		: "Awaiting customer checkout"}
+																</span>
 															)}
 															{reservationStatus === "confirmed" && (
 																<button
@@ -507,21 +460,6 @@ const ManageReservations = () => {
 					</div>
 				</div>
 			</div>
-			{denyingReservationId && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
-					<form onSubmit={submitRejection} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="reject-reservation-title">
-						<h2 id="reject-reservation-title" className="text-xl font-black text-slate-900">Reject reservation</h2>
-						<p className="mt-2 text-sm text-slate-600">Add an optional reason. If provided, it will be included in the customer’s notification and email.</p>
-						<label htmlFor="rejection-reason" className="mt-4 block text-sm font-semibold text-slate-800">Reason (optional)</label>
-						<textarea id="rejection-reason" value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} maxLength={300} rows={4} className="textarea textarea-bordered mt-2 w-full" placeholder="Explain why the reservation was rejected" />
-						<p className="mt-1 text-right text-xs text-slate-500">{rejectionReason.length}/300</p>
-						<div className="mt-4 flex justify-end gap-2">
-							<button type="button" onClick={() => setDenyingReservationId(null)} className="btn btn-ghost rounded-full">Keep reservation</button>
-							<button type="submit" disabled={updatingReservationId !== null} className="btn btn-error rounded-full">Reject reservation</button>
-						</div>
-					</form>
-				</div>
-			)}
 		</MainLayout>
 	);
 };

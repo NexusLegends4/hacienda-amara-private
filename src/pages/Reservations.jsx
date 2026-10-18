@@ -550,7 +550,8 @@ const Reservations = () => {
 									<div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6">
 										<p className="font-bold text-amber-950">Booking payment terms</p>
 										<ul className="mt-2 list-disc space-y-1 pl-5 text-amber-950/90">
-											<li>At least 50% down payment plus a ₱2,000 refundable security deposit is required to confirm your booking.</li>
+											<li>At least 50% down payment plus a ₱2,000 refundable security deposit is required. Pay within one hour of starting PayMongo checkout to automatically confirm your booking.</li>
+											<li>If the initial PayMongo payment is not received within one hour, the reservation request is automatically denied.</li>
 											<li>The remaining balance must be settled at least one day before your stay.</li>
 											<li>The down payment is non-refundable.</li>
 											<li>If a paid reservation is cancelled, only the ₱2,000 security deposit is submitted for refund; the down payment and any paid balance are not included.</li>

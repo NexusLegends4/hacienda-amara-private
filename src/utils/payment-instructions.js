@@ -19,7 +19,8 @@ const formatPaymentChannel = ({ name, accountName, accountNumberLabel, accountNu
 export const PAYMENT_INSTRUCTIONS = `Thank you for choosing Hacienda Amara Private Resort and Events Place.
 
 To reserve and pay online, open the Book Your Experience page, submit your booking, then continue to the secure PayMongo checkout:
-- A 50% down payment (at least half of the booking total) plus a ₱2,000 refundable security deposit are required to confirm your booking.
+- A 50% down payment (at least half of the booking total) plus a ₱2,000 refundable security deposit are required. Pay the initial amount within one hour of starting PayMongo checkout; successful payment automatically accepts the booking.
+- If the initial payment is not received within one hour, the booking is automatically denied. A payment received after denial is held for resort staff review and does not automatically reopen the booking.
 - Pay the remaining balance from your private reservation page at least one day before your stay.
 - The down payment is non-refundable.
 - When a paid reservation is cancelled, only the ₱2,000 security deposit is submitted for refund; the down payment and any paid balance are not included.
@@ -34,7 +35,7 @@ PayMongo checkout is linked to your booking. The chat cannot create or verify a 
 Manual transfer details:
 ${MANUAL_PAYMENT_CHANNELS.map(formatPaymentChannel).join("\n\n")}
 
-A contract will be provided once payment has been confirmed. Your booking is confirmed only after Hacienda Amara staff confirms the reservation.`;
+A contract will be provided once payment has been confirmed and the booking has been automatically accepted.`;
 
 const PAYMENT_QUERY_TERMS = [
 	"payment",

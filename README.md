@@ -83,11 +83,11 @@ Run `supabase/20261018_gmail_philippine_phone_restrictions.sql` and then `supaba
 
 ## PayMongo Booking Payments
 
-The booking form creates a PayMongo-hosted checkout for 50% of the booking total plus the ₱2,000 refundable security deposit. The private reservation page also provides PayMongo checkout for the remaining balance, which is due at least one day before the stay. A successful PayMongo payment does not automatically approve the reservation; resort staff still confirm bookings.
+The booking form creates a PayMongo-hosted checkout for 50% of the booking total plus the ₱2,000 refundable security deposit. Customers have one hour after checkout starts to complete the initial payment. The verified PayMongo webhook automatically confirms bookings paid before the deadline; Supabase Cron automatically denies unpaid checkouts after the deadline. Staff cannot manually accept or deny reservation requests. A payment that arrives after automatic denial remains denied and is flagged for staff review. The private reservation page also provides PayMongo checkout for the remaining balance, which is due at least one day before the stay.
 Staff post-check-out deposit refunds use the authenticated `refund_security_deposit` action on `/api/reservation-cancellation`, keeping the Vercel Hobby deployment within its 12-function limit.
 
 1. In the PayMongo Dashboard, open **Settings → Developers** and copy the **Secret API key**. Use a test key (`sk_test_...`) while testing. After the checkout and webhook work in test mode, switch to your live secret key (`sk_live_...`).
-2. Run `supabase/20261018_paymongo_booking_payments.sql`, then `supabase/20261018_paymongo_security_deposit_refunds.sql` in the Supabase SQL Editor.
+2. Run `supabase/20261018_paymongo_booking_payments.sql`, `supabase/20261018_paymongo_security_deposit_refunds.sql`, and `supabase/20261018_auto_reservation_payment_decisions.sql` in the Supabase SQL Editor. The last migration enables Supabase Cron and installs a one-minute job to deny expired, unpaid checkouts.
 3. In Vercel **Project → Settings → Environment Variables**, add these server-only variables:
 
    ```env
@@ -102,7 +102,7 @@ Staff post-check-out deposit refunds use the authenticated `refund_security_depo
 4. In PayMongo **Settings → Webhooks**, register `https://your-production-domain/api/paymongo-webhook`, subscribe to `checkout_session.payment.paid`, and copy that webhook's signing secret into `PAYMONGO_WEBHOOK_SECRET`.
 5. Enable the payment methods you want to accept in PayMongo, deploy the app, and test with PayMongo's test key and test payment methods before switching to live mode. The customer is redirected to PayMongo from booking and can retry from their private reservation notification page.
 
-PayMongo's hosted checkout is created by `/api/paymongo-checkout`; only the signed webhook marks the payment as received. The API secret and webhook signing secret must remain server-side.
+PayMongo's hosted checkout is created by `/api/paymongo-checkout`; only the signed webhook marks the payment as received and confirms a booking within its deadline. The API secret and webhook signing secret must remain server-side.
 The Vercel API routes are not served by plain `vite`; use a Vercel Preview deployment or `vercel dev` to test the complete hosted checkout flow.
 
 Reservation cancellation automatically submits a partial PayMongo refund for the security deposit only. The 50% down payment and any separately-paid balance are not refunded by this flow. If PayMongo cannot automatically accept the refund (for example, a legacy booking with no stored payment reference or a same-day Maya partial-refund restriction), the reservation is still cancelled and staff must review/refund it from the PayMongo Dashboard. Refunds are submitted on guest cancellation or staff/admin cancellation. For completed stays, MFA-verified staff/admin can submit the security-deposit refund from Manage Reservations after the check-out date and inspection. A refund can remain pending with PayMongo; the payment provider controls when funds appear in the customer's account. Typical PayMongo timelines are within 24 hours for GCash/Maya, real time for QR Ph payments under ₱50,000, and up to 30 days for cards. Maya partial refunds can only be submitted starting the day after payment. PayMongo transaction fees are not returned to the merchant. UBP Online Banking cannot be refunded through this API; contact PayMongo Support and arrange a manual transfer if that payment method is enabled later.

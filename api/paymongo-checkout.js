@@ -159,6 +159,7 @@ export async function POST(request) {
 			security_deposit_amount: SECURITY_DEPOSIT_PHP,
 			balance_due: balanceDue,
 			payment_status: "checkout_pending",
+			initial_payment_deadline_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			paymongo_checkout_session_id: checkoutSession.id,
 			paymongo_checkout_url: checkoutUrl,
 		};
