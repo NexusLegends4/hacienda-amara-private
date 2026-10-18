@@ -22,7 +22,10 @@ To reserve and pay online, open the Book Your Experience page, submit your booki
 - A 50% down payment (at least half of the booking total) plus a ₱2,000 refundable security deposit are required to confirm your booking.
 - Pay the remaining balance from your private reservation page at least one day before your stay.
 - The down payment is non-refundable.
-- The security deposit is refunded upon check-out.
+- When a paid reservation is cancelled, only the ₱2,000 security deposit is submitted for refund; the down payment and any paid balance are not included.
+- For a completed stay, resort staff submits the ₱2,000 security-deposit refund after check-out and inspection.
+- PayMongo refund timing depends on the payment method: GCash and Maya are typically within 24 hours, QR Ph refunds for payments under ₱50,000 are typically real-time, and card refunds can take up to 30 days. Maya partial refunds may only be submitted starting the day after payment. Your bank or wallet may take additional time to show the refund.
+- PayMongo processing fees are not returned to the resort when a refund is issued.
 
 Rates are good for 20 pax. Each additional guest is ₱200. Children 8 years old and below are free.
 

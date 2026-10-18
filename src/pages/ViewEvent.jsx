@@ -6,6 +6,11 @@ import { useContext } from "react";
 import { SessionContext } from "../contexts/SessionContext";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { FiCheckCircle, FiDownload, FiShare2, FiUserCheck, FiUsers, FiX } from "react-icons/fi";
+import {
+	isGmailAddress,
+	isPhilippineMobileNumber,
+	normalizePhilippineMobileNumber,
+} from "../utils/contact-validation";
 
 const ViewEvent = () => {
 	const { eventId } = useParams();
@@ -64,23 +69,14 @@ const ViewEvent = () => {
 		}
 		if (!guestEmail.trim()) {
 			errors.email = "Email address is required";
-		} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
-			errors.email = "Please enter a valid email address";
+		} else if (!isGmailAddress(guestEmail)) {
+			errors.email = "Please use a Gmail address ending in @gmail.com";
 		}
 		if (!guestPhone.trim()) {
 			errors.phone = "Phone number is required";
 		} else {
-			// Normalize phone number by removing spaces, dashes, parentheses
-			const normalizedPhone = guestPhone.trim().replace(/[\s\-()]/g, '');
-			// More flexible Philippine phone validation:
-			// Accepts: 09xxxxxxxxx, +639xxxxxxxxx, 639xxxxxxxxx, (09xx) xxx-xxxx, 09xx-xxx-xxxx, etc.
-			// Also accepts landlines: 02xxxxxxx, +632xxxxxxx, (02) xxxx-xxxx, etc.
-			const mobileRegex = /^(\+63|0)?9\d{9}$/;
-			const landlineRegex = /^(\+63|0)?2\d{7,8}$/;
-			const normalized = normalizedPhone.replace(/^\+63/, '0').replace(/^63/, '0');
-			
-			if (!mobileRegex.test(normalized) && !landlineRegex.test(normalized)) {
-				errors.phone = "Please enter a valid Philippine phone number (mobile: 09xx-xxx-xxxx, landline: 02-xxxx-xxxx)";
+			if (!isPhilippineMobileNumber(guestPhone)) {
+				errors.phone = "Use a Philippine mobile number in +639XXXXXXXXX format";
 			}
 		}
 
@@ -97,8 +93,8 @@ const ViewEvent = () => {
 				profile_id: null,
 				event_id: eventId,
 				guest_name: guestName.trim(),
-				guest_email: guestEmail.trim(),
-				guest_phone: guestPhone.trim(),
+				guest_email: guestEmail.trim().toLowerCase(),
+				guest_phone: normalizePhilippineMobileNumber(guestPhone),
 			});
 		if (error) {
 			alert(error.message.includes("registrations_guest_event_email_key") ? "This email has already signed in to this event." : error.message);
@@ -244,11 +240,11 @@ const ViewEvent = () => {
 									{formErrors.name && <p className="mt-1 text-sm text-error">{formErrors.name}</p>}
 								</div>
 								<div>
-									<input className={`input input-bordered w-full ${formErrors.email ? 'border-error' : ''}`} value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); if (formErrors.email) setFormErrors(prev => ({...prev, email: undefined})); }} placeholder="Email address" type="email" required />
+									<input className={`input input-bordered w-full ${formErrors.email ? 'border-error' : ''}`} value={guestEmail} onChange={(e) => { setGuestEmail(e.target.value); if (formErrors.email) setFormErrors(prev => ({...prev, email: undefined})); }} placeholder="you@gmail.com" type="email" required />
 									{formErrors.email && <p className="mt-1 text-sm text-error">{formErrors.email}</p>}
 								</div>
 								<div>
-									<input className={`input input-bordered w-full ${formErrors.phone ? 'border-error' : ''}`} value={guestPhone} onChange={(e) => { setGuestPhone(e.target.value); if (formErrors.phone) setFormErrors(prev => ({...prev, phone: undefined})); }} placeholder="Phone number (e.g., 09xx-xxx-xxxx)" type="tel" minLength="7" required />
+									<input className={`input input-bordered w-full ${formErrors.phone ? 'border-error' : ''}`} value={guestPhone} onChange={(e) => { setGuestPhone(e.target.value); if (formErrors.phone) setFormErrors(prev => ({...prev, phone: undefined})); }} placeholder="Phone number (e.g., +639XX XXX XXXX)" type="tel" required />
 									{formErrors.phone && <p className="mt-1 text-sm text-error">{formErrors.phone}</p>}
 								</div>
 							</div>

@@ -75,12 +75,18 @@ order by c.relname;
 
 Users who cannot access their email or authenticator app will need an administrator to help restore account access. Authenticator setup keys are secrets; users should not share or store them in public notes. Supabase's default email service may be restricted or rate-limited; use a configured SMTP provider if codes do not arrive reliably.
 
+## Gmail Accounts and Philippine Phone Numbers
+
+The system accepts account and guest contact email addresses ending in `@gmail.com` only. Philippine mobile numbers must use the international `+639XXXXXXXXX` format; local `09...` and other country codes are rejected for new or changed contact details. Existing records are not rewritten by the migration.
+
+Run `supabase/20261018_gmail_philippine_phone_restrictions.sql` in the Supabase SQL Editor before deploying the matching frontend/API changes. The migration enforces the restrictions in Supabase Auth and on profile, guest reservation, and event registration changes, in addition to the form and API validation.
+
 ## PayMongo Booking Payments
 
 The booking form creates a PayMongo-hosted checkout for 50% of the booking total plus the ₱2,000 refundable security deposit. The private reservation page also provides PayMongo checkout for the remaining balance, which is due at least one day before the stay. A successful PayMongo payment does not automatically approve the reservation; resort staff still confirm bookings.
 
 1. In the PayMongo Dashboard, open **Settings → Developers** and copy the **Secret API key**. Use a test key (`sk_test_...`) while testing. After the checkout and webhook work in test mode, switch to your live secret key (`sk_live_...`).
-2. Run `supabase/20261018_paymongo_booking_payments.sql` in the Supabase SQL Editor.
+2. Run `supabase/20261018_paymongo_booking_payments.sql`, then `supabase/20261018_paymongo_security_deposit_refunds.sql` in the Supabase SQL Editor.
 3. In Vercel **Project → Settings → Environment Variables**, add these server-only variables:
 
    ```env
@@ -97,6 +103,10 @@ The booking form creates a PayMongo-hosted checkout for 50% of the booking total
 
 PayMongo's hosted checkout is created by `/api/paymongo-checkout`; only the signed webhook marks the payment as received. The API secret and webhook signing secret must remain server-side.
 The Vercel API routes are not served by plain `vite`; use a Vercel Preview deployment or `vercel dev` to test the complete hosted checkout flow.
+
+Reservation cancellation automatically submits a partial PayMongo refund for the security deposit only. The 50% down payment and any separately-paid balance are not refunded by this flow. If PayMongo cannot automatically accept the refund (for example, a legacy booking with no stored payment reference or a same-day Maya partial-refund restriction), the reservation is still cancelled and staff must review/refund it from the PayMongo Dashboard. Refunds are submitted on guest cancellation or staff/admin cancellation. For completed stays, MFA-verified staff/admin can submit the security-deposit refund from Manage Reservations after the check-out date and inspection. A refund can remain pending with PayMongo; the payment provider controls when funds appear in the customer's account. Typical PayMongo timelines are within 24 hours for GCash/Maya, real time for QR Ph payments under ₱50,000, and up to 30 days for cards. Maya partial refunds can only be submitted starting the day after payment. PayMongo transaction fees are not returned to the merchant. UBP Online Banking cannot be refunded through this API; contact PayMongo Support and arrange a manual transfer if that payment method is enabled later.
+
+The refund API uses `PAYMONGO_SECRET_KEY` server-side and needs no separate credential. Run the refund migration before deploying the refund endpoints. The webhook stores the successful PayMongo payment ID required for partial refunds; payments made before that migration may require manual handling. Never test live refunds with real customer payments.
 
 ## Reservation Email Notifications
 

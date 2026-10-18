@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { hasStaffVerificationClaim } from "../server/utils/auth.js";
+import { isGmailAddress } from "../src/utils/contact-validation.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -49,6 +50,7 @@ export async function POST(request) {
     if (!firstname || !lastname || !email || !password) {
       return json({ error: "First name, last name, email, and password are required." }, 400);
     }
+    if (!isGmailAddress(email)) return json({ error: "Staff accounts must use a @gmail.com address." }, 400);
     if (password.length < 8) return json({ error: "Password must be at least 8 characters." }, 400);
 
     const { data: created, error: createError } = await adminClient.auth.admin.createUser({

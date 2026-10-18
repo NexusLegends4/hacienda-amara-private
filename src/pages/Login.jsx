@@ -5,6 +5,7 @@ import { supabase } from "../utils/supabase";
 import { hasStaffVerificationClaim } from "../utils/staff-auth";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { isGmailAddress } from "../utils/contact-validation";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 5;
@@ -226,6 +227,9 @@ const Login = () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session?.user) throw new Error("No active login session was found. Please try again.");
+          if (!isGmailAddress(session.user.email)) {
+            throw new Error("Only @gmail.com accounts can sign in.");
+          }
 
         const { data: oauthProfile, error: profileError } = await supabase
           .from("profiles")
@@ -390,11 +394,16 @@ const Login = () => {
     const loginForm = {
       email: String(
         formData.get("email") || ""
-      ).trim(),
+      ).trim().toLowerCase(),
       password: String(
         formData.get("password") || ""
       ),
     };
+
+    if (!isGmailAddress(loginForm.email)) {
+      setLoginError("Only @gmail.com accounts can sign in.");
+      return;
+    }
 
     setIsSubmitting(true);
     setLoginError("");
@@ -780,7 +789,7 @@ const Login = () => {
                       <Input
                         type="email"
                         name="email"
-                        placeholder="you@example.com"
+                        placeholder="you@gmail.com"
                         autoComplete="email"
                         maxLength={254}
                         required
@@ -936,6 +945,9 @@ const Login = () => {
                       <span>Google</span>
                     </button>
                   </div>
+                  <p className="mt-2 text-center text-xs text-slate-500">
+                    Sign-in is limited to accounts ending in @gmail.com.
+                  </p>
                 </div>
               </>
             ) : (

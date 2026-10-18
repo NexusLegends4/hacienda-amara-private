@@ -3,6 +3,11 @@ import { supabase } from "../utils/supabase";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiBell, FiCalendar, FiMail, FiPhone } from "react-icons/fi";
+import {
+	isGmailAddress,
+	isPhilippineMobileNumber,
+	normalizePhilippineMobileNumber,
+} from "../utils/contact-validation";
 
 const CustomerNotificationAccess = () => {
 	const navigate = useNavigate();
@@ -13,11 +18,19 @@ const CustomerNotificationAccess = () => {
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
+		if (!isGmailAddress(email)) {
+			alert("Please enter a Gmail address ending in @gmail.com.");
+			return;
+		}
+		if (!isPhilippineMobileNumber(phone)) {
+			alert("Enter a Philippine mobile number in +639XXXXXXXXX format.");
+			return;
+		}
 		setLoading(true);
 
 		const { data, error } = await supabase.rpc("find_guest_reservation", {
-			reservation_email: email.trim(),
-			reservation_phone: phone.trim(),
+			reservation_email: email.trim().toLowerCase(),
+			reservation_phone: normalizePhilippineMobileNumber(phone),
 			reservation_check_in: checkIn,
 		});
 
@@ -69,7 +82,7 @@ const CustomerNotificationAccess = () => {
 										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={email}
 										onChange={(event) => setEmail(event.target.value)}
-										placeholder="you@example.com"
+										placeholder="you@gmail.com"
 										required
 									/>
 								</div>
@@ -84,9 +97,8 @@ const CustomerNotificationAccess = () => {
 										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
 										value={phone}
 										onChange={(event) => setPhone(event.target.value)}
-										placeholder="09XX XXX XXXX"
+										placeholder="+639XX XXX XXXX"
 										required
-										minLength="7"
 									/>
 								</div>
 							</label>

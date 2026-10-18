@@ -14,6 +14,7 @@ import {
 	FiPlus,
 } from "react-icons/fi";
 import DOMPurify from "dompurify";
+import { isGmailAddress } from "../utils/contact-validation";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -174,6 +175,10 @@ const ManageClients = () => {
 		event.preventDefault();
 
 		if (!selectedProfile) return;
+		if (!isGmailAddress(form.email)) {
+			setStatus("Account email must end in @gmail.com.");
+			return;
+		}
 
 		setSaving(true);
 		setStatus("");
@@ -183,7 +188,7 @@ const ManageClients = () => {
 			.update({
 				firstname: DOMPurify.sanitize(form.firstname.trim()),
 				lastname: DOMPurify.sanitize(form.lastname.trim()),
-				email: DOMPurify.sanitize(form.email.trim()),
+				email: DOMPurify.sanitize(form.email.trim().toLowerCase()),
 				role: form.role,
 			})
 			.eq("id", selectedProfile.id)
@@ -239,6 +244,10 @@ const ManageClients = () => {
 
 	const handleCreate = async (event) => {
 		event.preventDefault();
+		if (!isGmailAddress(createForm.email)) {
+			setStatus("New accounts must use an email ending in @gmail.com.");
+			return;
+		}
 		setCreating(true);
 		setStatus("");
 
@@ -256,7 +265,7 @@ const ManageClients = () => {
 					...createForm,
 					firstname: DOMPurify.sanitize(createForm.firstname.trim()),
 					lastname: DOMPurify.sanitize(createForm.lastname.trim()),
-					email: createForm.email.trim(),
+					email: createForm.email.trim().toLowerCase(),
 				}),
 			});
 			const responseText = await response.text();
@@ -502,7 +511,7 @@ const ManageClients = () => {
 											<label key={field} className="form-control"><div className="label"><span className="label-text font-medium">{field === "firstname" ? "First name" : "Last name"}</span></div><input required type="text" value={createForm[field]} onChange={(event) => setCreateForm((current) => ({ ...current, [field]: event.target.value }))} className="input input-bordered w-full" /></label>
 										))}
 									</div>
-									<label className="form-control"><div className="label"><span className="label-text font-medium">Email</span></div><input required type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} className="input input-bordered w-full" /></label>
+									<label className="form-control"><div className="label"><span className="label-text font-medium">Email (@gmail.com only)</span></div><input required type="email" value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} className="input input-bordered w-full" placeholder="you@gmail.com" /></label>
 									<div className="grid gap-5 md:grid-cols-2">
 										<label className="form-control"><div className="label"><span className="label-text font-medium">Temporary password</span></div><input required minLength={8} type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} className="input input-bordered w-full" /></label>
 										<label className="form-control"><div className="label"><span className="label-text font-medium">Account role</span></div><select className="select select-bordered w-full" value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}><option value="client">Client</option><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
@@ -614,7 +623,7 @@ const ManageClients = () => {
 												}))
 											}
 											className="input input-bordered w-full"
-											placeholder="Enter email"
+											placeholder="you@gmail.com"
 										/>
 									</label>
 

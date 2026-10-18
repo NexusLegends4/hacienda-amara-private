@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
 import { clearChatData } from "./utils/chat-history";
 import { hasStaffVerificationClaim } from "./utils/staff-auth";
+import { isGmailAddress } from "./utils/contact-validation";
 import { SessionContext } from "./contexts/SessionContext.jsx";
 
 import BookingQr from "./pages/BookingQr.jsx";
@@ -199,6 +200,19 @@ function App() {
 			navigate("/log-in?oauth=true", { replace: true });
 		}
 	}, [session, location.pathname, navigate]);
+
+	useEffect(() => {
+		if (!session || session.user.is_anonymous || isGmailAddress(session.user.email)) return;
+
+		const rejectNonGmailSession = async () => {
+			console.error("Signing out an account that does not use a Gmail address.");
+			const { error } = await supabase.auth.signOut();
+			if (error) console.error("Unable to sign out a non-Gmail account:", error);
+			alert("Only @gmail.com accounts can use this system. Please sign in with a Gmail account.");
+		};
+
+		void rejectNonGmailSession();
+	}, [session]);
 
 	useEffect(() => {
 		if (

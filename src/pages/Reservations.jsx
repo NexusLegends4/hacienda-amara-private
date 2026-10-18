@@ -6,10 +6,15 @@ import { SessionContext } from "../contexts/SessionContext.jsx";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle, FiXCircle } from "react-icons/fi";
 import { calculateBookingTotal, isWeekendOrHoliday } from "../utils/booking-pricing";
 import { MANUAL_PAYMENT_CHANNELS } from "../utils/payment-instructions";
+import {
+	getPhilippineMobileNumberForInput,
+	isGmailAddress,
+	isPhilippineMobileNumber,
+	normalizePhilippineMobileNumber,
+} from "../utils/contact-validation";
 const REVIEWER_NAME_KEY = "hacienda-reviewer-name";
 const REVIEWER_EMAIL_KEY = "hacienda-reviewer-email";
 
-const isPhilippinePhoneNumber = (phone) => /^(?:09\d{9}|639\d{9})$/.test(phone);
 const dateKey = (date) => [
 	date.getFullYear(),
 	String(date.getMonth() + 1).padStart(2, "0"),
@@ -46,7 +51,7 @@ const Reservations = () => {
 
 	const profileName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ");
 	const profileEmail = profile?.email || "";
-	const profilePhone = (profile?.contact_number || "").replace(/\D/g, "").slice(0, 12);
+	const profilePhone = getPhilippineMobileNumberForInput(profile?.contact_number || "");
 	const isLoggedInClient = profile?.role === "client";
 	const bookingName = isLoggedInClient ? profileName : (guestName ?? profileName);
 	const bookingEmail = isLoggedInClient ? profileEmail : (guestEmail ?? profileEmail);
@@ -239,15 +244,21 @@ const Reservations = () => {
 		if (availabilityLoading) { alert("Checking availability. Please wait a moment."); return; }
 		if (availabilityError) { alert(availabilityError); return; }
 		if (pricing <= 0 || isDateUnavailable) { alert("Please select an available date."); return; }
-		if (!isPhilippinePhoneNumber(bookingPhone.trim())) {
-			alert("Please enter a valid Philippine mobile number: 09XXXXXXXXX or 639XXXXXXXXX.");
+		if (!isGmailAddress(bookingEmail)) {
+			alert("Please use a Gmail address ending in @gmail.com.");
 			return;
 		}
+		if (!isPhilippineMobileNumber(bookingPhone)) {
+			alert("Please enter a Philippine mobile number in +639XXXXXXXXX format.");
+			return;
+		}
+		const normalizedEmail = bookingEmail.trim().toLowerCase();
+		const normalizedPhone = normalizePhilippineMobileNumber(bookingPhone);
 		setLoading(true);
 		const { data: reservationId, error } = await supabase.rpc("create_guest_reservation", {
 			reservation_guest_name: bookingName.trim(),
-			reservation_guest_email: bookingEmail.trim(),
-			reservation_guest_phone: bookingPhone.trim(),
+			reservation_guest_email: normalizedEmail,
+			reservation_guest_phone: normalizedPhone,
 			reservation_check_in: date,
 			reservation_check_out: checkOutDate,
 			reservation_room_type: roomType,
@@ -261,7 +272,7 @@ const Reservations = () => {
 			return;
 		} else {
 			setReservationConflict(false);
-			const checkout = { reservationId, email: bookingEmail.trim().toLowerCase() };
+			const checkout = { reservationId, email: normalizedEmail };
 			setPendingCheckout(checkout);
 			try {
 				localStorage.setItem(REVIEWER_NAME_KEY, bookingName.trim());
@@ -278,27 +289,49 @@ const Reservations = () => {
 		event.preventDefault();
 		setCancelling(true);
 
-		const { data, error } = await supabase.rpc("cancel_guest_reservation", {
-			reservation_email: bookingCancelEmail.trim(),
-			reservation_phone: bookingCancelPhone.trim(),
-			reservation_check_in: cancelDate,
-		});
+		try {
+			if (!isGmailAddress(bookingCancelEmail)) {
+				throw new Error("Please use the Gmail address used when booking.");
+			}
+			if (!isPhilippineMobileNumber(bookingCancelPhone)) {
+				throw new Error("Enter the booking phone number in +639XXXXXXXXX format.");
+			}
+			const response = await fetch("/api/reservation-cancellation", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					email: bookingCancelEmail.trim().toLowerCase(),
+					phone: normalizePhilippineMobileNumber(bookingCancelPhone),
+					checkIn: cancelDate,
+				}),
+			});
+			let result;
+			try {
+				result = await response.json();
+			} catch {
+				throw new Error("The cancellation service returned an invalid response.");
+			}
+			if (!response.ok || !result.cancelled) {
+				throw new Error(result.error || "The reservation could not be cancelled.");
+			}
 
-		if (error) {
-			alert(error.message);
-		} else if (!data) {
-			alert("No active reservation matched those details.");
-		} else {
-			alert("Your reservation was cancelled. The date is now available again.");
+			const refundMessage = result.refund?.status === "pending" || result.refund?.status === "succeeded"
+				? " The ₱2,000 security-deposit refund has been initiated; the non-refundable down payment is not included."
+				: result.refund?.status === "manual_review"
+					? " The reservation is cancelled, but the refund could not be initiated automatically. Please contact resort staff."
+					: "";
+			alert(`Your reservation was cancelled. The date is now available again.${refundMessage}`);
 			setReservedBookings((current) => current.filter((reservation) =>
 				cancelDate < reservation.check_in || cancelDate > reservation.check_out,
 			));
 			setCancelDate("");
 			setCancelEmail(null);
 			setCancelPhone(null);
+		} catch (error) {
+			alert(error instanceof Error ? error.message : "The reservation could not be cancelled.");
+		} finally {
+			setCancelling(false);
 		}
-
-		setCancelling(false);
 	};
 
 	const isExpensive = date ? isWeekendOrHoliday(date) : null;
@@ -352,33 +385,32 @@ const Reservations = () => {
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Email Address</label>
 										<input 
-											type="email" 
+											type="email"
 											className="input input-bordered rounded-2xl px-4" 
 											value={bookingEmail} 
 											onChange={isLoggedInClient ? undefined : (e => setGuestEmail(e.target.value))}
 											readOnly={isLoggedInClient}
 											required 
-											placeholder="you@example.com" 
+											placeholder="you@gmail.com"
 										/>
 										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit email in Profile page</p>}
 									</div>
 									<div className="form-control">
 										<label className="label-text font-bold mb-2">Phone Number</label>
 										<input 
-											inputMode="numeric" 
+											type="tel"
 											autoComplete="tel" 
 											className="input input-bordered rounded-2xl px-4" 
 											value={bookingPhone} 
-											onChange={isLoggedInClient ? undefined : (e => setGuestPhone(e.target.value.replace(/\D/g, "").slice(0, 12)))}
+											onChange={isLoggedInClient ? undefined : (e => setGuestPhone(e.target.value.replace(/[^\d+\s()-]/g, "")))}
 											readOnly={isLoggedInClient}
 											required 
-											minLength="11" 
-											maxLength="12" 
-											pattern="(?:09\d{9}|639\d{9})" 
-											placeholder="09XX XXX XXXX" 
-											aria-label="Philippine mobile number" 
+											minLength="13"
+											maxLength="20"
+											placeholder="+639XX XXX XXXX"
+											aria-label="Philippine mobile number"
 										/>
-										<p className="label-text-alt mt-1">Digits only. Use 09XXXXXXXXX or 639XXXXXXXXX.</p>
+										<p className="label-text-alt mt-1">Use a Philippine mobile number starting with +63, e.g. +639XXXXXXXXX.</p>
 										{isLoggedInClient && <p className="label-text-alt mt-1">Logged in as client - edit phone in Profile page</p>}
 									</div>
 								</div>
@@ -520,7 +552,10 @@ const Reservations = () => {
 											<li>At least 50% down payment plus a ₱2,000 refundable security deposit is required to confirm your booking.</li>
 											<li>The remaining balance must be settled at least one day before your stay.</li>
 											<li>The down payment is non-refundable.</li>
-											<li>The security deposit is refunded upon check-out.</li>
+											<li>If a paid reservation is cancelled, only the ₱2,000 security deposit is submitted for refund; the down payment and any paid balance are not included.</li>
+											<li>After a completed stay, staff submits the security-deposit refund following check-out and inspection.</li>
+											<li>Typical refund timing depends on your payment method: GCash/Maya within 24 hours, QR Ph payments under ₱50,000 in real time, and card refunds up to 30 days. Maya partial refunds may only be submitted the day after payment; your bank or wallet may take additional time to show any refund.</li>
+											<li>PayMongo processing fees are not returned to the resort.</li>
 										</ul>
 									</div>
 									<div className="space-y-1 text-sm">
@@ -571,11 +606,11 @@ const Reservations = () => {
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking email</label>
-								<input type="email" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking email" value={bookingCancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
+								<input type="email" className="input input-bordered rounded-2xl bg-white px-4" placeholder="you@gmail.com" value={bookingCancelEmail} onChange={(event) => setCancelEmail(event.target.value)} required />
 							</div>
 							<div className="flex flex-col gap-2">
 								<label className="label-text font-semibold text-rose-950">Booking phone</label>
-								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="Booking phone" value={bookingCancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
+								<input type="tel" className="input input-bordered rounded-2xl bg-white px-4" placeholder="+639XXXXXXXXX" value={bookingCancelPhone} onChange={(event) => setCancelPhone(event.target.value)} required />
 							</div>
 							<div className="lg:col-start-4 lg:row-span-3 self-end pt-12 md:col-span-3 lg:col-span-1">
 								<button type="submit" disabled={cancelling} className="btn btn-error rounded-full text-white h-[44px] w-full">

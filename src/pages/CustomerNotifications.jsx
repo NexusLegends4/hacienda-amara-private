@@ -139,6 +139,14 @@ const CustomerNotifications = () => {
 		: ["denied", "cancelled"].includes(reservation?.status)
 			? "bg-rose-50 text-rose-800 border-rose-200"
 			: "bg-amber-50 text-amber-800 border-amber-200";
+	const depositRefundMessage = reservation?.security_deposit_refund_status === "pending"
+		? "The ₱2,000 security-deposit refund has been submitted to PayMongo. The time it takes to appear depends on your payment provider."
+		: reservation?.security_deposit_refund_status === "succeeded"
+			? "PayMongo has completed the ₱2,000 security-deposit refund. Your bank or wallet may take additional time to show it."
+			: reservation?.security_deposit_refund_status === "manual_review" ||
+				reservation?.security_deposit_refund_status === "processing"
+				? "The security-deposit refund needs staff review. Please contact Hacienda Amara; do not assume the refund has been completed."
+				: null;
 
 	return (
 		<MainLayout>
@@ -259,6 +267,7 @@ const CustomerNotifications = () => {
 													value={paymentEmail}
 													onChange={(event) => setPaymentEmail(event.target.value)}
 													className="input input-bordered w-full rounded-xl bg-white"
+													placeholder="you@gmail.com"
 												/>
 												{["success", "balance_success"].includes(paymentReturn) && (
 													<p role="status" className="text-sm text-amber-900">PayMongo returned you to this page. We are waiting for its secure payment confirmation; this page will update automatically.</p>
@@ -282,6 +291,7 @@ const CustomerNotifications = () => {
 													value={paymentEmail}
 													onChange={(event) => setPaymentEmail(event.target.value)}
 													className="input input-bordered w-full rounded-xl bg-white"
+													placeholder="you@gmail.com"
 												/>
 												{paymentReturn === "balance_success" && (
 													<p role="status" className="text-sm text-amber-900">PayMongo returned you to this page. We are waiting for its secure balance-payment confirmation.</p>
@@ -295,6 +305,11 @@ const CustomerNotifications = () => {
 												</button>
 											</form>
 										) : null}
+										{depositRefundMessage && (
+											<p role="status" className="mt-3 rounded-xl border border-amber-300 bg-white/80 p-3 text-sm font-semibold text-amber-950">
+												{depositRefundMessage}
+											</p>
+										)}
 										<p className="mt-3 text-xs leading-5 text-amber-900">The balance is due at least one day before your stay. The ₱2,000 security deposit is refundable upon check-out. The down payment is non-refundable.</p>
 									</div>
 

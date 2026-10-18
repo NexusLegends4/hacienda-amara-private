@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { refundSecurityDeposit } from "./utils/security-deposit-refund.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -48,8 +49,9 @@ export async function POST(request) {
 		return json({ error: "Invalid webhook body." }, 400);
 	}
 
-	const eventData = event?.data?.attributes?.data;
-	if (event?.data?.attributes?.type !== "checkout_session.payment.paid") {
+	const eventType = event?.data?.attributes?.type || event?.data?.type;
+	const eventData = event?.data?.attributes?.data || event?.data?.data;
+	if (eventType !== "checkout_session.payment.paid") {
 		return json({ received: true });
 	}
 	const sessionId = eventData?.id;
@@ -57,13 +59,20 @@ export async function POST(request) {
 	if (!sessionId || !reservationId) {
 		return json({ error: "Paid checkout event is missing its booking reference." }, 400);
 	}
+	const paidPayment = eventData?.attributes?.payments?.find(
+		(payment) => payment?.attributes?.status === "paid",
+	);
+	if (!paidPayment?.id) {
+		console.error("PayMongo paid checkout event has no paid payment ID:", sessionId);
+		return json({ error: "Paid checkout event is missing its payment reference." }, 503);
+	}
 
 	const supabase = createClient(supabaseUrl, serviceRoleKey, {
 		auth: { autoRefreshToken: false, persistSession: false },
 	});
 	const { data: reservation, error: lookupError } = await supabase
 		.from("reservations")
-		.select("id, payment_status, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id")
+		.select("id, status, payment_status, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
 		.eq("id", reservationId)
 		.maybeSingle();
 	if (lookupError) {
@@ -78,7 +87,37 @@ export async function POST(request) {
 		return json({ error: "Unknown checkout session." }, 404);
 	}
 	const isBalancePayment = reservation.paymongo_balance_checkout_session_id === sessionId;
+	const paymentIdColumn = isBalancePayment
+		? "paymongo_balance_payment_id"
+		: "paymongo_checkout_payment_id";
+	const existingPaymentId = isBalancePayment
+		? reservation.paymongo_balance_payment_id
+		: reservation.paymongo_checkout_payment_id;
+	if (existingPaymentId && existingPaymentId !== paidPayment.id) {
+		console.error("PayMongo checkout session produced an unexpected payment ID:", sessionId);
+		return json({ error: "Payment reference does not match this checkout session." }, 409);
+	}
+	if (!existingPaymentId) {
+		const { error: paymentIdError } = await supabase
+			.from("reservations")
+			.update({ [paymentIdColumn]: paidPayment.id })
+			.eq("id", reservation.id)
+			.eq(isBalancePayment ? "paymongo_balance_checkout_session_id" : "paymongo_checkout_session_id", sessionId)
+			.is(paymentIdColumn, null);
+		if (paymentIdError) {
+			console.error("Unable to save PayMongo payment reference:", paymentIdError.code || "unknown error");
+			return json({ error: "Unable to record payment reference." }, 503);
+		}
+	}
 	if (reservation.payment_status === "fully_paid" || (isBalancePayment && reservation.payment_status !== "down_payment_paid")) {
+		if (!isBalancePayment && reservation.status === "cancelled") {
+			await refundSecurityDeposit(
+				supabase,
+				{ ...reservation, paymongo_checkout_payment_id: paidPayment.id },
+				process.env.PAYMONGO_SECRET_KEY,
+				`Security deposit refund for cancelled reservation ${reservation.id}`,
+			);
+		}
 		return json({ received: true });
 	}
 
@@ -87,11 +126,13 @@ export async function POST(request) {
 			payment_status: "fully_paid",
 			amount_paid: Number(reservation.amount_paid) + Number(reservation.balance_due),
 			balance_paid_at: new Date().toISOString(),
+			paymongo_balance_payment_id: paidPayment.id,
 		}
 		: {
 			payment_status: "down_payment_paid",
 			amount_paid: Number(reservation.down_payment_amount) + Number(reservation.security_deposit_amount),
 			payment_confirmed_at: new Date().toISOString(),
+			paymongo_checkout_payment_id: paidPayment.id,
 		};
 	const { error: updateError } = await supabase
 		.from("reservations")
@@ -102,6 +143,14 @@ export async function POST(request) {
 	if (updateError) {
 		console.error("Unable to record confirmed PayMongo payment:", updateError.code || updateError.message);
 		return json({ error: "Unable to record payment confirmation." }, 503);
+	}
+	if (!isBalancePayment && reservation.status === "cancelled") {
+		await refundSecurityDeposit(
+			supabase,
+			{ ...reservation, paymongo_checkout_payment_id: paidPayment.id },
+			process.env.PAYMONGO_SECRET_KEY,
+			`Security deposit refund for cancelled reservation ${reservation.id}`,
+		);
 	}
 
 	return json({ received: true });

@@ -7,6 +7,12 @@ import { useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { FiUser, FiMail, FiShield, FiPhone, FiAlertCircle } from "react-icons/fi";
 import DOMPurify from "dompurify";
+import {
+	getPhilippineMobileNumberForInput,
+	isGmailAddress,
+	isPhilippineMobileNumber,
+	normalizePhilippineMobileNumber,
+} from "../utils/contact-validation";
 
 const validateName = (name) => {
 	const trimmed = name.trim();
@@ -19,15 +25,13 @@ const validateName = (name) => {
 const validateEmail = (email) => {
 	const trimmed = email.trim().toLowerCase();
 	if (!trimmed) return "Email is required";
-	if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(trimmed)) return "Must be a valid @gmail.com address";
+	if (!isGmailAddress(trimmed)) return "Must be a valid @gmail.com address";
 	return null;
 };
 
 const validatePhone = (phone) => {
-	const trimmed = phone.trim();
-	if (!trimmed) return "Contact number is required";
-	const digitsOnly = trimmed.replace(/\D/g, "");
-	if (!/^(?:09\d{9}|639\d{9})$/.test(digitsOnly)) return "Must be a valid Philippine mobile number (09XXXXXXXXX or 639XXXXXXXXX)";
+	if (!phone.trim()) return "Contact number is required";
+	if (!isPhilippineMobileNumber(phone)) return "Use a Philippine mobile number in +639XXXXXXXXX format";
 	return null;
 };
 
@@ -128,7 +132,7 @@ const EditProfile = () => {
 		firstname: profile?.firstname || "",
 		lastname: profile?.lastname || "",
 		email: profile?.email || "",
-		contact_number: profile?.contact_number || "",
+		contact_number: getPhilippineMobileNumberForInput(profile?.contact_number || ""),
 	});
 	const [fieldErrors, setFieldErrors] = useState({});
 
@@ -143,7 +147,7 @@ const EditProfile = () => {
 			filteredValue = value.toLowerCase();
 			error = validateEmail(filteredValue);
 		} else if (field === "contact_number") {
-			filteredValue = value.replace(/\D/g, "");
+			filteredValue = value.replace(/[^\d+\s()-]/g, "");
 			error = validatePhone(filteredValue);
 		}
 
@@ -172,7 +176,7 @@ const EditProfile = () => {
 				firstname: formData.firstname.trim(),
 				lastname: formData.lastname.trim(),
 				email: formData.email.trim().toLowerCase(),
-				contact_number: formData.contact_number.trim(),
+				contact_number: normalizePhilippineMobileNumber(formData.contact_number),
 			})
 			.eq("id", session.user.id)
 			.select()
@@ -368,7 +372,7 @@ const EditProfile = () => {
 
 							<Input
 								name="contact_number"
-								placeholder="Enter your contact number (09XXXXXXXXX)"
+								placeholder="+639XXXXXXXXX"
 								label="Contact Number"
 								type="tel"
 								value={formData.contact_number}

@@ -3,6 +3,7 @@ import SendIcon from "../components/icons/SendIcon";
 import { supabase } from "../utils/supabase";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { isGmailAddress } from "../utils/contact-validation";
 
 const ForgotPassword = () => {
 	const [email, setEmail] = useState("");
@@ -20,15 +21,15 @@ const ForgotPassword = () => {
 			return;
 		}
 
-		if (!email.includes("@") || !email.includes(".")) {
-			setError("Please enter a valid email address.");
+		if (!isGmailAddress(email)) {
+			setError("Please enter the Gmail address for your account (@gmail.com).");
 			return;
 		}
 
 		setIsSubmitting(true);
 		try {
 			const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-				email.trim(),
+				email.trim().toLowerCase(),
 				{
 					redirectTo: `${window.location.origin}/reset-password`,
 				},
@@ -68,7 +69,7 @@ const ForgotPassword = () => {
 									type="email"
 									value={email}
 									onChange={(event) => setEmail(event.target.value)}
-									placeholder="Enter your Email"
+									placeholder="you@gmail.com"
 									className="input input-bordered w-full"
 									disabled={isSubmitting}
 									autoComplete="email"

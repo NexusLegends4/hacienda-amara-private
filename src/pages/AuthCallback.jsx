@@ -2,6 +2,7 @@ import { supabase } from "../utils/supabase";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
+import { isGmailAddress } from "../utils/contact-validation";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -33,6 +34,9 @@ const AuthCallback = () => {
         const session = sessionData.session;
         if (!session) {
           throw new Error("No Google sign-in session was established.");
+        }
+        if (!isGmailAddress(session.user.email)) {
+          throw new Error("Only @gmail.com accounts can sign in.");
         }
 
         const { data: existingProfile, error: profileError } = await supabase
@@ -83,7 +87,10 @@ const AuthCallback = () => {
         console.error("Google sign-in account validation failed:", callbackError);
         const { error: signOutError } = await supabase.auth.signOut();
         if (signOutError) console.error("Unable to clear the failed Google sign-in session:", signOutError);
-        setError("Google sign-in could not be completed for this account. Please try the sign-in method already linked to it, or contact an administrator.");
+        const message = String(callbackError?.message || callbackError).toLowerCase().includes("gmail.com")
+          ? "Only @gmail.com accounts can sign in."
+          : "Google sign-in could not be completed for this account. Please try the sign-in method already linked to it, or contact an administrator.";
+        setError(message);
       }
     };
 

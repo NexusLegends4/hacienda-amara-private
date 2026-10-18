@@ -22,12 +22,23 @@ const reservationGuestName = (reservation) =>
 	reservation.guest_name ||
 	"Guest";
 
+const getPhilippineDate = () => {
+	const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+		timeZone: "Asia/Manila",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(new Date()).map(({ type, value }) => [type, value]));
+	return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
 const ManageReservations = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const [reservations, setReservations] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [updatingReservationId, setUpdatingReservationId] = useState(null);
+	const [refundingReservationId, setRefundingReservationId] = useState(null);
 	const [denyingReservationId, setDenyingReservationId] = useState(null);
 	const [rejectionReason, setRejectionReason] = useState("");
 	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
@@ -124,19 +135,40 @@ const ManageReservations = () => {
 
 		setUpdatingReservationId(id);
 		try {
-			const { data: updatedReservation, error } = await supabase
-				.from("reservations")
-				.update({
-					status: newStatus,
-					rejection_reason: newStatus === "denied" ? reason.trim() || null : null,
-				})
-				.eq("id", id)
-				.select("id, status")
-				.maybeSingle();
+			let cancellationRefund = null;
+			if (newStatus === "cancelled") {
+				const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+				if (sessionError) throw sessionError;
+				const accessToken = sessionData.session?.access_token || session?.access_token;
+				if (!accessToken) throw new Error("Your staff sign-in session expired. Sign in again.");
+				const response = await fetch("/api/reservation-cancellation", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+					body: JSON.stringify({ reservationId: id }),
+				});
+				const result = await response.json();
+				if (!response.ok || !result.cancelled) {
+					throw new Error(result.error || "The reservation could not be cancelled.");
+				}
+				cancellationRefund = result.refund;
+			} else {
+				const { data: updatedReservation, error } = await supabase
+					.from("reservations")
+					.update({
+						status: newStatus,
+						rejection_reason: newStatus === "denied" ? reason.trim() || null : null,
+					})
+					.eq("id", id)
+					.select("id, status")
+					.maybeSingle();
 
-			if (error) throw error;
-			if (!updatedReservation) {
-				throw new Error("No reservation was updated. Check that the latest reservation permission migration is applied and try again.");
+				if (error) throw error;
+				if (!updatedReservation) {
+					throw new Error("No reservation was updated. Check that the latest reservation permission migration is applied and try again.");
+				}
 			}
 
 			const clientName = reservationGuestName(resToUpdate);
@@ -172,8 +204,14 @@ const ManageReservations = () => {
 				denied: "denied",
 				cancelled: "cancelled",
 			};
+			const refundMessage = cancellationRefund?.status === "pending" || cancellationRefund?.status === "succeeded"
+				? " The ₱2,000 security-deposit refund was initiated; the down payment and any paid balance are not included."
+				: cancellationRefund?.status === "manual_review"
+					? " The security-deposit refund needs manual review in PayMongo."
+					: "";
 			alert(
 				`Reservation for ${clientName} was ${actionLabels[newStatus]}.` +
+				refundMessage +
 				(emailError ? ` However, the email notification failed: ${emailError}` : ""),
 			);
 			await fetchReservations(false);
@@ -181,6 +219,40 @@ const ManageReservations = () => {
 			alert(`Could not update reservation: ${error.message}`);
 		} finally {
 			setUpdatingReservationId(null);
+		}
+	};
+
+	const requestSecurityDepositRefund = async (reservation) => {
+		const amount = Number(reservation.security_deposit_amount);
+		if (!window.confirm(
+			`Confirm the post-check-out inspection is complete and refund ₱${amount.toLocaleString()} to the original PayMongo payment?`,
+		)) return;
+
+		setRefundingReservationId(reservation.id);
+		try {
+			const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError) throw sessionError;
+			const accessToken = sessionData.session?.access_token || session?.access_token;
+			if (!accessToken) throw new Error("Your staff sign-in session expired. Sign in again.");
+
+			const response = await fetch("/api/security-deposit-refund", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${accessToken}`,
+				},
+				body: JSON.stringify({ reservationId: reservation.id }),
+			});
+			const result = await response.json();
+			if (!response.ok) throw new Error(result.error || "The security deposit refund could not be initiated.");
+			alert(result.refund?.status === "manual_review"
+				? "The refund could not be initiated automatically. Please review this payment in PayMongo."
+				: `The ₱${amount.toLocaleString()} security-deposit refund was submitted to PayMongo.`);
+			await fetchReservations(false);
+		} catch (error) {
+			alert(error instanceof Error ? error.message : "The security deposit refund could not be initiated.");
+		} finally {
+			setRefundingReservationId(null);
 		}
 	};
 
@@ -355,7 +427,10 @@ const ManageReservations = () => {
 											<p className="mt-1">Received: ₱{Number(res.amount_paid || 0).toLocaleString()}</p>
 											<p>Balance due: ₱{Number(res.payment_status === "fully_paid" ? 0 : res.balance_due || 0).toLocaleString()}</p>
 											{res.security_deposit_amount > 0 && (
-												<p>Refundable security deposit: ₱{Number(res.security_deposit_amount).toLocaleString()}</p>
+												<>
+													<p>Refundable security deposit: ₱{Number(res.security_deposit_amount).toLocaleString()}</p>
+													<p>Deposit refund: {String(res.security_deposit_refund_status || "not_requested").replaceAll("_", " ")}</p>
+												</>
 											)}
 										</div>
 									</div>
@@ -406,6 +481,21 @@ const ManageReservations = () => {
 																	<FiXCircle /> Cancel
 																</button>
 															)}
+															{canManageReservations &&
+																["down_payment_paid", "fully_paid"].includes(res.payment_status) &&
+																res.security_deposit_refund_status === "not_requested" &&
+																res.security_deposit_amount > 0 &&
+																res.check_out <= getPhilippineDate() && (
+																	<button
+																		type="button"
+																		onClick={() => requestSecurityDepositRefund(res)}
+																		disabled={updatingReservationId !== null || refundingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-success text-white"
+																		title="Refund the security deposit after inspection"
+																	>
+																		{refundingReservationId === res.id ? <span className="loading loading-spinner loading-xs" /> : "Refund deposit"}
+																	</button>
+																)}
 														</div>
 													)}
 										</div>

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { calculateBookingTotal } from "../src/utils/booking-pricing.js";
+import { isGmailAddress } from "../src/utils/contact-validation.js";
 
 const SECURITY_DEPOSIT_PHP = 2_000;
 
@@ -28,8 +29,8 @@ export async function POST(request) {
 	const reservationId = String(body?.reservationId || "");
 	const email = String(body?.email || "").trim().toLowerCase();
 	const paymentType = body?.paymentType === "balance" ? "balance" : "deposit";
-	if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId) || !email) {
-		return json({ error: "A valid booking reference and booking email are required." }, 400);
+	if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reservationId) || !isGmailAddress(email)) {
+		return json({ error: "A valid booking reference and Gmail booking email are required." }, 400);
 	}
 
 	const supabase = createClient(supabaseUrl, serviceRoleKey, {
