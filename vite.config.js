@@ -380,7 +380,6 @@ const localPayMongoRefundApis = {
   configureServer(server) {
     const routes = {
       "/api/reservation-cancellation": "./api/reservation-cancellation.js",
-      "/api/security-deposit-refund": "./api/security-deposit-refund.js",
     };
 
     for (const [path, modulePath] of Object.entries(routes)) {

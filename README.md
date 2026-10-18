@@ -84,6 +84,7 @@ Run `supabase/20261018_gmail_philippine_phone_restrictions.sql` in the Supabase 
 ## PayMongo Booking Payments
 
 The booking form creates a PayMongo-hosted checkout for 50% of the booking total plus the ₱2,000 refundable security deposit. The private reservation page also provides PayMongo checkout for the remaining balance, which is due at least one day before the stay. A successful PayMongo payment does not automatically approve the reservation; resort staff still confirm bookings.
+Staff post-check-out deposit refunds use the authenticated `refund_security_deposit` action on `/api/reservation-cancellation`, keeping the Vercel Hobby deployment within its 12-function limit.
 
 1. In the PayMongo Dashboard, open **Settings → Developers** and copy the **Secret API key**. Use a test key (`sk_test_...`) while testing. After the checkout and webhook work in test mode, switch to your live secret key (`sk_live_...`).
 2. Run `supabase/20261018_paymongo_booking_payments.sql`, then `supabase/20261018_paymongo_security_deposit_refunds.sql` in the Supabase SQL Editor.

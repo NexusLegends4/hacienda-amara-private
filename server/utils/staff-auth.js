@@ -1,4 +1,4 @@
-import { hasStaffVerificationClaim } from "../../server/utils/auth.js";
+import { hasStaffVerificationClaim } from "./auth.js";
 
 export async function getVerifiedStaff(request, supabaseUrl, serviceRoleKey) {
 	const accessToken = (request.headers.get("authorization") || "")

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { refundSecurityDeposit } from "./utils/security-deposit-refund.js";
+import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 

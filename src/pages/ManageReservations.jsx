@@ -235,13 +235,13 @@ const ManageReservations = () => {
 			const accessToken = sessionData.session?.access_token || session?.access_token;
 			if (!accessToken) throw new Error("Your staff sign-in session expired. Sign in again.");
 
-			const response = await fetch("/api/security-deposit-refund", {
+			const response = await fetch("/api/reservation-cancellation", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${accessToken}`,
 				},
-				body: JSON.stringify({ reservationId: reservation.id }),
+				body: JSON.stringify({ action: "refund_security_deposit", reservationId: reservation.id }),
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "The security deposit refund could not be initiated.");
