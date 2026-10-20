@@ -9,16 +9,17 @@ import { FiLock, FiRefreshCw } from "react-icons/fi";
 const Settings = () => {
 	const { session, profile, setProfile } = useContext(SessionContext);
 	const navigate = useNavigate();
-	const [role, setRole] = useState(profile?.role || "staff");
+	const [role, setRole] = useState(null);
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 
-	// Sync role with profile - derive from profile instead of syncing
-	const effectiveRole = profile?.role || "staff";
+	const effectiveRole = role ?? profile?.role ?? "client";
 
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
+		} else if (session.user.is_anonymous) {
+			navigate("/", { replace: true });
 		}
 	}, [session, navigate]);
 
@@ -52,7 +53,7 @@ const Settings = () => {
 	};
 
 	const handleResetPreferences = () => {
-		setRole(profile?.role || "staff");
+		setRole(profile?.role ?? "client");
 	};
 
 	const handlePasswordChange = async (event) => {

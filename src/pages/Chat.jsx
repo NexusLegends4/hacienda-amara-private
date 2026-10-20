@@ -7,10 +7,6 @@ import { clearConversationHistory, registerChatClearHandler } from "../utils/cha
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
-import { buildChatMediaPath, createImageModerationPreview, createVideoModerationFrames, createVideoPoster, isValidVideoPoster, validateChatMedia } from "../utils/chat-media";
-import { uploadChatMediaResumably } from "../utils/chat-media-upload";
-import { moderateChatMediaFrames } from "../utils/chat-media-moderation";
-import { transcodeChatVideo } from "../utils/chat-video-transcode";
 import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../utils/payment-instructions";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
@@ -20,7 +16,6 @@ const CUSTOMER_CONVERSATION_KEY_STORAGE = "hacienda-amara-customer-conversation-
 const LEGACY_CUSTOMER_CONVERSATION_KEY = "customer";
 const ADMIN_AVAILABILITY_KEY = "hacienda-amara-admin-available-v1";
 const MEDIA_CONTENT_PREFIX = "__HACIENDA_MEDIA__";
-const CHAT_MEDIA_BUCKET = "chat-media";
 const CHAT_MEDIA_SIGNED_URL_SECONDS = 15 * 60;
 const EMPTY_MESSAGES = [];
 const CHAT_BACKEND_CONFIGURED = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -452,62 +447,8 @@ const decodeMessageContent = (rawContent) => {
 	}
 };
 
-const readFileAsObjectUrl = (file) => URL.createObjectURL(file);
-
-const revokePreviewUrl = (attachment) => {
-	if (!attachment?.previewUrl || typeof attachment.previewUrl !== "string") return;
-	if (!attachment.previewUrl.startsWith("blob:")) return;
-
-	URL.revokeObjectURL(attachment.previewUrl);
-};
-
 const getAttachmentSource = (attachment) =>
 	attachment?.url || attachment?.publicUrl || attachment?.dataUrl || attachment?.previewUrl || "";
-
-const uploadChatMediaWithProgress = (bucket, path, file, accessToken, onProgress) => new Promise((resolve, reject) => {
-	const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-	const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-	if (!supabaseUrl || !anonKey || !accessToken) {
-		reject(new Error("Secure chat sign-in is required to upload media."));
-		return;
-	}
-
-	if (file.type.startsWith("video/") || file.size > 6 * 1024 * 1024) {
-		uploadChatMediaResumably({
-			bucket,
-			path,
-			file,
-			accessToken,
-			supabaseUrl,
-			anonKey,
-			onProgress,
-		}).then(resolve, reject);
-		return;
-	}
-
-	const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-	const request = new XMLHttpRequest();
-	request.open("POST", `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`);
-	request.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-	request.setRequestHeader("apikey", anonKey);
-	request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-	request.setRequestHeader("x-upsert", "false");
-	request.upload.addEventListener("progress", (event) => {
-		if (event.lengthComputable) onProgress?.(event.loaded, event.total);
-	});
-	request.addEventListener("load", () => {
-		if (request.status >= 200 && request.status < 300) {
-			resolve();
-			return;
-		}
-		let payload;
-		try { payload = JSON.parse(request.responseText); } catch { payload = null; }
-		reject(new Error(payload?.message || payload?.error || `Media upload failed (${request.status}).`));
-	});
-	request.addEventListener("error", () => reject(new Error("Network error while uploading media. Check your connection and retry.")));
-	request.addEventListener("abort", () => reject(new Error("Media upload was cancelled.")));
-	request.send(file);
-});
 
 const mediaInlineClassName =
 	"block max-h-80 w-full rounded-xl bg-slate-950 object-contain";
@@ -826,14 +767,8 @@ const [historyByConversation, setHistoryByConversation] = useState(() => {
 	});
 	const [activeConversationKey, setActiveConversationKey] = useState(conversationKey);
 	const [prompt, setPrompt] = useState("");
-	const [draftAttachments, setDraftAttachments] = useState([]);
 	const [selectedMedia, setSelectedMedia] = useState(null);
 const [isSending, setIsSending] = useState(false);
-const [, setUploadProgress] = useState(0);
-const [, setUploadFailed] = useState(false);
-const [, setIsPreparingVideo] = useState(false);
-const [, setVideoPreparationProgress] = useState(0);
-const [, setIsModeratingMedia] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
   const [chatAuthError, setChatAuthError] = useState("");
@@ -851,8 +786,6 @@ const [, setIsModeratingMedia] = useState(false);
 	const localTypingRef = useRef({ lastSentAt: 0, stopTimer: null });
 	const remoteTypingTimerRef = useRef(null);
 	const remoteTypingSenderRef = useRef(null);
-	const photoInputRef = useRef(null);
-	const videoInputRef = useRef(null);
 	const dbAvailableRef = useRef(true);
 	const isRefreshingHistoryRef = useRef(false);
 	const pendingBotReplyTimersRef = useRef(new Set());
@@ -1269,7 +1202,6 @@ const clearCurrentChat = async () => {
     });
 
     setPrompt("");
-    clearDraftAttachment();
 	} catch (deleteError) {
 		console.error("Unable to clear saved chat history:", deleteError);
 		setError("Chat history could not be cleared. Please try again.");
@@ -1581,11 +1513,7 @@ const clearCurrentChat = async () => {
 	const sendMessage = async (
 		content,
 		senderRole = isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client",
-		attachments = [],
 	) => {
-		if (attachments.length > 0) {
-			throw new Error("Photos and videos can only be shared through Reviews.");
-		}
 		const messageId = getMessageId();
 		const activeSession = CHAT_BACKEND_CONFIGURED
 			? (await supabase.auth.getSession()).data.session || session
@@ -1599,83 +1527,6 @@ const clearCurrentChat = async () => {
 		if (!isAdminOrStaff && targetConversationKey !== activeConversationKey) {
 			setActiveConversationKey(targetConversationKey);
 		}
-		const uploadedPaths = [];
-		const uploadedAttachments = [];
-		const totalUploadBytes = (Array.isArray(attachments) ? attachments : [])
-			.reduce((total, attachment) => total + (attachment?.file?.size || 0), 0);
-		let completedUploadBytes = 0;
-		const removeUploaded = async () => {
-			if (uploadedPaths.length === 0) return;
-			const { error: removalError } = await supabase.storage
-				.from(CHAT_MEDIA_BUCKET)
-				.remove(uploadedPaths);
-			if (removalError) {
-				console.error("Unable to remove chat media after a failed send:", removalError);
-			}
-		};
-
-		try {
-			for (const attachment of Array.isArray(attachments) ? attachments : []) {
-				if (!attachment?.file) {
-					uploadedAttachments.push({
-						id: attachment?.id || getMessageId(),
-						kind: attachment?.kind || "image",
-						name: attachment?.name || "Attached media",
-						mimeType: attachment?.mimeType || "application/octet-stream",
-						url: getAttachmentSource(attachment),
-					});
-					continue;
-				}
-
-				if (!CHAT_BACKEND_CONFIGURED || !activeSession?.user?.id) {
-					throw new Error("Guest chat is still connecting securely. Please wait a moment and try again.");
-				}
-				const fileValidationError = validateChatMedia(attachment.file, attachment.kind);
-				if (fileValidationError) throw new Error(fileValidationError);
-
-				const storagePath = buildChatMediaPath(targetConversationKey, messageId, attachment);
-				try {
-					await uploadChatMediaWithProgress(
-						CHAT_MEDIA_BUCKET,
-						storagePath,
-						attachment.file,
-						activeSession.access_token,
-						(loaded) => {
-							const uploaded = completedUploadBytes + loaded;
-							setUploadProgress(totalUploadBytes ? Math.min(99, Math.floor((uploaded / totalUploadBytes) * 100)) : 0);
-						},
-					);
-				} catch (uploadError) {
-					// A network failure can occur after storage accepted the object.
-					// Remove that path so retrying the same message id is safe.
-					await supabase.storage.from(CHAT_MEDIA_BUCKET).remove([storagePath]);
-					throw uploadError;
-				}
-				uploadedPaths.push(storagePath);
-				completedUploadBytes += attachment.file.size;
-				setUploadProgress(totalUploadBytes ? Math.min(99, Math.floor((completedUploadBytes / totalUploadBytes) * 100)) : 0);
-
-				const { data: signedData, error: signedError } = await supabase.storage
-					.from(CHAT_MEDIA_BUCKET)
-					.createSignedUrl(storagePath, CHAT_MEDIA_SIGNED_URL_SECONDS);
-				if (signedError) throw signedError;
-
-				uploadedAttachments.push({
-					id: attachment.id || getMessageId(),
-					kind: attachment.kind,
-					name: attachment.kind === "video" ? "Video" : "Photo",
-					mimeType: attachment.mimeType,
-					url: signedData.signedUrl,
-					path: storagePath,
-					bucket: CHAT_MEDIA_BUCKET,
-					...(isValidVideoPoster(attachment.poster) ? { poster: attachment.poster } : {}),
-				});
-			}
-		} catch (uploadError) {
-			await removeUploaded();
-			throw new Error(uploadError.message || "Unable to upload chat media.");
-		}
-
 		const message = {
 			id: messageId,
 			conversationKey: targetConversationKey,
@@ -1683,86 +1534,14 @@ const clearCurrentChat = async () => {
 			senderRole,
 			senderName: displayName,
 			content,
-			attachments: uploadedAttachments,
+			attachments: [],
 			createdAt: new Date().toISOString(),
 		};
 
-		try {
-			await persistMessage(message);
-		} catch (persistError) {
-			await removeUploaded();
-			throw persistError;
-		}
+		await persistMessage(message);
 		mergeMessage(message);
-		setUploadProgress(100);
 
 		return { ...message, accessToken: activeSession?.access_token || "" };
-	};
-
-	const handleAttachmentSelection = async (event, kind) => {
-		const file = event.target.files?.[0];
-		event.target.value = "";
-
-		if (!file) return;
-		setError("");
-		if (kind === "video") {
-			const validationError = validateChatMedia(file, kind);
-			if (validationError) {
-				setError(validationError);
-				return;
-			}
-			setIsPreparingVideo(true);
-			setVideoPreparationProgress(0);
-		}
-		try {
-			const preparedFile = kind === "video"
-				? await transcodeChatVideo(file, setVideoPreparationProgress)
-				: file;
-			const preparedValidationError = validateChatMedia(preparedFile, kind);
-			if (preparedValidationError) throw new Error(preparedValidationError);
-
-			setIsModeratingMedia(true);
-			setError("");
-			const moderationFrames = kind === "video"
-				? await createVideoModerationFrames(preparedFile, 5)
-				: [await createImageModerationPreview(preparedFile)];
-			const { data: authData, error: authError } = await supabase.auth.getSession();
-			if (authError) throw authError;
-			await moderateChatMediaFrames(moderationFrames, authData.session?.access_token);
-
-			const attachment = {
-				id: getMessageId(),
-				kind,
-				name: preparedFile.name,
-				mimeType: preparedFile.type || (kind === "video" ? "video/mp4" : "image/jpeg"),
-				file: preparedFile,
-				previewUrl: readFileAsObjectUrl(preparedFile),
-				...(kind === "video" ? { poster: await createVideoPoster(preparedFile) } : {}),
-			};
-			setDraftAttachments((current) => {
-				const replaced = current.find((item) => item.kind === kind);
-				revokePreviewUrl(replaced);
-				const next = [...current.filter((item) => item.kind !== kind), attachment];
-				return next;
-			});
-			setError("");
-		} catch (attachmentError) {
-			console.error("Unable to prepare chat attachment:", attachmentError);
-			setError(attachmentError?.message || "Unable to prepare the selected file.");
-		} finally {
-			setIsModeratingMedia(false);
-			if (kind === "video") {
-				setIsPreparingVideo(false);
-				setVideoPreparationProgress(0);
-			}
-		}
-	};
-
-	const clearDraftAttachment = () => {
-		draftAttachments.forEach(revokePreviewUrl);
-		setDraftAttachments([]);
-		setUploadFailed(false);
-		setUploadProgress(0);
 	};
 
 	const handleSubmit = async (event) => {
@@ -2493,24 +2272,6 @@ const chatContent = (
 										onSubmit={handleSubmit}
 										className={isBubble ? "mx-auto flex w-full flex-col gap-2" : "mx-auto flex w-full max-w-4xl flex-col gap-2 sm:flex-row sm:items-end"}
 									>
-										<input
-											ref={photoInputRef}
-											type="file"
-											accept="image/jpeg,image/png,image/webp,image/gif"
-											capture="environment"
-											className="hidden"
-											disabled
-											onChange={(event) => handleAttachmentSelection(event, "image")}
-										/>
-										<input
-											ref={videoInputRef}
-											type="file"
-											accept="video/mp4,video/webm,video/quicktime,.mov"
-											className="hidden"
-											disabled
-											onChange={(event) => handleAttachmentSelection(event, "video")}
-										/>
-
 										<div className={isBubble ? "flex min-w-0 flex-1 items-end gap-2" : "contents"}>
 										<div className={isBubble ? "min-w-0 flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-3 py-2 shadow-sm" : "w-full flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-4 py-2 shadow-sm sm:rounded-full"}>
 											<textarea

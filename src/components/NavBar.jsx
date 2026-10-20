@@ -22,7 +22,9 @@ const NavBar = () => {
 	const { session, profile, setSession, setProfile } = useContext(SessionContext);
 	const navigate = useNavigate();
 	const displayName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim();
-	const showLogin = !session || session.user?.is_anonymous === true;
+	const isAnonymousSession = session?.user?.is_anonymous === true;
+	const hasAccountProfile = Boolean(session && !isAnonymousSession);
+	const showLogin = !session || isAnonymousSession;
 	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -39,16 +41,17 @@ const NavBar = () => {
 		navigate(to);
 	};
 
-	const fetchUnreadCount = useCallback(async () => {
-		if (!profile?.id) return;
-		const { count, error } = await supabase
+	const fetchUnreadCount = useCallback(() => {
+		if (!profile?.id) return Promise.resolve();
+		return supabase
 			.from("notifications")
 			.select("*", { count: "exact", head: true })
 			.eq("profile_id", profile.id)
-			.eq("is_read", false);
-
-		if (!error) setUnreadNotificationsCount(count || 0);
-	}, [profile?.id]);
+			.eq("is_read", false)
+			.then(({ count, error }) => {
+				if (!error) setUnreadNotificationsCount(count || 0);
+			});
+	}, [profile]);
 
 	useEffect(() => {
 		if (profile?.id && profile.role !== "admin") {
@@ -141,10 +144,6 @@ const NavBar = () => {
 			updateActivity();
 		}
 	}, [session, profile?.id]);
-
-	useEffect(() => {
-		setMobileOpen(false);
-	}, [navigate]);
 
 	const closeMobile = () => setMobileOpen(false);
 
@@ -242,7 +241,7 @@ const NavBar = () => {
 							</NavLink>
 						)}
 
-						{session && (
+						{hasAccountProfile && (
 							<div className="dropdown dropdown-end dropdown-bottom relative z-[999]">
 								<div tabIndex={0} role="button" className="btn btn-ghost btn-circle avatar border border-base-300 shadow-sm">
 									<div className="w-9 overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 text-xs font-bold text-slate-800 sm:w-10">
@@ -270,7 +269,7 @@ const NavBar = () => {
 
 {/* Mobile right side */}
 					<div className="flex lg:hidden items-center gap-1 sm:gap-2">
-						{session && (
+						{hasAccountProfile && (
 							<div className="relative">
 																<div
 																	onClick={handleNav(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications")}
@@ -308,7 +307,7 @@ const NavBar = () => {
 							</button>
 						</div>
 
-						{session && (
+						{hasAccountProfile && (
 							<div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 border-b border-base-200 bg-base-200/40">
 								<div className="h-9 w-9 sm:h-10 sm:w-10 overflow-hidden rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center text-xs sm:text-sm font-bold text-slate-800 shrink-0">
 									{profile?.avatar_url ? (
@@ -385,7 +384,7 @@ const NavBar = () => {
 								</>
 							)}
 
-							{session && (
+							{hasAccountProfile && (
 								<>
 									<div className="border-t border-base-200 my-2" />
 									<NavLink to="/profile" className={mobileLinkClass} onClick={closeMobile}>Profile</NavLink>

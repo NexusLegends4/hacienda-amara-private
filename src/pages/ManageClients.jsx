@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import DOMPurify from "dompurify";
 import { isGmailAddress } from "../utils/contact-validation";
+import { getAccountDisplayName, normalizeAccountRole } from "../utils/account-profile";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -28,13 +29,8 @@ const getInitials = (name) => {
 	return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const getDisplayName = (profile) =>
-	[profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim() ||
-	profile?.email ||
-	"Unnamed staff";
-
-// Treat any legacy "client" role value from the database as "staff" everywhere in the UI.
-const normalizeRole = (role) => (role === "admin" ? "admin" : "staff");
+const getDisplayName = getAccountDisplayName;
+const normalizeRole = normalizeAccountRole;
 
 const ManageClients = () => {
 	const { session, profile } = useContext(SessionContext);
@@ -42,7 +38,7 @@ const ManageClients = () => {
 	const [profiles, setProfiles] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [roleFilter, setRoleFilter] = useState("staff");
+	const [roleFilter, setRoleFilter] = useState("client");
 	const [statusFilter, setStatusFilter] = useState("active");
 	const [selectedProfileId, setSelectedProfileId] = useState("");
 	const [saving, setSaving] = useState(false);
@@ -116,7 +112,6 @@ const ManageClients = () => {
 
 	useEffect(() => {
 		if (profile?.role !== "admin") return;
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		void refreshProfiles();
 
 		// Real-time listener para sa anumang pagbabago sa profiles table
@@ -202,15 +197,15 @@ const ManageClients = () => {
 		}
 
 		setStatus(
-			`${getDisplayName(data)} updated successfully. ${
-				data.role === "admin" ? "This account is now an administrator." : "This account remains a staff member."
-			}`,
+			`${getDisplayName(data)} updated successfully. This account is now a ${
+				{ admin: "administrator", staff: "staff member", client: "client" }[normalizeRole(data.role)]
+			}.`,
 		);
 		setForm({
 			firstname: data.firstname || "",
 			lastname: data.lastname || "",
 			email: data.email || "",
-			role: ["admin", "staff"].includes(data.role) ? data.role : "staff",
+			role: normalizeRole(data.role),
 		});
 		setProfiles((current) =>
 			current
@@ -328,7 +323,7 @@ const ManageClients = () => {
 			firstname: data.firstname || "",
 			lastname: data.lastname || "",
 			email: data.email || "",
-			role: data.role || "staff",
+			role: normalizeRole(data.role),
 		});
 		setStatus(
 			`${getDisplayName(data)} ${action}d successfully. ${
@@ -357,6 +352,10 @@ const ManageClients = () => {
 								</p>
 							</div>
 							<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-2 text-sm font-medium text-base-content/70 sm:px-4">
+									<FiUsers />
+									<span>{profiles.filter((entry) => normalizeRole(entry.role) === "client").length} clients</span>
+								</div>
 								<div className="inline-flex items-center gap-2 rounded-full bg-base-200 px-3 py-2 text-sm font-medium text-base-content/70 sm:px-4">
 									<FiUsers />
 									<span>{profiles.filter((entry) => normalizeRole(entry.role) === "staff").length} staff</span>
@@ -399,7 +398,7 @@ const ManageClients = () => {
 										value={roleFilter}
 										onChange={(event) => setRoleFilter(event.target.value)}
 									>
-										<option value="client">Client</option>
+										<option value="client">Clients</option>
 										<option value="staff">Staff</option>
 										<option value="admin">Admins</option>
 										<option value="all">All Roles</option>
@@ -430,7 +429,7 @@ const ManageClients = () => {
 							<div className="mt-5 space-y-3">
 								{loading && (
 									<div className="rounded-2xl border border-dashed border-base-300 p-6 text-center text-sm text-base-content/60">
-										Loading staff accounts...
+										Loading accounts...
 									</div>
 								)}
 

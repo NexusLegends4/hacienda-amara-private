@@ -47,6 +47,8 @@ const EditProfile = () => {
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
+		} else if (session.user.is_anonymous) {
+			navigate("/", { replace: true });
 		}
 	}, [session, navigate]);
 
@@ -157,6 +159,10 @@ const EditProfile = () => {
 
 	const handleSubmit = async (event) => {
 		event.preventDefault();
+		if (!session || session.user.is_anonymous) {
+			navigate("/", { replace: true });
+			return;
+		}
 		
 		const errors = {
 			firstname: validateName(formData.firstname),

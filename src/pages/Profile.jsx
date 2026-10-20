@@ -2,7 +2,7 @@ import React, { useEffect, useContext, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext.jsx";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import EditUserIcon from "../components/icons/EditUserIcon";
 
 const getInitials = (name) => {
@@ -19,27 +19,40 @@ const getInitials = (name) => {
 
 const Profile = () => {
 	const { session } = useContext(SessionContext);
+	const navigate = useNavigate();
 	const [profile, setProfile] = useState(null);
 
 	useEffect(() => {
+		if (!session) {
+			navigate("/log-in", { replace: true });
+			return;
+		}
+		if (session.user.is_anonymous) {
+			navigate("/", { replace: true });
+			return;
+		}
+
 		// Pull the signed-in user's profile data from the database.
 		const fetchProfile = async () => {
 			const { data, error } = await supabase
 				.from("profiles")
 				.select()
 				.eq("id", session.user.id)
-				.single();
+				.maybeSingle();
 
-			if (error) alert(error);
+			if (error) {
+				alert(error.message);
+				return;
+			}
 			if (data) {
 				setProfile(data);
+			} else {
+				navigate("/", { replace: true });
 			}
 		};
 
-		if (session) {
-			fetchProfile();
-		}
-	}, [session]);
+		void fetchProfile();
+	}, [session, navigate]);
 
 	const displayName = [profile?.firstname, profile?.lastname].filter(Boolean).join(" ").trim();
 	const avatarAlt = displayName || profile?.email || "Profile avatar";
