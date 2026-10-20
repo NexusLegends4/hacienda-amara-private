@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
-import { getInitialPaymentDecision } from "../server/utils/reservation-payment-decision.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -73,7 +72,7 @@ export async function POST(request) {
 	});
 	const { data: reservation, error: lookupError } = await supabase
 		.from("reservations")
-		.select("id, status, payment_status, initial_payment_deadline_at, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
+		.select("id, status, payment_status, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
 		.eq("id", reservationId)
 		.maybeSingle();
 	if (lookupError) {
@@ -139,18 +138,7 @@ export async function POST(request) {
 			paymongo_checkout_payment_id: paidPayment.id,
 		};
 	const updateValues = { ...paymentUpdate };
-	const initialPaymentDecision = isBalancePayment
-		? null
-		: getInitialPaymentDecision(reservation);
-	const isLateInitialPayment = initialPaymentDecision?.late || false;
-	if (!isBalancePayment && reservation.status === "pending") {
-		updateValues.status = initialPaymentDecision.status;
-		updateValues.rejection_reason = initialPaymentDecision.late
-			? "Automatically denied because initial payment was not received within one hour. A later payment requires staff review."
-			: null;
-		if (initialPaymentDecision.late) updateValues.late_payment_received_at = new Date().toISOString();
-	} else if (!isBalancePayment && reservation.status === "denied") {
-		updateValues.rejection_reason = "Automatically denied because initial payment was not received within one hour. A later PayMongo payment was received and requires staff review.";
+	if (!isBalancePayment && reservation.status === "denied") {
 		updateValues.late_payment_received_at = new Date().toISOString();
 	}
 
@@ -160,14 +148,7 @@ export async function POST(request) {
 		.eq("id", reservation.id)
 		.eq(isBalancePayment ? "paymongo_balance_checkout_session_id" : "paymongo_checkout_session_id", sessionId)
 		.eq("payment_status", isBalancePayment ? "down_payment_paid" : "checkout_pending");
-	if (!isBalancePayment && reservation.status === "pending") {
-		updateQuery = updateQuery.eq("status", "pending");
-		updateQuery = isLateInitialPayment
-			? updateQuery.or(`initial_payment_deadline_at.is.null,initial_payment_deadline_at.lte.${new Date().toISOString()}`)
-			: updateQuery.gt("initial_payment_deadline_at", new Date().toISOString());
-	} else if (!isBalancePayment && reservation.status === "denied") {
-		updateQuery = updateQuery.eq("status", "denied");
-	} else if (!isBalancePayment) {
+	if (!isBalancePayment) {
 		updateQuery = updateQuery.eq("status", reservation.status);
 	}
 
@@ -201,5 +182,5 @@ export async function POST(request) {
 		);
 	}
 
-	return json({ received: true, ...(isLateInitialPayment ? { paymentRequiresReview: true } : {}) });
+	return json({ received: true });
 }

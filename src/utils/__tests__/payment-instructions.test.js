@@ -13,6 +13,8 @@ describe("payment instructions", () => {
 		expect(PAYMENT_INSTRUCTIONS).toContain("manual staff verification");
 		expect(PAYMENT_INSTRUCTIONS).toContain("PayMongo checkout");
 		expect(PAYMENT_INSTRUCTIONS).toContain("at least one day before your stay");
+		expect(PAYMENT_INSTRUCTIONS).toContain("resort staff will review and accept or deny");
+		expect(PAYMENT_INSTRUCTIONS).not.toContain("automatically accepts");
 		expect(moderateAssistantText(PAYMENT_INSTRUCTIONS).allowed).toBe(true);
 	});
 

@@ -148,7 +148,7 @@ const CustomerNotifications = () => {
 				? "The security-deposit refund needs staff review. Please contact Hacienda Amara; do not assume the refund has been completed."
 				: null;
 	const latePaymentMessage = reservation?.late_payment_received_at
-		? "PayMongo received payment after this booking had been automatically denied. The reservation remains denied while resort staff reviews the payment; please contact Hacienda Amara."
+		? "PayMongo received payment after this reservation was denied. It remains denied until resort staff reviews the payment and accepts it."
 		: null;
 
 	return (
@@ -212,7 +212,9 @@ const CustomerNotifications = () => {
 											</p>
 											<p className="mt-1 text-sm sm:text-base font-semibold leading-snug">
 												{reservation.status === "pending"
-													? "Complete the initial PayMongo payment within one hour of starting checkout. Successful payment automatically accepts the booking; if payment is not received in time, it is automatically denied."
+													? ["down_payment_paid", "fully_paid"].includes(reservation.payment_status)
+														? "Your payment has been received. Your reservation is waiting for staff review; we will update you once it is accepted or denied."
+														: "Your reservation request is pending. After the required payment is received, staff will review and accept or deny it."
 													: reservation.message}
 											</p>
 										</div>
@@ -260,18 +262,22 @@ const CustomerNotifications = () => {
 										</div>
 										{reservation.payment_status === "fully_paid" ? (
 											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
-												PayMongo has confirmed the down payment, security deposit, and remaining balance. Your reservation was automatically accepted after the initial payment. The ₱2,000 security deposit remains refundable upon check-out.
+												{reservation.status === "confirmed"
+													? "PayMongo has confirmed the down payment, security deposit, and remaining balance. Your reservation has been accepted. The ₱2,000 security deposit remains refundable upon check-out."
+													: "PayMongo has confirmed the down payment, security deposit, and remaining balance. Your reservation is waiting for staff review."}
 											</p>
 										) : reservation.payment_status === "down_payment_paid" ? (
 											<p role="status" className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">
 												{latePaymentMessage
-													? "This payment arrived after the one-hour deadline. Your reservation remains denied and the payment is flagged for staff review."
-													: "PayMongo has confirmed the down payment and refundable security deposit, and your reservation was automatically accepted. Settle the remaining balance at least one day before your stay."}
+													? "Your payment is flagged for staff review because the reservation had already been denied."
+													: reservation.status === "confirmed"
+														? "PayMongo has confirmed the down payment and refundable security deposit. Your reservation has been accepted; settle the remaining balance at least one day before your stay."
+														: "PayMongo has confirmed the down payment and refundable security deposit. Your reservation is waiting for staff review."}
 											</p>
 										) : reservation.payment_status !== "down_payment_paid" && !["cancelled", "denied", "rejected"].includes(String(reservation.status).toLowerCase()) ? (
 											<>
 											<p role="status" className="mt-3 rounded-xl border border-amber-300 bg-white/80 p-3 text-sm font-semibold text-amber-950">
-												Complete the initial PayMongo payment within one hour of starting checkout. Payment automatically accepts your reservation; if payment is not received in time, the request is automatically denied.
+												Complete the initial PayMongo payment, then resort staff will review and accept or deny your reservation.
 											</p>
 											<form onSubmit={continueToCheckout} className="mt-4 space-y-3">
 												<label className="block text-sm font-semibold text-amber-950" htmlFor="booking-payment-email">Booking email</label>

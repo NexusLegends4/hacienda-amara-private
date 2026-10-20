@@ -3,7 +3,7 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiCalendar, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -123,9 +123,28 @@ const ManageReservations = () => {
 
 	const updateStatus = async (id, newStatus) => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
-		if (!resToUpdate || newStatus !== "cancelled") return;
+		if (!resToUpdate) return;
 		const currentStatus = resToUpdate.status || "pending";
-		if (currentStatus !== "confirmed") return;
+		const canReviewLatePayment = currentStatus === "denied" &&
+			["down_payment_paid", "fully_paid"].includes(resToUpdate.payment_status) &&
+			resToUpdate.late_payment_received_at;
+		if (
+			(newStatus === "cancelled" && currentStatus !== "confirmed") ||
+			(["confirmed", "denied"].includes(newStatus) &&
+				currentStatus !== "pending" &&
+				!(newStatus === "confirmed" && canReviewLatePayment))
+		) return;
+
+		let rejectionReason = "";
+		if (newStatus === "denied") {
+			const enteredReason = window.prompt("Reason for denying this reservation (optional):", "");
+			if (enteredReason === null) return;
+			rejectionReason = enteredReason.trim();
+			if (rejectionReason.length > 300) {
+				alert("The denial reason must be 300 characters or fewer.");
+				return;
+			}
+		}
 
 		setUpdatingReservationId(id);
 		try {
@@ -148,6 +167,19 @@ const ManageReservations = () => {
 					throw new Error(result.error || "The reservation could not be cancelled.");
 				}
 				cancellationRefund = result.refund;
+			} else {
+				const { data, error } = await supabase
+					.from("reservations")
+					.update({
+						status: newStatus,
+						rejection_reason: newStatus === "denied" ? rejectionReason || null : null,
+					})
+					.eq("id", id)
+					.eq("status", currentStatus)
+					.select("id")
+					.maybeSingle();
+				if (error) throw error;
+				if (!data) throw new Error("The reservation status changed. Refresh the list and try again.");
 			}
 
 			const clientName = reservationGuestName(resToUpdate);
@@ -167,13 +199,14 @@ const ManageReservations = () => {
 							status: newStatus,
 							roomType: resToUpdate.room_type,
 							checkIn: resToUpdate.check_in,
+							rejectionReason,
 						}),
 					});
 					const result = await response.json();
 					if (!response.ok) throw new Error(result.error || "Email could not be sent.");
 				} catch (error) {
 					console.error("Failed to send reservation status email:", error);
-					emailError = error.message || "Email could not be sent.";
+					emailError = error instanceof Error ? error.message : "Email could not be sent.";
 				}
 			}
 
@@ -182,8 +215,13 @@ const ManageReservations = () => {
 				: cancellationRefund?.status === "manual_review"
 					? " The security-deposit refund needs manual review in PayMongo."
 					: "";
+			const statusMessage = newStatus === "confirmed"
+				? `Reservation for ${clientName} was accepted.`
+				: newStatus === "denied"
+					? `Reservation for ${clientName} was denied.`
+					: `Reservation for ${clientName} was cancelled.`;
 			alert(
-				`Reservation for ${clientName} was cancelled.` +
+				statusMessage +
 				refundMessage +
 				(emailError ? ` However, the email notification failed: ${emailError}` : ""),
 			);
@@ -420,10 +458,47 @@ const ManageReservations = () => {
 															{reservationStatus === "pending" && (
 																<span className="text-xs font-semibold text-amber-800">
 																	{res.payment_status === "checkout_pending"
-																		? "Awaiting payment · auto-denied after 1 hour"
-																		: "Awaiting customer checkout"}
+																		? "Awaiting payment"
+																		: ["down_payment_paid", "fully_paid"].includes(res.payment_status)
+																			? "Payment received · awaiting staff decision"
+																			: "Awaiting customer checkout"}
 																</span>
 															)}
+															{reservationStatus === "pending" && (
+																<>
+																	<button
+																		type="button"
+																		onClick={() => updateStatus(res.id, "confirmed")}
+																		disabled={updatingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-success text-white"
+																		title="Accept reservation"
+																	>
+																		<FiCheckCircle /> Accept
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => updateStatus(res.id, "denied")}
+																		disabled={updatingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-error btn-outline"
+																		title="Deny reservation"
+																	>
+																		<FiXCircle /> Deny
+																	</button>
+																</>
+															)}
+															{reservationStatus === "denied" &&
+																["down_payment_paid", "fully_paid"].includes(res.payment_status) &&
+																res.late_payment_received_at && (
+																	<button
+																		type="button"
+																		onClick={() => updateStatus(res.id, "confirmed")}
+																		disabled={updatingReservationId !== null}
+																		className="btn btn-sm rounded-full btn-success text-white"
+																		title="Accept reservation after reviewing its late payment"
+																	>
+																		<FiCheckCircle /> Accept payment
+																	</button>
+																)}
 															{reservationStatus === "confirmed" && (
 																<button
 																	onClick={() => updateStatus(res.id, "cancelled")}
