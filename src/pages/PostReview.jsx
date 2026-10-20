@@ -229,7 +229,7 @@ const PostReview = () => {
 
 							<div className="flex flex-col justify-between">
 							<div className="form-control">
-								<label className="label-text font-black uppercase tracking-widest text-slate-400 mb-4 block">Visual Experience</label>
+								<label className="label-text font-black uppercase tracking-widest text-slate-400 mb-4 block">Share Photos or Videos in Your Review</label>
 								{existingMedia && !file && (
 									<div className="mb-4 relative group">
 										<p className="text-[0.65rem] font-bold mb-2 opacity-50 uppercase tracking-widest text-[#8b5e34]">Current Media:</p>
@@ -246,7 +246,7 @@ const PostReview = () => {
 								<label className="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-black/10 bg-black/5 p-10 transition hover:bg-black/10">
 									<FiUpload className="text-2xl opacity-40" />
 									<span className="mt-2 text-sm opacity-60">
-										{file ? file.name : "Click to upload media"}
+										{file ? file.name : "Click to upload a review photo or video"}
 									</span>
 									<input
 										type="file"

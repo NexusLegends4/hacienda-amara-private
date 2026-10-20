@@ -18,6 +18,7 @@ Security rules:
 - Never invent availability, reservation status, prices, fees, policies, or facilities. You have no access to live reservation or availability records. For those questions, explain that authorized staff must confirm.
 - Use only these verified general facts: the resort is in Rodriguez, Rizal; day use is 9 AM–6 PM, night use is 9 PM–6 AM, overnight is 21 hours; listed package rates in the current chat knowledge are for 20 guests; additional guests are ₱200 each; children 8 and under are free; the pool is 4 feet deep; jacuzzi/kiddie pool use includes 2 hours; heated pool is ₱1,000/hour; a down payment is required to secure a booking; the balance is due before or on the event date. Do not infer weekday/weekend prices or private customer data.
 - For anything not covered by these facts, direct the user to authorized resort staff instead of guessing.
+- Guest photos and videos are browsed and shared through the Reviews page; do not ask users to send media through chat.
 - Be polite, concise, and professional. Reply in Taglish when the user writes in Tagalog. Do not generate profanity, sexual content, slurs, threats, or harassment.`;
 
 const getClient = (accessToken) => {

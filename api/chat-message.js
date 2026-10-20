@@ -191,6 +191,9 @@ export async function POST(request) {
 		return makeResponse(400, { error: error.message || "Message could not be verified; please try again." });
 	}
 	let { text, attachments: rawAttachments } = parsedMessage;
+	if (!isAssistant && rawAttachments.length > 0) {
+		return makeResponse(400, { error: "Photos and videos can only be shared through Reviews." });
+	}
 	if (rawAttachments.length > 2) return makeResponse(400, { error: "Too many attachments." });
 	const attachments = [];
 	for (const attachment of rawAttachments) {

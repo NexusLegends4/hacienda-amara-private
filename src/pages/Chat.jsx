@@ -89,7 +89,7 @@ const CLIENT_CHAT_PROMPTS = [
 	"What inclusions are available?",
 	"Exact location please",
 	"Ano po Facebook page?",
-	"Can we see photos/videos?",
+	"Can we see guest photos or videos?",
 ];
 const CLIENT_CHAT_HIGHLIGHTS = [
 	"Instant replies",
@@ -346,7 +346,7 @@ const getBotReply = (text) => {
 	}
 
 	if (includesAny(["can i", "can we see photos/videos", "pictures", "videos", "photo", "video", "gallery", "reviews", "site visit", "ocular", "parking", "commute", "accessible", "safe"])) {
-		return "Yes po, we can share photos and video clips upon request. Please message us directly and we will send the latest available media.";
+		return "Browse guest photos and videos, or share your own through a review: [Reviews](/reviews).";
 	}
 
 	if (includesAny(["event", "events"])) {
@@ -829,11 +829,11 @@ const [historyByConversation, setHistoryByConversation] = useState(() => {
 	const [draftAttachments, setDraftAttachments] = useState([]);
 	const [selectedMedia, setSelectedMedia] = useState(null);
 const [isSending, setIsSending] = useState(false);
-const [uploadProgress, setUploadProgress] = useState(0);
-const [uploadFailed, setUploadFailed] = useState(false);
-const [isPreparingVideo, setIsPreparingVideo] = useState(false);
-const [videoPreparationProgress, setVideoPreparationProgress] = useState(0);
-const [isModeratingMedia, setIsModeratingMedia] = useState(false);
+const [, setUploadProgress] = useState(0);
+const [, setUploadFailed] = useState(false);
+const [, setIsPreparingVideo] = useState(false);
+const [, setVideoPreparationProgress] = useState(0);
+const [, setIsModeratingMedia] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
   const [chatAuthError, setChatAuthError] = useState("");
@@ -1581,8 +1581,11 @@ const clearCurrentChat = async () => {
 	const sendMessage = async (
 		content,
 		senderRole = isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client",
-		attachments = draftAttachments,
+		attachments = [],
 	) => {
+		if (attachments.length > 0) {
+			throw new Error("Photos and videos can only be shared through Reviews.");
+		}
 		const messageId = getMessageId();
 		const activeSession = CHAT_BACKEND_CONFIGURED
 			? (await supabase.auth.getSession()).data.session || session
@@ -1777,7 +1780,7 @@ const clearCurrentChat = async () => {
 			}
 		}
 		
-		if (!trimmed && draftAttachments.length === 0) return;
+		if (!trimmed) return;
 		if (loading || isSending) return;
 		const now = Date.now();
 		messageTimestampsRef.current = messageTimestampsRef.current.filter((timestamp) => now - timestamp < 60_000);
@@ -1796,19 +1799,14 @@ const clearCurrentChat = async () => {
 		if (isAdminOrStaff && !canReply) return;
 
 		setError("");
-		setUploadFailed(false);
-		setUploadProgress(0);
 		setIsSending(true);
 		pendingScrollToBottomRef.current = true;
 		shouldStickToBottomRef.current = true;
 		const chatGeneration = chatGenerationRef.current;
 
 		try {
-			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client", draftAttachments);
+			const outgoing = await sendMessage(trimmed, isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client");
 			if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
-			if (draftAttachments.length > 0) {
-				clearDraftAttachment();
-			}
 			if (localTypingRef.current.stopTimer) {
 				window.clearTimeout(localTypingRef.current.stopTimer);
 				localTypingRef.current.stopTimer = null;
@@ -1822,19 +1820,10 @@ const clearCurrentChat = async () => {
 			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
 
 			if (shouldTriggerBot || isQuickQuery) {
-				const hasVideo = draftAttachments.some((item) => item.kind === "video");
-				const hasPhoto = draftAttachments.some((item) => item.kind === "image");
-				
 				let replyText = "";
 				let replyAttachments = [];
 
-				if (draftAttachments.length) {
-					replyText = hasVideo && hasPhoto
-						? "Thanks for sending the photo and video. We will check them and reply as soon as possible."
-						: hasVideo
-							? "Thanks for sending the video. We will check it and reply as soon as possible."
-							: "Thanks for sending the photo. We will check it and reply as soon as possible.";
-				} else if (isPaymentInstructionsQuery(trimmed)) {
+				if (isPaymentInstructionsQuery(trimmed)) {
 					replyText = PAYMENT_INSTRUCTIONS;
 				} else {
 					// Check FAQ keywords first for instant accurate responses
@@ -1896,12 +1885,7 @@ const clearCurrentChat = async () => {
 			}
 		} catch (sendError) {
 			console.error("Unable to send chat message:", sendError);
-			if (draftAttachments.length > 0) {
-				setUploadFailed(true);
-				setError(`Message not sent. Your attachment is still here; choose Retry upload to try again. ${sendError?.message || ""}`.trim());
-			} else {
-				setError(sendError?.message || "Unable to send your message. Please try again.");
-			}
+			setError(sendError?.message || "Unable to send your message. Please try again.");
 		} finally {
 			setIsSending(false);
 		}
@@ -2486,16 +2470,6 @@ const chatContent = (
 									{error && (
 										<div className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
 											{error}
-							{uploadFailed && draftAttachments.length > 0 && (
-								<button
-									type="button"
-									onClick={() => handleSubmit({ preventDefault: () => {} })}
-									disabled={!chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !canReply)}
-									className="ml-3 inline-flex rounded-full border border-red-300 px-3 py-1 font-semibold hover:bg-red-100 disabled:opacity-50"
-								>
-									Retry upload
-								</button>
-							)}
 										</div>
 									)}
 									{isAdminOrStaff && adminAvailable && !hasClientMessage(activeMessages) && (
@@ -2508,30 +2482,12 @@ const chatContent = (
 											{chatAuthError}
 										</div>
 									)}
-									{isPreparingVideo && (
-										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-												<span>Preparing high-quality video for playback… {Math.round(videoPreparationProgress * 100)}%</span>
-											<progress className="progress progress-warning w-24" value={videoPreparationProgress * 100} max="100" aria-label={`Video conversion ${Math.round(videoPreparationProgress * 100)}% complete`} />
-										</div>
-									)}
-					{isModeratingMedia && (
-						<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-							<span className="loading loading-spinner loading-sm" /> Checking media for nudity and explicit content…
-						</div>
-					)}
-									{isSending && draftAttachments.length > 0 && (
-										<div role="status" className="mx-auto mb-3 flex max-w-4xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-							<span>{uploadProgress >= 99 ? "Saving message securely…" : `Uploading media securely… ${uploadProgress}%`}</span>
-							<progress className="progress progress-warning w-24" value={uploadProgress} max="100" aria-label={`Media upload ${uploadProgress}% complete`} />
-										</div>
-									)}
-
 									<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
 										Press Enter to send. Shift + Enter for a new line.
 									</p>
-					<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
-						Selected photos and sampled video frames are screened automatically before upload.
-					</p>
+									<p className={isBubble ? "sr-only" : "mx-auto mb-3 max-w-4xl text-[0.7rem] text-slate-500"}>
+										Share or browse guest photos and videos on <NavLink to="/reviews" className="font-bold underline">Reviews</NavLink>.
+									</p>
 
 									<form
 										onSubmit={handleSubmit}
@@ -2543,7 +2499,7 @@ const chatContent = (
 											accept="image/jpeg,image/png,image/webp,image/gif"
 											capture="environment"
 											className="hidden"
-							disabled={isSending || isPreparingVideo || isModeratingMedia}
+											disabled
 											onChange={(event) => handleAttachmentSelection(event, "image")}
 										/>
 										<input
@@ -2551,71 +2507,12 @@ const chatContent = (
 											type="file"
 											accept="video/mp4,video/webm,video/quicktime,.mov"
 											className="hidden"
-							disabled={isSending || isPreparingVideo || isModeratingMedia}
+											disabled
 											onChange={(event) => handleAttachmentSelection(event, "video")}
 										/>
 
-										<div className={isBubble ? "flex w-full gap-2" : "flex w-full gap-2 flex-col sm:flex-row sm:w-auto"}>
-											<button
-												type="button"
-												onClick={() => photoInputRef.current?.click()}
-								disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || isModeratingMedia || (isAdminOrStaff && !adminAvailable)}
-												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
-											>
-												Photo
-											</button>
-											<button
-												type="button"
-												onClick={() => videoInputRef.current?.click()}
-								disabled={loading || !chatAuthReady || Boolean(chatAuthError) || isSending || isPreparingVideo || isModeratingMedia || (isAdminOrStaff && !adminAvailable)}
-												className={isBubble ? "btn btn-ghost min-w-0 flex-1 rounded-full border border-[#ead9c2] bg-white px-2 text-xs font-medium text-slate-700 hover:bg-[#fff8ef]" : "btn btn-ghost w-full rounded-full border border-[#ead9c2] bg-white px-4 text-xs font-medium text-slate-700 hover:bg-[#fff8ef] sm:w-auto"}
-											>
-												Video
-											</button>
-										</div>
-
 										<div className={isBubble ? "flex min-w-0 flex-1 items-end gap-2" : "contents"}>
 										<div className={isBubble ? "min-w-0 flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-3 py-2 shadow-sm" : "w-full flex-1 rounded-[1.25rem] border border-[#ead9c2] bg-white px-4 py-2 shadow-sm sm:rounded-full"}>
-											{draftAttachments.length > 0 && (
-												<div className="mb-2 space-y-2">
-													{draftAttachments.map((attachment) => (
-														<div
-															key={attachment.id || getAttachmentSource(attachment)}
-															className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#ead9c2] bg-[#fffaf3] p-2 sm:flex-nowrap"
-														>
-										<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#ead9c2] text-[0.7rem] font-semibold text-slate-700">
-											{attachment.kind === "video" && attachment.poster ? (
-												<img src={attachment.poster} alt="Video preview" className="h-full w-full object-cover" />
-											) : attachment.kind === "video" ? "VIDEO" : "PHOTO"}
-															</div>
-															<div className="min-w-0 flex-1">
-																<p className="truncate text-xs font-medium text-slate-900">
-																	{attachment.name}
-																</p>
-																<p className="text-[0.7rem] text-slate-500">
-																	{attachment.kind === "video"
-																		? "Ready to send as video"
-																		: "Ready to send as photo"}
-																</p>
-															</div>
-																<button
-																	type="button"
-																	onClick={() =>
-																		setDraftAttachments((current) => {
-																			const removed = current.find((item) => item.id === attachment.id);
-																			revokePreviewUrl(removed);
-																			return current.filter((item) => item.id !== attachment.id);
-																		})
-																	}
-																className="ml-auto rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-[#ead9c2]/40 hover:text-slate-900"
-															>
-																Remove
-															</button>
-														</div>
-													))}
-												</div>
-											)}
-
 											<textarea
 												value={prompt}
 												maxLength={1200}
@@ -2634,12 +2531,11 @@ const chatContent = (
 
 										<button
 											type="submit"
-											disabled={(!prompt.trim() && draftAttachments.length === 0) || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !canReply)}
+											disabled={!prompt.trim() || loading || !chatAuthReady || Boolean(chatAuthError) || isSending || (isAdminOrStaff && !canReply)}
 											className={isBubble ? "btn btn-black btn-circle h-11 w-11 min-h-11 shrink-0" : "btn btn-black rounded-full px-5 sm:w-auto"}
-							aria-label={uploadFailed && draftAttachments.length > 0 ? "Retry upload and send message" : "Send message"}
-							title={isBubble ? (uploadFailed ? "Retry upload" : "Send message") : undefined}
+							aria-label="Send message"
 										>
-							{isSending ? <span className="loading loading-spinner loading-xs" /> : isBubble ? <FiSend className="h-4 w-4" /> : uploadFailed && draftAttachments.length > 0 ? "Retry upload" : "Send"}
+							{isSending ? <span className="loading loading-spinner loading-xs" /> : isBubble ? <FiSend className="h-4 w-4" /> : "Send"}
 										</button>
 										</div>
 									</form>
