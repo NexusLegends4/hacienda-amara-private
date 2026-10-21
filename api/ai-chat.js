@@ -31,11 +31,11 @@ const getClient = (accessToken) => {
 	});
 };
 
-const rateLimitKey = (request, userId) => {
+const rateLimitKey = (request, userId, isGuest) => {
 	const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
 		|| request.headers.get("x-real-ip")
 		|| "unknown";
-	return `${userId}:${ip}`;
+	return `${isGuest ? 'guest' : userId}:${ip}`;
 };
 
 const isRateLimited = (key) => {
@@ -96,13 +96,15 @@ export async function POST(request) {
 	const userText = getUserText(body?.messages);
 
 	let userId;
+	let isGuest = false;
 	let trustedContext;
 	try {
 		const supabase = getClient(accessToken);
 		const { data, error } = await supabase.auth.getUser(accessToken);
 		if (error || !data.user) return Response.json({ error: "Secure chat sign-in is required." }, { status: 401 });
 		userId = data.user.id;
-		if (!data.user.is_anonymous) {
+		isGuest = data.user.is_anonymous;
+		if (!isGuest) {
 			const { data: profile, error: profileError } = await supabase
 				.from("profiles")
 				.select("role")
@@ -112,10 +114,12 @@ export async function POST(request) {
 				return Response.json({ error: "The AI assistant is available to clients and guests only." }, { status: 403 });
 			}
 		}
+		// For guests, use 'guest' as conversation key; for authenticated users, use their user ID
+		const conversationKey = isGuest ? 'guest' : userId;
 		const { data: recentMessages, error: historyError } = await supabase
 			.from("chat_messages")
 			.select("content, created_at, sender_id, sender_role")
-			.eq("conversation_key", userId)
+			.eq("conversation_key", conversationKey)
 			.eq("sender_id", userId)
 			.eq("sender_role", "client")
 			.order("created_at", { ascending: false })
@@ -130,7 +134,7 @@ export async function POST(request) {
 		const { data: contextMessages, error: contextError } = await supabase
 			.from("chat_messages")
 			.select("content")
-			.eq("conversation_key", userId)
+			.eq("conversation_key", conversationKey)
 			.order("created_at", { ascending: false })
 			.limit(4);
 		if (contextError) throw contextError;
@@ -142,7 +146,7 @@ export async function POST(request) {
 	const moderation = moderateChatText(userText, { context: trustedContext });
 	if (!moderation.allowed) return Response.json({ error: moderation.message, reason: moderation.reason }, { status: 400 });
 
-	if (isRateLimited(rateLimitKey(request, userId))) {
+	if (isRateLimited(rateLimitKey(request, userId, isGuest))) {
 		return Response.json({ error: "Too many messages sent; please wait a minute." }, { status: 429, headers: { "Retry-After": "60" } });
 	}
 	if (isPaymentInstructionsQuery(userText)) {

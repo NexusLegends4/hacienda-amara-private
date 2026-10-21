@@ -147,8 +147,31 @@ export async function POST(request) {
 		if (profileError) throw profileError;
 		profile = profileRow;
 	} catch (error) {
-		console.error(`Unable to verify chat submission (${verificationStage}):`, error?.code || "no code", error?.message || error);
-		return makeResponse(503, { error: "Chat verification is temporarily unavailable. Please try again shortly." });
+		console.error(`Unable to verify chat submission (${verificationStage}):`, {
+			code: error?.code,
+			message: error?.message,
+			details: error?.details,
+			hint: error?.hint,
+			stage: verificationStage
+		});
+		
+		// Provide more specific error messages based on the error
+		if (error?.code === 'PGRST301' || error?.message?.includes('JWT') || error?.message?.includes('service_role')) {
+			return makeResponse(503, { error: "Chat service configuration error. Please check Supabase service role key." });
+		}
+		if (error?.code === '42501' || error?.message?.includes('permission denied') || error?.message?.includes('row-level security') || error?.message?.includes('policy')) {
+			return makeResponse(503, { error: "Database permissions not configured. Please run the chat policies migration in Supabase." });
+		}
+		if (error?.code === 'PGRST116' || error?.message?.includes('relation') || error?.message?.includes('does not exist')) {
+			return makeResponse(503, { error: "Chat tables not found. Please run database migrations in Supabase." });
+		}
+		
+		// Return the actual error for debugging
+		return makeResponse(503, { 
+			error: "Chat verification failed", 
+			details: error?.message || "Unknown error",
+			code: error?.code
+		});
 	}
 
 	const requestedRole = String(message.senderRole || message.sender_role || "");
@@ -156,7 +179,7 @@ export async function POST(request) {
 	const clientRole = user.is_anonymous || profile?.role === "client";
 	const staffRole = ["admin", "staff"].includes(profile?.role) ? profile.role : "";
 	if (clientRole) {
-		if (!(["client", "bot"].includes(requestedRole)) || (!isAssistant && conversationKey !== user.id)) {
+		if (!(["client", "bot"].includes(requestedRole)) || (!isAssistant && conversationKey !== user.id && conversationKey !== 'guest')) {
 			return makeResponse(403, { error: "Message could not be verified; please try again." });
 		}
 		if (isAssistant) conversationKey = user.id;

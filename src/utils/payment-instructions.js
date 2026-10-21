@@ -36,6 +36,9 @@ ${MANUAL_PAYMENT_CHANNELS.map(formatPaymentChannel).join("\n\n")}
 
 A contract will be provided once payment has been confirmed and resort staff has accepted the booking.`;
 
+export const PAYMENT_DETAILS_ONLY = `Manual transfer details:
+${MANUAL_PAYMENT_CHANNELS.map(formatPaymentChannel).join("\n\n")}`;
+
 const PAYMENT_QUERY_TERMS = [
 	"payment",
 	"pay",
@@ -54,6 +57,12 @@ const PAYMENT_QUERY_TERMS = [
 	"reservation process",
 	"how to make a reservation",
 	"confirm booking",
+	"hot to book",
+	"hot to reserve",
+	"ho to book",
+	"ho to reserve",
+	"howto book",
+	"howto reserve"
 ];
 
 export const isPaymentInstructionsQuery = (text) => {

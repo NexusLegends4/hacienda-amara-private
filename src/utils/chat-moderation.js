@@ -2,19 +2,37 @@ const PROHIBITED_WORDS = [
 	"puta", "putangina", "tangina", "gago", "gaga", "bobo", "boba", "ulol", "ulul",
 	"tanga", "tarantado", "tarantada", "punyeta", "pakshet", "pakyu", "pukingina",
 	"pucha", "leche", "lintik", "bwisit", "buwisit", "yawa", "kantot", "kantutin",
-	"jakol", "jakulan", "puki", "titi", "bayag", "libog", "malibog", "burat", "iyot",
+	"kant0t", "kantut1n", "k4ntot", "k4ntut1n", "kantotz", "kantutinz",
+	"jakol", "jakulan", "jak0l", "jakul4n", "j4kol", "j4kulan",
+	"puki", "titi", "bayag", "libog", "malibog", "burat", "iyot",
+	"l1bog", "m4l1bog", "bur4t", "1yot", "y0t",
 	"kupal", "hinayupak", "animal ka", "hayop ka", "fuck", "fucking", "fucker", "motherfucker",
 	"shit", "bullshit", "bitch", "bastard", "asshole", "dickhead", "dick", "pussy", "cunt",
 	"cock", "whore", "slut", "porn", "nude", "naked", "horny", "sex", "seks", "sexual",
+	"s3ks", "s3x", "s3xual", "s3ksu4l", "h0rny", "h0rney",
 	"blowjob", "handjob", "masturbate", "orgasm", "vagina", "penis", "boobs", "tits", "rape",
 	"molest", "pedophile", "nigger", "nigga", "fag", "faggot", "retard", "tranny", "murder",
 	"suicide", "bomb", "weapon",
+	"kantutan", "kant0tan", "k4ntutan", "sexytime", "s3xyt1me", "videoke", "bomba", "bold",
+	"kumantot", "paano kumantot", "pano kumantot", "pwede kumantot", "pwede ba kumantot",
+	"gusto kumantot", "gusto kong kumantot", "makipag kumantot", "makipagkantot",
+	"kuamtot", "ku4mtot", "kumatot", "kumant0t", "pa rate kuamtot", "pa rate kumatot"
 ];
 
 const HARASSMENT_PHRASES = [
 	"kill you", "i will kill", "i'll kill", "patayin kita", "papatayin kita",
 	"mamatay ka", "i hate you", "you are stupid", "you're stupid", "bobo ka",
 	"gago ka", "ulol ka", "putang ina mo", "tangina mo", "puta ka",
+	"pwede makipag", "makipag kantot", "makipagkantot", "pwede makipagkantot",
+	"pwede ba makipag", "pwede ba makipagkantot", "gusto ko makipag", "gusto kong makipag",
+	"para sa sex", "para sa seks", "para sa kantot", "magkantot", "magkantutan",
+	"kausap sex", "kausap seks", "kausap kantot", "videoke sex", "bomba film",
+	"bold movie", "bold actress", "pene movie", "erotika", "malibog ako", "libog ako",
+	"can we have sex", "can we fuck", "want to have sex", "want to fuck", "lets have sex",
+	"lets fuck", "hook up for sex", "meet for sex", "sex meetup", "sexual meetup",
+	"down to fuck", "dtf", "looking for sex", "wanna fuck", "wanna have sex",
+	"sex tonight", "fuck tonight", "casual sex", "no strings sex", "nsa sex",
+	"horny", "so horny", "need sex", "need fuck", "want sex now"
 ];
 
 const TOPIC_TERMS = [

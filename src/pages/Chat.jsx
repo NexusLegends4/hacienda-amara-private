@@ -7,7 +7,7 @@ import { clearConversationHistory, registerChatClearHandler } from "../utils/cha
 import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
 import { FiSend, FiTrash2 } from "react-icons/fi";
-import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../utils/payment-instructions";
+import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS, PAYMENT_DETAILS_ONLY } from "../utils/payment-instructions";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
@@ -163,10 +163,8 @@ const getCustomerConversationKey = () => {
 	const existingKey = localStorage.getItem(CUSTOMER_CONVERSATION_KEY_STORAGE);
 	if (existingKey) return existingKey;
 
-	const randomPart = typeof crypto !== "undefined" && crypto.randomUUID
-		? crypto.randomUUID()
-		: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-	const conversationKey = `customer-${randomPart}`;
+	// For anonymous guests, use 'guest' as the conversation key to match database policies
+	const conversationKey = 'guest';
 	localStorage.setItem(CUSTOMER_CONVERSATION_KEY_STORAGE, conversationKey);
 	return conversationKey;
 };
@@ -1596,15 +1594,16 @@ const clearCurrentChat = async () => {
 			// Client chats (including anonymous guests) always receive an assistant
 			// response. Online staff can still join the same conversation.
 			const shouldTriggerBot = !isAdminOrStaff;
-			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano"].some(k => trimmed.toLowerCase().includes(k));
+			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano", "how to book", "how to reserve", "booking process", "reservation process", "paano mag book", "paano magbook", "paano mag reserve", "paano magreserve", "hot to book", "hot to reserve", "ho to book", "ho to reserve", "howto book", "howto reserve"].some(k => trimmed.toLowerCase().includes(k));
 
 			if (shouldTriggerBot || isQuickQuery) {
-				let replyText = "";
-				let replyAttachments = [];
+let replyText = "";
+			let replyAttachments = [];
 
-				if (isPaymentInstructionsQuery(trimmed)) {
-					replyText = PAYMENT_INSTRUCTIONS;
-				} else {
+			if (isPaymentInstructionsQuery(trimmed)) {
+				// For payment queries, show only manual transfer details
+				replyText = PAYMENT_DETAILS_ONLY;
+			} else {
 					// Check FAQ keywords first for instant accurate responses
 					const botReply = getBotReply(trimmed);
 					const hasFaqMatch = typeof botReply === "string" 
