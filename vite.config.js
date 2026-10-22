@@ -465,18 +465,18 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    define: {
-      // Supabase's project URL is public client configuration. Support the
-      // server-side SUPABASE_URL name used by this project as a build fallback.
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
         env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
       ),
-      // Only allow 'unsafe-eval' in development (Vite HMR / React hot reload).
-      // Production builds must NOT include unsafe-eval in script-src.
+      // script-src: 'unsafe-inline' and 'unsafe-eval' are only allowed in
+      // development (Vite HMR / React). Production builds must NOT include
+      // them in script-src.
+      "import.meta.env.VITE_UNSAFE_INLINE": JSON.stringify(
+        mode === "development" ? "'unsafe-inline'" : "",
+      ),
       "import.meta.env.VITE_UNSAFE_EVAL": JSON.stringify(
         mode === "development" ? "'unsafe-eval'" : "",
       ),
-    },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg"],
     },
