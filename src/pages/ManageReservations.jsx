@@ -4,7 +4,10 @@ import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
-import { canRefundSecurityDeposit } from "../utils/security-deposit-refund-eligibility";
+import {
+	canRefundSecurityDeposit,
+	shouldShowSecurityDepositRefund,
+} from "../utils/security-deposit-refund-eligibility";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -150,6 +153,7 @@ const ManageReservations = () => {
 		setUpdatingReservationId(id);
 		try {
 			let cancellationRefund = null;
+			let cancellationRefundEmailSent = false;
 			if (newStatus === "cancelled") {
 				const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 				if (sessionError) throw sessionError;
@@ -168,6 +172,7 @@ const ManageReservations = () => {
 					throw new Error(result.error || "The reservation could not be cancelled.");
 				}
 				cancellationRefund = result.refund;
+				cancellationRefundEmailSent = result.refundEmailSent === true;
 			} else {
 				const { data, error } = await supabase
 					.from("reservations")
@@ -212,7 +217,7 @@ const ManageReservations = () => {
 			}
 
 			const refundMessage = cancellationRefund?.status === "pending" || cancellationRefund?.status === "succeeded"
-				? " The ₱2,000 security-deposit refund was initiated; the down payment and any paid balance are not included."
+				? ` The ₱2,000 security-deposit refund was ${cancellationRefund.status === "succeeded" ? "completed" : "submitted to PayMongo"}; the down payment and any paid balance are not included.${cancellationRefund.refundId && !cancellationRefundEmailSent ? " The refund email could not be sent; check Gmail settings and server logs." : ""}`
 				: cancellationRefund?.status === "manual_review"
 					? " The security-deposit refund needs manual review in PayMongo."
 					: "";
@@ -237,7 +242,7 @@ const ManageReservations = () => {
 	const requestSecurityDepositRefund = async (reservation) => {
 		const amount = Number(reservation.security_deposit_amount);
 		if (!window.confirm(
-			`Confirm the post-check-out inspection is complete and refund ₱${amount.toLocaleString()} to the original PayMongo payment?`,
+			`Confirm refunding the ₱${amount.toLocaleString()} security deposit to the original PayMongo payment for this ${reservation.status} reservation?`,
 		)) return;
 
 		setRefundingReservationId(reservation.id);
@@ -257,9 +262,16 @@ const ManageReservations = () => {
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(result.error || "The security deposit refund could not be initiated.");
-			alert(result.refund?.status === "manual_review"
+			const refundMessage = result.refund?.status === "manual_review"
 				? "The refund could not be initiated automatically. Please review this payment in PayMongo."
-				: `The ₱${amount.toLocaleString()} security-deposit refund was submitted to PayMongo.`);
+				: result.refund?.status === "succeeded"
+					? `The ₱${amount.toLocaleString()} security-deposit refund was completed.`
+					: `The ₱${amount.toLocaleString()} security-deposit refund was submitted to PayMongo and is processing.`;
+			alert(refundMessage + (result.refundEmailSent
+				? " A refund confirmation email was sent to the guest."
+				: result.refund?.refundId
+					? " The refund was issued, but its email could not be sent. Check Gmail settings and server logs."
+					: ""));
 			await fetchReservations(false);
 		} catch (error) {
 			alert(error instanceof Error ? error.message : "The security deposit refund could not be initiated.");
@@ -511,16 +523,23 @@ const ManageReservations = () => {
 																</button>
 															)}
 															{canManageReservations &&
-																canRefundSecurityDeposit(res, getPhilippineDate()) && (
-																	<button
-																		type="button"
-																		onClick={() => requestSecurityDepositRefund(res)}
-																		disabled={updatingReservationId !== null || refundingReservationId !== null}
-																		className="btn btn-sm rounded-full btn-success text-white"
-																		title="Refund the security deposit after inspection"
-																	>
-																		{refundingReservationId === res.id ? <span className="loading loading-spinner loading-xs" /> : "Refund deposit"}
-																	</button>
+																shouldShowSecurityDepositRefund(res, getPhilippineDate()) && (
+																	<>
+																		<button
+																			type="button"
+																			onClick={() => requestSecurityDepositRefund(res)}
+																			disabled={updatingReservationId !== null || refundingReservationId !== null || !canRefundSecurityDeposit(res, getPhilippineDate())}
+																			className="btn btn-sm rounded-full btn-success text-white"
+																			title={canRefundSecurityDeposit(res, getPhilippineDate())
+																				? "Refund the security deposit"
+																				: "A confirmed PayMongo payment is required before this deposit can be refunded."}
+																		>
+																			{refundingReservationId === res.id ? <span className="loading loading-spinner loading-xs" /> : "Refund deposit"}
+																		</button>
+																		{!canRefundSecurityDeposit(res, getPhilippineDate()) && (
+																			<span className="text-xs text-amber-800">Available after PayMongo payment is recorded.</span>
+																		)}
+																	</>
 																)}
 														</div>
 													)}

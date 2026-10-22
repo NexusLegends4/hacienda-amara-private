@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
+import { sendSecurityDepositRefundEmail } from "../server/utils/security-deposit-refund-email.js";
 
 const json = (body, status = 200) => Response.json(body, { status });
 
@@ -72,7 +73,7 @@ export async function POST(request) {
 	});
 	const { data: reservation, error: lookupError } = await supabase
 		.from("reservations")
-		.select("id, status, payment_status, down_payment_amount, security_deposit_amount, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
+		.select("id, status, guest_name, guest_email, room_type, check_in, payment_status, down_payment_amount, security_deposit_amount, security_deposit_refund_status, amount_paid, balance_due, paymongo_checkout_session_id, paymongo_balance_checkout_session_id, paymongo_checkout_payment_id, paymongo_balance_payment_id")
 		.eq("id", reservationId)
 		.maybeSingle();
 	if (lookupError) {
@@ -110,16 +111,46 @@ export async function POST(request) {
 		}
 	}
 	if (!isBalancePayment && reservation.payment_status === "down_payment_paid") {
-		return json({ received: true });
-	}
-	if (reservation.payment_status === "fully_paid" || (isBalancePayment && reservation.payment_status !== "down_payment_paid")) {
-		if (!isBalancePayment && reservation.status === "cancelled") {
-			await refundSecurityDeposit(
+		if (reservation.status === "cancelled" && reservation.security_deposit_refund_status === "not_requested") {
+			const refund = await refundSecurityDeposit(
 				supabase,
 				{ ...reservation, paymongo_checkout_payment_id: paidPayment.id },
 				process.env.PAYMONGO_SECRET_KEY,
 				`Security deposit refund for cancelled reservation ${reservation.id}`,
 			);
+			if (refund.refundId) {
+				try {
+					await sendSecurityDepositRefundEmail(reservation, refund);
+				} catch (emailError) {
+					console.error(
+						"Cancelled reservation refund email could not be sent:",
+						reservation.id,
+						emailError instanceof Error ? emailError.message : "unknown error",
+					);
+				}
+			}
+		}
+		return json({ received: true });
+	}
+	if (reservation.payment_status === "fully_paid" || (isBalancePayment && reservation.payment_status !== "down_payment_paid")) {
+		if (!isBalancePayment && reservation.status === "cancelled") {
+			const refund = await refundSecurityDeposit(
+				supabase,
+				{ ...reservation, paymongo_checkout_payment_id: paidPayment.id },
+				process.env.PAYMONGO_SECRET_KEY,
+				`Security deposit refund for cancelled reservation ${reservation.id}`,
+			);
+			if (refund.refundId) {
+				try {
+					await sendSecurityDepositRefundEmail(reservation, refund);
+				} catch (emailError) {
+					console.error(
+						"Cancelled reservation refund email could not be sent:",
+						reservation.id,
+						emailError instanceof Error ? emailError.message : "unknown error",
+					);
+				}
+			}
 		}
 		return json({ received: true });
 	}
@@ -174,12 +205,23 @@ export async function POST(request) {
 		return json({ error: "Unable to record payment confirmation." }, 503);
 	}
 	if (!isBalancePayment && reservation.status === "cancelled") {
-		await refundSecurityDeposit(
+		const refund = await refundSecurityDeposit(
 			supabase,
 			{ ...reservation, ...paymentUpdate },
 			process.env.PAYMONGO_SECRET_KEY,
 			`Security deposit refund for cancelled reservation ${reservation.id}`,
 		);
+		if (refund.refundId) {
+			try {
+				await sendSecurityDepositRefundEmail(reservation, refund);
+			} catch (emailError) {
+				console.error(
+					"Cancelled reservation refund email could not be sent:",
+					reservation.id,
+					emailError instanceof Error ? emailError.message : "unknown error",
+				);
+			}
+		}
 	}
 
 	return json({ received: true });

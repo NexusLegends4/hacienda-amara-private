@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getVerifiedStaff } from "../server/utils/staff-auth.js";
 import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
+import { sendSecurityDepositRefundEmail } from "../server/utils/security-deposit-refund-email.js";
 import { canRefundSecurityDeposit } from "../src/utils/security-deposit-refund-eligibility.js";
 import {
 	isGmailAddress,
@@ -16,14 +17,16 @@ const reservationFields = [
 	"id",
 	"status",
 	"guest_email",
+	"guest_name",
 	"guest_phone",
+	"room_type",
 	"check_in",
 	"check_out",
 	"payment_status",
 	"security_deposit_amount",
 	"paymongo_checkout_payment_id",
 	"security_deposit_refund_status",
-	"late_payment_received_at",
+	"profiles(email, firstname, lastname)",
 ].join(", ");
 
 const getPhilippineDate = () => {
@@ -82,14 +85,11 @@ export async function POST(request) {
 		if (!["down_payment_paid", "fully_paid"].includes(reservation.payment_status)) {
 			return json({ error: "No PayMongo payment is available to refund for this reservation." }, 409);
 		}
-		if (reservation.status === "denied" && !reservation.late_payment_received_at) {
-			return json({ error: "No late payment was received for this denied reservation." }, 409);
-		}
 		if (!canRefundSecurityDeposit(reservation, getPhilippineDate())) {
 			return json({
 				error: reservation.status === "confirmed"
 					? "The security deposit can only be refunded on or after the check-out date."
-					: "This reservation is not eligible for a security deposit refund.",
+					: "A recorded PayMongo payment and unrequested security deposit refund are required.",
 			}, 409);
 		}
 		if (reservation.security_deposit_refund_status !== "not_requested") {
@@ -104,9 +104,22 @@ export async function POST(request) {
 				supabase,
 				reservation,
 				process.env.PAYMONGO_SECRET_KEY,
-				`Security deposit refund after check-out for reservation ${reservation.id}`,
+				`Security deposit refund for ${reservation.status} reservation ${reservation.id}`,
 			);
-			return json({ refund });
+			let refundEmailSent = false;
+			if (refund.refundId) {
+				try {
+					await sendSecurityDepositRefundEmail(reservation, refund);
+					refundEmailSent = true;
+				} catch (emailError) {
+					console.error(
+						"Security deposit refund was issued but its guest email could not be sent:",
+						reservation.id,
+						emailError instanceof Error ? emailError.message : "unknown error",
+					);
+				}
+			}
+			return json({ refund, refundEmailSent });
 		} catch (refundError) {
 			console.error(
 				"Security deposit refund processing needs manual review:",
@@ -186,6 +199,7 @@ export async function POST(request) {
 	}
 
 	let refund = { status: "not_requested" };
+	let refundEmailSent = false;
 	if (["down_payment_paid", "fully_paid"].includes(reservation.payment_status)) {
 		try {
 			refund = await refundSecurityDeposit(
@@ -194,6 +208,18 @@ export async function POST(request) {
 				process.env.PAYMONGO_SECRET_KEY,
 				`Security deposit refund for cancelled reservation ${reservation.id}`,
 			);
+			if (refund.refundId) {
+				try {
+					await sendSecurityDepositRefundEmail(reservation, refund);
+					refundEmailSent = true;
+				} catch (emailError) {
+					console.error(
+						"Reservation was cancelled and its refund was issued, but the guest email failed:",
+						reservation.id,
+						emailError instanceof Error ? emailError.message : "unknown error",
+					);
+				}
+			}
 		} catch (error) {
 			console.error(
 				"Reservation was cancelled, but refund processing needs manual review:",
@@ -204,5 +230,5 @@ export async function POST(request) {
 		}
 	}
 
-	return json({ cancelled: true, refund });
+	return json({ cancelled: true, refund, refundEmailSent });
 }
