@@ -470,15 +470,6 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
         env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
       ),
-      // Only allow 'unsafe-inline' and 'unsafe-eval' in development
-      // (Vite HMR / React hot reload). Production builds must NOT include
-      // them in script-src/style-src for maximum CSP score.
-      "import.meta.env.VITE_UNSAFE_INLINE": JSON.stringify(
-        mode === "development" ? "'unsafe-inline'" : "",
-      ),
-      "import.meta.env.VITE_UNSAFE_EVAL": JSON.stringify(
-        mode === "development" ? "'unsafe-eval'" : "",
-      ),
     },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg"],
