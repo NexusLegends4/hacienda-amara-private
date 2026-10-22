@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getVerifiedStaff } from "../server/utils/staff-auth.js";
 import { refundSecurityDeposit } from "../server/utils/security-deposit-refund.js";
+import { canRefundSecurityDeposit } from "../src/utils/security-deposit-refund-eligibility.js";
 import {
 	isGmailAddress,
 	isPhilippineMobileNumber,
@@ -22,6 +23,7 @@ const reservationFields = [
 	"security_deposit_amount",
 	"paymongo_checkout_payment_id",
 	"security_deposit_refund_status",
+	"late_payment_received_at",
 ].join(", ");
 
 const getPhilippineDate = () => {
@@ -77,14 +79,18 @@ export async function POST(request) {
 			return json({ error: "Unable to load this reservation." }, 503);
 		}
 		if (!reservation) return json({ error: "Reservation not found." }, 404);
-		if (reservation.status !== "confirmed") {
-			return json({ error: "Only a completed, confirmed reservation can receive the post-check-out deposit refund." }, 409);
-		}
 		if (!["down_payment_paid", "fully_paid"].includes(reservation.payment_status)) {
 			return json({ error: "No PayMongo payment is available to refund for this reservation." }, 409);
 		}
-		if (String(reservation.check_out) > getPhilippineDate()) {
-			return json({ error: "The security deposit can only be refunded on or after the check-out date." }, 409);
+		if (reservation.status === "denied" && !reservation.late_payment_received_at) {
+			return json({ error: "No late payment was received for this denied reservation." }, 409);
+		}
+		if (!canRefundSecurityDeposit(reservation, getPhilippineDate())) {
+			return json({
+				error: reservation.status === "confirmed"
+					? "The security deposit can only be refunded on or after the check-out date."
+					: "This reservation is not eligible for a security deposit refund.",
+			}, 409);
 		}
 		if (reservation.security_deposit_refund_status !== "not_requested") {
 			return json({

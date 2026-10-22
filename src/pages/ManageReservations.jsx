@@ -4,6 +4,7 @@ import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import { canRefundSecurityDeposit } from "../utils/security-deposit-refund-eligibility";
 
 const getInitials = (name) => {
 	const parts = String(name || "")
@@ -510,10 +511,7 @@ const ManageReservations = () => {
 																</button>
 															)}
 															{canManageReservations &&
-																["down_payment_paid", "fully_paid"].includes(res.payment_status) &&
-																res.security_deposit_refund_status === "not_requested" &&
-																res.security_deposit_amount > 0 &&
-																res.check_out <= getPhilippineDate() && (
+																canRefundSecurityDeposit(res, getPhilippineDate()) && (
 																	<button
 																		type="button"
 																		onClick={() => requestSecurityDepositRefund(res)}
