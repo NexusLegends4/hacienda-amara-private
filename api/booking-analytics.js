@@ -344,3 +344,6 @@ export async function POST(request) {
     return json({ error: error?.message || "Unable to load booking analytics." }, 500);
   }
 }
+
+
+
