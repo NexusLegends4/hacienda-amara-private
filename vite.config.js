@@ -471,6 +471,11 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
         env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
       ),
+      // Only allow 'unsafe-eval' in development (Vite HMR / React hot reload).
+      // Production builds must NOT include unsafe-eval in script-src.
+      "import.meta.env.VITE_UNSAFE_EVAL": JSON.stringify(
+        mode === "development" ? "'unsafe-eval'" : "",
+      ),
     },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg"],
