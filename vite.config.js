@@ -560,6 +560,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
+      // Add X-Frame-Options header to all responses to prevent clickjacking
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          res.setHeader("X-Frame-Options", "DENY");
+          next();
+        });
+      },
     },
     preview: {
       host: "0.0.0.0",
