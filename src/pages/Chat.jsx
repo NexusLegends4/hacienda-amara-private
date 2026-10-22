@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { useNavigate, NavLink } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
@@ -13,6 +13,13 @@ import {
 	QUICK_QUESTIONS,
 	getQuickActionsForRole,
 } from "../utils/chat-quick-actions";
+import {
+	clearUnread,
+	getIdentityKey,
+	getUnreadState,
+	subscribeUnread,
+} from "../utils/chat-unread";
+import { playChatTone, requestNotificationPermissionOnce, showDesktopNotification } from "../utils/chat-notifications";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
@@ -605,6 +612,7 @@ const [adminOnline, setAdminOnline] = useState(false);
 const [staffOnline, setStaffOnline] = useState(false);
 const [remoteTyping, setRemoteTyping] = useState(null);
 const [seenReceipts, setSeenReceipts] = useState({});
+const [chatToast, setChatToast] = useState(null);
 const [realtimeReady, setRealtimeReady] = useState(false);
 const [historyByConversation, setHistoryByConversation] = useState(() => {
 		const stored = readHistory();
@@ -797,6 +805,82 @@ return [...ids];
 	}, [historyByConversation, isAdminOrStaff]);
 
 const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMessages));
+
+	// ---- Chat notifications -------------------------------------------------
+	// Guests and clients are told when staff answers them, and staff are told
+	// when a new client message lands in a conversation they are not looking at.
+	const unreadIdentity = getIdentityKey(
+		isAdminOrStaff ? (isAdmin ? "admin" : "staff") : "client",
+		session?.user?.id || profile?.id || "anonymous",
+	);
+	const unreadCounts = useSyncExternalStore(
+		useCallback((callback) => subscribeUnread(callback), []),
+		useCallback(() => getUnreadState(unreadIdentity), [unreadIdentity]),
+	);
+
+	const isConversationVisible = useCallback(
+		(conversationKeyToCheck) => {
+			if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
+			if (typeof window !== "undefined" && !window.focused) return false;
+			if (isAdminOrStaff) return conversationKeyToCheck === activeConversationKeyRef.current;
+			return conversationKeyToCheck === conversationKey;
+		},
+		[conversationKey, isAdminOrStaff],
+	);
+
+	const markConversationRead = useCallback(
+		(conversationKeyToClear) => {
+			clearUnread(unreadIdentity, conversationKeyToClear);
+		},
+		[unreadIdentity],
+	);
+
+		const handleIncomingNotification = useCallback(
+			(message) => {
+				if (!message?.conversationKey) return;
+				const isFromStaff = message.senderRole === "admin" || message.senderRole === "staff";
+				const isFromClient = message.senderRole === "client";
+				if (!isFromStaff && !isFromClient) return;
+				// Staff do not notify themselves, and clients ignore their own echo.
+				if (isAdminOrStaff && !isFromClient) return;
+				if (!isAdminOrStaff && !isFromStaff) return;
+
+				if (isAdminOrStaff) {
+					// Staff/desktop-only notifications: a new customer message.
+					markConversationRead(message.conversationKey);
+					playChatTone("incoming");
+					const senderName = message.senderName || "Customer";
+					const preview = (getMessageText(message) || "New message").slice(0, 90);
+					const title = `New chat from ${senderName}`;
+					setChatToast({ id: message.id, title, preview, conversationKey: message.conversationKey });
+					window.setTimeout(() => {
+						setChatToast((current) => (current?.id === message.id ? null : current));
+					}, 6000);
+					showDesktopNotification(title, preview);
+					return;
+				}
+				// Client side: the floating bubble's poller handles notifications
+				// when closed. When open, just mark the message read and play a tone.
+				markConversationRead(message.conversationKey);
+				playChatTone("incoming");
+			},
+			[isAdminOrStaff, markConversationRead],
+		);
+
+	// Mark the active conversation as read while the window is focused.
+	useEffect(() => {
+		if (isAdminOrStaff) {
+			// Staff get desktop notifications for new customer messages.
+			requestNotificationPermissionOnce();
+			if (!activeConversationKey) return undefined;
+			markConversationRead(activeConversationKey);
+			return undefined;
+		}
+		if (!conversationKey) return undefined;
+		if (!isConversationVisible(conversationKey)) return undefined;
+		markConversationRead(conversationKey);
+		return undefined;
+	}, [activeConversationKey, conversationKey, isAdminOrStaff, isConversationVisible, markConversationRead, activeMessages.length]);
 
 	const scrollMessagesToBottom = (behavior = "smooth") => {
 		const container = messageListRef.current;
@@ -1219,7 +1303,7 @@ const clearCurrentChat = async () => {
 				table: "chat_messages",
 			},
 			({ new: row }) => {
-				if (!row?.id || !row?.conversation_key) return;
+				if (!row?.id || !row.conversation_key) return;
 				if (isRefreshingHistoryRef.current) return;
 
 				console.log("📥 Postgres INSERT:", row.conversation_key, row.sender_role, row.sender_name);
@@ -1236,6 +1320,8 @@ const clearCurrentChat = async () => {
 				if (!isAdminOrStaff && message.conversationKey === conversationKey) {
 					setActiveConversationKey(conversationKey);
 				}
+
+				handleIncomingNotification(message);
 			},
 		);
 
@@ -1361,7 +1447,7 @@ const clearCurrentChat = async () => {
 			channel.unsubscribe();
 			channelRef.current = null;
 		};
-	}, [adminAvailable, conversationKey, displayName, isAdmin, isAdminOrStaff, profile, session]);
+	}, [adminAvailable, conversationKey, displayName, handleIncomingNotification, isAdmin, isAdminOrStaff, profile, session]);
 
 	useEffect(() => {
 		if (!isAdminOrStaff) return;
@@ -1851,6 +1937,45 @@ const chatContent = (
 	      </div>
 	    </div>
 	  )}
+	  {chatToast && (
+			<div className="pointer-events-none fixed inset-x-0 top-4 z-[60] flex justify-center px-4">
+				<button
+					type="button"
+					onClick={() => {
+						if (isAdminOrStaff) setActiveConversationKey(chatToast.conversationKey);
+						setChatToast(null);
+					}}
+					className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border border-[#8b5e34]/25 bg-white px-4 py-3 text-left shadow-[0_18px_45px_rgba(60,40,20,0.24)] transition hover:border-[#8b5e34]"
+				>
+					<span className="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#8b5e34] text-white">
+						<span className="absolute inset-0 animate-ping rounded-full bg-[#8b5e34]/30" aria-hidden="true" />
+						<FiMessageSquare className="relative h-4 w-4" />
+					</span>
+					<span className="min-w-0 flex-1">
+						<span className="block text-sm font-semibold text-slate-900">{chatToast.title}</span>
+						<span className="mt-0.5 block truncate text-xs text-slate-500">{chatToast.preview}</span>
+					</span>
+					<span
+						role="button"
+						tabIndex={0}
+						aria-label="Dismiss notification"
+						onClick={(event) => {
+							event.stopPropagation();
+							setChatToast(null);
+						}}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.stopPropagation();
+								setChatToast(null);
+							}
+						}}
+						className="shrink-0 rounded-full px-2 py-1 text-xs text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+					>
+						✕
+					</span>
+				</button>
+			</div>
+		)}
 	  <div className={isBubble ? "flex h-full min-h-0 flex-col bg-white" : "min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6"}>
 			<div className={isBubble ? "h-full min-h-0 max-w-none px-0 pb-0" : "mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6"}>
 				<div className={isBubble ? "relative flex h-full min-h-0 flex-col overflow-hidden bg-white" : "relative overflow-hidden rounded-[2rem] border border-black/5 bg-white/80 shadow-2xl backdrop-blur-xl sm:rounded-[2.5rem]"}>
@@ -1903,19 +2028,25 @@ const chatContent = (
 											latest?.senderName ||
 											"Customer";
 										const conversationAvatar = conversationProfile?.avatar_url || "";
+										const conversationUnread = Number(unreadCounts.conversations?.[conversation.key]) || 0;
 										return (
 											<button
 											key={conversation.key}
 											type="button"
-											onClick={() => setActiveConversationKey(conversation.key)}
+											onClick={() => {
+												setActiveConversationKey(conversation.key);
+												markConversationRead(conversation.key);
+											}}
 												className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
 													isActive
 														? "border-[#8b5e34] bg-[#fff8ef] shadow-sm"
-														: "border-[#ead9c2] bg-white hover:border-[#d7c0a3]"
+														: conversationUnread > 0
+															? "border-[#d7a86f] bg-[#fffaf3] hover:border-[#8b5e34]"
+															: "border-[#ead9c2] bg-white hover:border-[#d7c0a3]"
 												}`}
 											>
 												<div className="flex items-start gap-3">
-													<div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#f4e0c6] text-xs font-bold text-[#8b5e34] shadow-sm">
+													<div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#f4e0c6] text-xs font-bold text-[#8b5e34] shadow-sm">
 														{conversationAvatar ? (
 															<img
 																src={conversationAvatar}
@@ -1925,14 +2056,24 @@ const chatContent = (
 														) : (
 															getAvatarInitials(conversationDisplayName)
 														)}
+														{conversationUnread > 0 && (
+															<span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#c2410c] px-1 text-[0.6rem] font-bold text-white shadow">
+																{conversationUnread > 9 ? "9+" : conversationUnread}
+															</span>
+														)}
 													</div>
 													<div className="min-w-0 flex-1">
 														<p className="truncate text-sm font-semibold text-slate-900">
 															{conversationDisplayName}
 														</p>
-														<p className="mt-1 line-clamp-2 text-xs text-slate-500">
+														<p className={`mt-1 line-clamp-2 text-xs ${conversationUnread > 0 ? "font-medium text-slate-700" : "text-slate-500"}`}>
 															{latestPreview}
 														</p>
+														{conversationUnread > 0 && (
+															<p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#c2410c]">
+																{conversationUnread} new {conversationUnread === 1 ? "message" : "messages"}
+															</p>
+														)}
 													</div>
 													{latest?.createdAt && (
 														<span className="text-[0.7rem] text-slate-400">
@@ -2090,9 +2231,13 @@ const chatContent = (
 																					<span className="block truncate text-xs font-semibold text-slate-900">{name}</span>
 																					<span className="block truncate text-[0.68rem] text-slate-500">{preview}</span>
 																				</span>
-																				{latest?.createdAt && (
+																				{Number(unreadCounts.conversations?.[conversation.key]) > 0 ? (
+																					<span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#c2410c] px-1 text-[0.6rem] font-bold text-white">
+																						{Number(unreadCounts.conversations[conversation.key]) > 9 ? "9+" : unreadCounts.conversations[conversation.key]}
+																					</span>
+																				) : latest?.createdAt ? (
 																					<span className="shrink-0 text-[0.65rem] text-slate-400">{formatTime(latest.createdAt)}</span>
-																				)}
+																				) : null}
 																			</button>
 														</li>
 													);

@@ -89,7 +89,7 @@ export const classifyChatMessage = async ({ text, context = "", role, apiKey, fe
 		},
 		{ role: "user", content: JSON.stringify({ role, recent_context: String(context).slice(-1200), new_message: String(text).slice(0, 1200) }) },
 	];
-	try {
+	const runClassification = async (maxTokens) => {
 		const response = await fetchImpl(GROQ_URL, {
 			method: "POST",
 			headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -100,15 +100,32 @@ export const classifyChatMessage = async ({ text, context = "", role, apiKey, fe
 				// The reasoning model needs room to finish its thinking before it
 				// emits the JSON object, otherwise Groq rejects the request with
 				// a json_validate_failed error.
-				max_tokens: 512,
+				max_tokens: maxTokens,
 				temperature: 0,
 			}),
-			signal: AbortSignal.timeout(8_000),
+			signal: AbortSignal.timeout(12_000),
 		});
-		if (!response.ok) throw new Error(`Groq moderation returned ${response.status}`);
+		if (!response.ok) {
+			const details = await response.text().catch(() => "");
+			const error = new Error(`Groq moderation returned ${response.status}: ${details.slice(0, 200)}`);
+			error.status = response.status;
+			throw error;
+		}
 		const payload = await response.json();
 		const raw = payload?.choices?.[0]?.message?.content;
-		const validated = validateModerationResult(JSON.parse(raw));
+		return validateModerationResult(JSON.parse(raw));
+	};
+
+	try {
+		let validated = null;
+		try {
+			validated = await runClassification(512);
+		} catch (firstError) {
+			// The reasoning model occasionally runs out of budget before it can
+			// emit the JSON object. Retry once with a larger allowance.
+			if (firstError?.status !== 400) throw firstError;
+			validated = await runClassification(1024);
+		}
 		if (!validated) throw new Error("Malformed moderation result");
 		if (!validated.allowed && validated.category === "off_topic" && isResortTopic(text)) {
 			// The classifier was too strict about a message that is clearly a
