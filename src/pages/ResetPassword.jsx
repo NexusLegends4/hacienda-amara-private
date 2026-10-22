@@ -174,7 +174,7 @@ const ResetPassword = () => {
 										className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-base-200"
 										aria-label={showPassword ? "Hide password" : "Show password"}
 									>
-										{showPassword ? <IoEyeOffOutline className="text-2xl" /> : <IoEyeOutline className="text-2xl" />}
+										{showPassword ? <IoEyeOutline className="text-2xl" /> : <IoEyeOffOutline className="text-2xl" />}
 									</button>
 								</div>
 							</label>
@@ -197,7 +197,7 @@ const ResetPassword = () => {
 										className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-base-200"
 										aria-label={showConfirmPassword ? "Hide password" : "Show password"}
 									>
-										{showConfirmPassword ? <IoEyeOffOutline className="text-2xl" /> : <IoEyeOutline className="text-2xl" />}
+										{showConfirmPassword ? <IoEyeOutline className="text-2xl" /> : <IoEyeOffOutline className="text-2xl" />}
 									</button>
 								</div>
 							</label>

@@ -42,9 +42,9 @@ const Input = ({
 						title={showPassword ? "Hide password" : "Show password"}
 					>
 						{showPassword ? (
-							<IoEyeOffOutline className="text-2xl" />
-						) : (
 							<IoEyeOutline className="text-2xl" />
+						) : (
+							<IoEyeOffOutline className="text-2xl" />
 						)}
 					</button>
 				)}
