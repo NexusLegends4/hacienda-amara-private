@@ -782,11 +782,12 @@ const Login = () => {
                   )}
 
                   <div className="space-y-3">
-                    <label className="block">
-                      <span className="block text-sm font-medium text-slate-700 mb-1">
+                    <div className="block">
+                      <label htmlFor="login-email" className="block text-sm font-medium text-slate-700 mb-1">
                         Email
-                      </span>
+                      </label>
                       <Input
+                        id="login-email"
                         type="email"
                         name="email"
                         placeholder="you@gmail.com"
@@ -795,13 +796,14 @@ const Login = () => {
                         required
                         className="w-full"
                       />
-                    </label>
+                    </div>
 
-                    <label className="block">
-                      <span className="block text-sm font-medium text-slate-700 mb-1">
+                    <div className="block">
+                      <label htmlFor="login-password" className="block text-sm font-medium text-slate-700 mb-1">
                         Password
-                      </span>
+                      </label>
                       <Input
+                        id="login-password"
                         type="password"
                         name="password"
                         placeholder="••••••••"
@@ -810,7 +812,7 @@ const Login = () => {
                         required
                         className="w-full"
                       />
-                    </label>
+                    </div>
                     <div className="text-right">
                       <Link
                         to="/forgot-password"

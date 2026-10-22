@@ -114,12 +114,11 @@ export async function POST(request) {
 				return Response.json({ error: "The AI assistant is available to clients and guests only." }, { status: 403 });
 			}
 		}
-		// For guests, use 'guest' as conversation key; for authenticated users, use their user ID
-		const conversationKey = isGuest ? 'guest' : userId;
+		// The conversation key is the signed-in user id, so the assistant must
+		// look up the approved message by sender instead of by a fixed key.
 		const { data: recentMessages, error: historyError } = await supabase
 			.from("chat_messages")
-			.select("content, created_at, sender_id, sender_role")
-			.eq("conversation_key", conversationKey)
+			.select("content, created_at, sender_id, sender_role, conversation_key")
 			.eq("sender_id", userId)
 			.eq("sender_role", "client")
 			.order("created_at", { ascending: false })
@@ -131,6 +130,7 @@ export async function POST(request) {
 			|| getStoredMessageText(approvedMessage.content).trim() !== userText.trim()) {
 			return Response.json({ error: "Send your message through the secure chat form before requesting a reply." }, { status: 403 });
 		}
+		const conversationKey = approvedMessage.conversation_key;
 		const { data: contextMessages, error: contextError } = await supabase
 			.from("chat_messages")
 			.select("content")

@@ -33,6 +33,7 @@ const localAiChatApi = {
         for (const name of [
           "content-type",
           "content-length",
+          "authorization",
           "x-forwarded-for",
           "x-real-ip",
         ]) {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useContext, useEffect } from "react";
 import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { FiCalendar, FiUsers, FiInfo, FiCheckCircle, FiXCircle } from "react-icons/fi";
 import { calculateBookingTotal, isWeekendOrHoliday } from "../utils/booking-pricing";
@@ -24,6 +24,8 @@ const dateKey = (date) => [
 const Reservations = () => {
 	const { profile } = useContext(SessionContext);
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const requestedPackageId = searchParams.get("package");
 	const [packages, setPackages] = useState([]);
 	const [packageLoading, setPackageLoading] = useState(true);
 	const [date, setDate] = useState("");
@@ -80,10 +82,30 @@ const Reservations = () => {
 
 			setPackages(data || []);
 			setPackageLoading(false);
+
+			// Preselect the package the visitor picked on the pricing page.
+			// The value may be the package id or a readable name such as
+			// "Night Time (9 Hours)" coming from a chat quick action.
+			if (requestedPackageId) {
+				const needle = requestedPackageId.trim().toLowerCase();
+				const requested = (data || []).find(
+					(pkg) =>
+						pkg.id === requestedPackageId ||
+						String(pkg.name || "").toLowerCase() === needle ||
+						String(pkg.name || "").toLowerCase().includes(needle),
+				);
+				if (requested) {
+					setSelectedPackageId(requested.id);
+					return;
+				}
+			}
+			if (data && data.length > 0) {
+				setSelectedPackageId((current) => current || data[0].id);
+			}
 		};
 
 		loadPackages();
-	}, []);
+	}, [requestedPackageId]);
 
 	useEffect(() => {
 		let cancelled = false;

@@ -36,13 +36,16 @@ const HARASSMENT_PHRASES = [
 ];
 
 const TOPIC_TERMS = [
-	"hacienda", "amara", "resort", "booking", "reservation", "reserve", "availability",
-	"available", "cottage", "pool", "jacuzzi", "barkada room", "ac room", "aircon", "amenity", "amenities", "facility",
-	"facilities", "rate", "rates", "price", "pricing", "fee", "fees", "payment", "gcash", "bdo",
-	"deposit", "refund", "cancel", "cancellation", "check in", "check-in", "check out", "check-out",
+	"hacienda", "amara", "resort", "booking", "book", "reserve", "reservation", "availability",
+	"available", "cottage", "pool", "jacuzzi", "barkada room", "barkada", "ac room", "aircon", "amenity", "amenities", "facility",
+	"facilities", "inclusion", "inclusions", "rate", "rates", "price", "pricing", "fee", "fees", "payment", "gcash", "bdo",
+	"deposit", "refund", "cancel", "cancellation", "pay", "check in", "check-in", "check out", "check-out",
 	"policy", "policies", "rule", "rules", "location", "address", "direction", "directions", "map",
 	"operating hours", "schedule", "event", "wedding", "birthday", "debut", "overnight", "day tour",
-	"night tour", "extra guests", "guest list", "how many guests", "guest capacity", "children", "kids", "bring food", "outside food", "food policy", "drink policy", "bring water", "catering", "corkage", "pax", "parking", "pet", "wifi",
+	"night tour", "extra guests", "guest list", "how many guests", "guest capacity", "children", "kids", "bring food", "outside food", "food policy", "drink policy", "bring water", "catering", "corkage", "pax", "parking", "pet", "pets", "wifi",
+	"room", "bed", "bunk", "kitchen", "stove", "microwave", "rice cooker", "utensil", "cookware", "tableware", "speaker", "microphone", "videoke", "karaoke", "games", "swimming", "bathroom", "shower", "generator", "light", "lighting", "decorations", "coordinator",
+	"music", "loud", "curfew", "noise", "sound", "party", "band", "dj", "sing", "entertainment", "alcohol", "drinks", "drink", "bar", "attendant", "early", "late", "10pm", "9pm", "6am", "12am",
+	"facebook", "fb page", "review", "reviews", "guest photo", "guest video", "site visit", "ocular",
 	"reservation status", "website", "login", "sign in", "profile", "technical",
 	"upload", "chat", "assistant", "photo", "video", "presyo", "magkano", "bayad", "reserba",
 	"nasaan", "address", "oras", "gabi", "umaga", "bawal", "pwede", "puwede",

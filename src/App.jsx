@@ -41,7 +41,6 @@ const EditEvent = lazy(() => import("./pages/EditEvent.jsx"));
 const EditPackage = lazy(() => import("./pages/EditPackage.jsx"));
 const ViewEvent = lazy(() => import("./pages/ViewEvent.jsx"));
 const ScanQr = lazy(() => import("./pages/ScanQr.jsx"));
-const Chat = lazy(() => import("./pages/Chat.jsx"));
 const Settings = lazy(() => import("./pages/Settings.jsx"));
 const Events = lazy(() => import("./pages/Events.jsx"));
 const Reservations = lazy(() => import("./pages/Reservations.jsx"));
@@ -96,7 +95,6 @@ const routes = [
 	{ path: "/edit-package/:packageId", Component: EditPackage },
 	{ path: "/view-event/:eventId", Component: ViewEvent },
 	{ path: "/scan-qr", Component: ScanQr },
-	{ path: "/chat", Component: Chat },
 	{ path: "/settings", Component: Settings },
 	{ path: "/events", Component: Events },
 	{ path: "/rooms", Component: Reservations },

@@ -34,11 +34,8 @@ const getConfiguration = () => {
 	const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 	const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 	const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-	if (!url || !anonKey || !serviceKey) throw new Error("Chat server configuration is missing.");
-	if (!serviceKey.startsWith("eyJ") && !serviceKey.startsWith("sb_secret_")) {
-		throw new Error("Chat server key must be a Supabase service_role JWT or secret API key.");
-	}
-	return { url, anonKey, serviceKey };
+	if (!url || !anonKey) throw new Error("Chat server configuration is missing.");
+	return { url, anonKey, serviceKey: serviceKey || "" };
 };
 
 const parsePayload = (content) => {
@@ -125,11 +122,9 @@ export async function POST(request) {
 	try {
 		configuration = getConfiguration();
 		// Validate browser sessions with the same public project key used by the
-		// frontend. Keep the service-role client for trusted database writes only.
+		// frontend, then run every database operation with the caller's own
+		// session so the row-level security policies stay in charge.
 		authClient = createClient(configuration.url, configuration.anonKey, {
-			auth: { persistSession: false, autoRefreshToken: false },
-		});
-		serviceClient = createClient(configuration.url, configuration.serviceKey, {
 			auth: { persistSession: false, autoRefreshToken: false },
 		});
 		const { data, error } = await authClient.auth.getUser(token);
@@ -138,6 +133,14 @@ export async function POST(request) {
 			return makeResponse(401, { error: "Secure chat sign-in is required. Please reload the page and sign in again." });
 		}
 		user = data.user;
+
+		// Work through the caller's own session instead of a service-role key so
+		// the database policies decide what this participant may read or write.
+		serviceClient = createClient(configuration.url, configuration.anonKey, {
+			auth: { persistSession: false, autoRefreshToken: false },
+			global: { headers: { Authorization: `Bearer ${token}` } },
+		});
+
 		verificationStage = "participant profile lookup";
 		const { data: profileRow, error: profileError } = await serviceClient
 			.from("profiles")

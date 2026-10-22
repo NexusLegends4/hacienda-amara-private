@@ -19,6 +19,19 @@ import {
 const GROQ_MODEL = "openai/gpt-oss-20b";
 const SNAPSHOT_PAGE_SIZE = 1000;
 
+// Detects a table the current database role is not allowed to read, which
+// happens when the analytics queries fall back from the service-role key to
+// the administrator's own session.
+const isForbiddenTableError = (error) => {
+  const code = error?.code || "";
+  const message = error?.message || "";
+  return (
+    code === "42501" ||
+    code === "PGRST301" ||
+    /permission denied|not authorized|row-level security/i.test(message)
+  );
+};
+
 const json = (body, status = 200) => Response.json(body, { status });
 
 function getUrlHost(value) {
@@ -39,7 +52,7 @@ function getTokenIssuerHost(accessToken) {
   }
 }
 
-async function getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey) {
+async function getAdminUser(request, supabaseUrl, anonKey) {
   const authorization = request.headers.get("authorization") || "";
   const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
   if (!accessToken) {
@@ -67,10 +80,13 @@ async function getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey) {
   }
 
   const user = userData.user;
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  // Read the profile with the caller's own session so no service-role key is
+  // required for the role check.
+  const profileClient = createClient(supabaseUrl, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
-  const { data: profile, error: profileError } = await adminClient
+  const { data: profile, error: profileError } = await profileClient
     .from("profiles")
     .select("role")
     .eq("id", user.id)
@@ -87,7 +103,37 @@ async function getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey) {
   if (!isBookingAnalyticsAdmin(profile?.role)) {
     return { error: "This account does not have the administrator role required for Booking Analytics.", status: 403 };
   }
-  return { user };
+  return { user, accessToken };
+}
+
+// Builds the database client used for the analytics queries. The service-role
+// key is preferred because it reaches the service-role-only tables. When it is
+// absent, malformed, or issued for a different Supabase project, the
+// administrator's own session is used instead so the analytics page keeps
+// working with the data the row-level security policies already expose.
+async function createAnalyticsClient(supabaseUrl, anonKey, serviceRoleKey, accessToken) {
+  const looksUsable = Boolean(
+    serviceRoleKey &&
+      (serviceRoleKey.startsWith("eyJ") || serviceRoleKey.startsWith("sb_secret_")),
+  );
+
+  if (looksUsable) {
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error } = await serviceClient.from("reservations").select("id").limit(1);
+    if (!error) return serviceClient;
+    console.warn(
+      "Booking Analytics service-role key is unusable, falling back to the administrator session:",
+      error.code || "unknown",
+      error.message,
+    );
+  }
+
+  return createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined,
+  });
 }
 
 async function predictBookings(history, expectedMonths, apiKey) {
@@ -204,12 +250,12 @@ export async function POST(request) {
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !anonKey) {
     return json({ error: "Booking analytics is not configured on the server." }, 503);
   }
 
   try {
-    const adminAuth = await getAdminUser(request, supabaseUrl, anonKey, serviceRoleKey);
+    const adminAuth = await getAdminUser(request, supabaseUrl, anonKey);
     if (adminAuth.error) {
       return json({ error: adminAuth.error }, adminAuth.status);
     }
@@ -217,9 +263,11 @@ export async function POST(request) {
     const now = new Date();
     const historicalMonths = getRecentMonths(now, HISTORY_MONTHS);
     const firstMonth = historicalMonths[0];
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    // Prefer the service-role key because it can read the service-role-only
+    // tables. When it is missing or belongs to another project, fall back to
+    // the administrator's own session so the page still works with the
+    // reservations the row-level security policies already allow.
+    const supabase = await createAnalyticsClient(supabaseUrl, anonKey, serviceRoleKey, adminAuth.accessToken);
     const records = [];
     const currentMonthStart = `${now.toISOString().slice(0, 7)}-01`;
     const pageSize = 1000;
@@ -241,11 +289,13 @@ export async function POST(request) {
         if (error) {
           if (
             source.table === "historical_bookings" &&
-            isMissingHistoricalBookingsTable(error)
+            (isMissingHistoricalBookingsTable(error) || isForbiddenTableError(error))
           ) {
             historicalBookingsUnavailable = true;
             console.warn(
-              "Historical bookings table is missing from the Supabase API schema cache.",
+              "Historical bookings could not be read for Booking Analytics:",
+              error.code || "unknown",
+              error.message,
             );
             break;
           }

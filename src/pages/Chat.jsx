@@ -4,11 +4,15 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext.jsx";
 import { supabase } from "../utils/supabase";
 import { clearConversationHistory, registerChatClearHandler } from "../utils/chat-history";
-import heroImage from "../assets/hero.png";
 import DOMPurify from "dompurify";
-import { FiSend, FiTrash2 } from "react-icons/fi";
+import { FiSend, FiTrash2, FiMessageSquare, FiClock, FiCheckCircle } from "react-icons/fi";
 import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS, PAYMENT_DETAILS_ONLY } from "../utils/payment-instructions";
 import { moderateAssistantText, moderateChatText } from "../utils/chat-moderation";
+import { QUICK_REPLY_GROUPS, findFaqByKeywords } from "../utils/chat-faq";
+import {
+	QUICK_QUESTIONS,
+	getQuickActionsForRole,
+} from "../utils/chat-quick-actions";
 
 const BROADCAST_CHANNEL = "hacienda-amara-support-room";
 const HISTORY_STORAGE_KEY = "hacienda-amara-chat-history-v1";
@@ -69,23 +73,12 @@ const HACIENDA_AMARA_FACEBOOK_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-
 const HACIENDA_AMARA_LOCATION_QR_IMAGE = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
 	HACIENDA_AMARA_MAPS_URL,
 )}`;
-const HACIENDA_AMARA_GALLERY_IMAGES = [
-	heroImage,
-	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
-	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
-	"https://via.placeholder.com/400x400/6b4b2a/ffffff?text=Hacienda+Amara",
-];
 const BOT_DISPLAY_NAME = "Hacienda Amara Assistant";
+// When admin/staff is online the assistant stays quiet so the human can
+// answer. If nobody replies within this window the assistant takes over so
+// the customer is never left hanging.
+const ASSISTANT_FALLBACK_DELAY_MS = 45_000;
 const AI_SAFE_FALLBACK = "For current availability, reservation status, and details that need confirmation, please contact authorized Hacienda Amara staff.";
-const CLIENT_CHAT_PROMPTS = [
-	"What is Hacienda Amara?",
-	"Available po ba kayo on [date]?",
-	"What are the rates?",
-	"What inclusions are available?",
-	"Exact location please",
-	"Ano po Facebook page?",
-	"Can we see guest photos or videos?",
-];
 const CLIENT_CHAT_HIGHLIGHTS = [
 	"Instant replies",
 	"Private venue",
@@ -174,191 +167,45 @@ const getConversationKey = (profile, session) =>
 
 const getBotReply = (text) => {
 	const lowerText = text.toLowerCase().trim();
-	const includesAny = (phrases) => phrases.some((phrase) => lowerText.includes(phrase));
 
 	if (!lowerText) {
-		return "Hey! I'm here to help with Hacienda Amara, events, profiles, settings, QR scanning, and inquiries from clients anywhere in the Philippines.";
-	}
-
-	if (includesAny(["hi", "hello", "hey", "good morning", "good afternoon", "good evening"])) {
-		return "Hi! How can I help you with Hacienda Amara today, whether you're nearby or booking from anywhere in the country?";
-	}
-
-	if (includesAny(["amenities", "facilities", "inclusions", "what's included", "what is included", "what are included"])) {
-		return "Our amenities include a 4-foot outdoor pool, jacuzzi/kiddie pool (2 free hours), air-conditioned barkada room with 2 queen beds and 3 bunk beds, JBL PartyBox Ultimate speaker with 2 wireless microphones, 12-seat dining table, and kitchen with refrigerator, hot/cold water dispenser, rice cooker, microwave, cookware, and 30 tableware sets. We also have 2 bathrooms with heaters, front gate and side parking, games, and WiFi (Converge and PointLink). Packages include 2 free jacuzzi hours for 9-hour stays or 4 hours for 21-hour stays. Heated pool is ₱1,000/hour. Gas stove is ₱300 for 9 hours or ₱400 for 21 hours; mineral water is 1 free gallon, then ₱50/gallon. More details: [About Us](/about)";
-	}
-
-	if (includesAny(["what is hacienda amara", "about us", "about hacienda amara", "hacienda amara", "ano ang hacienda amara", "tungkol sa hacienda amara", "features", "details", "capacity", "guests allowed", "about page details"])) {
-		return "Hacienda Amara is a private resort and events place in Amityville, Brgy. San Jose, Rodriguez, Rizal, with an outdoor pool, jacuzzi/kiddie pool, air-conditioned barkada room, and event facilities. The barkada room sleeps up to 25 people. You can view our current amenities here: [About Us](/about)";
-	}
-
-	if (includesAny(["rules", "house rules", "mga rules", "policy", "policies", "guidelines", "bawal", "limitasyon", "pamantayan"])) {
-		return "Para sa safety at cleanliness ng lahat, mayroon kaming mga Rules gaya ng: bawal ang food/drinks sa pool, may designated smoking area, at bawal ang glass bottles malapit sa tubig. Maaari niyo pong basahin ang kumpletong guidelines dito: [Rules](/rules)";
-	}
-
-	if (includesAny(["where is", "located", "location", "address", "venue", "exact location", "saan", "loc", "map", "mapa", "directions", "pumunta", "punta", "waze", "google maps", "how to get there"])) {
 		return {
-			content: `Here is our exact location: ${HACIENDA_AMARA_ADDRESS}\n\n[Open Google Maps](${HACIENDA_AMARA_MAPS_URL})`,
-			attachments: [
-				{
-					id: "location-qr",
-					kind: "image",
-					name: "Hacienda Amara location QR",
-					mimeType: "image/png",
-					url: HACIENDA_AMARA_LOCATION_QR_IMAGE,
-				},
-			],
+			content: "Hey! I'm here to help with Hacienda Amara. How can I assist you today?",
+			quickReplies: QUICK_REPLY_GROUPS.WELCOME,
 		};
 	}
 
-	if (includesAny(["facebook page", "fb page", "facebook link", "fb link", "facebook", "fb", "meta page"])) {
+	// Check for greetings
+	if (["hi", "hello", "hey", "good morning", "good afternoon", "good evening"].some((g) => lowerText.includes(g))) {
 		return {
-			content: `Here is our official Facebook page:\n\n[Open Facebook Page](${HACIENDA_AMARA_FACEBOOK_URL})`,
-			attachments: [
-				{
-					id: "facebook-qr",
-					kind: "image",
-					name: "Hacienda Amara Facebook QR",
-					mimeType: "image/png",
-					url: HACIENDA_AMARA_FACEBOOK_QR_IMAGE,
-				},
-			],
+			content: "Hi! How can I help you with Hacienda Amara today?",
+			quickReplies: QUICK_REPLY_GROUPS.WELCOME,
 		};
 	}
 
-	if (includesAny(["what time can we start setting up", "start setting up", "setup time", "set up"])) {
-		return "Setup time depends on the agreed schedule and package, but we usually allow access before the event start time.";
+	// Search FAQ for keyword match
+	const faqMatch = findFaqByKeywords(text);
+	if (faqMatch) {
+		return {
+			content: faqMatch.answer,
+			quickReplies: faqMatch.quickReplies,
+			attachments: faqMatch.attachments || [],
+		};
 	}
 
-	if (includesAny(["required down payment", "down payment", "downpayment", "dp"])) {
-		return PAYMENT_INSTRUCTIONS;
+	// Payment instructions query
+	if (isPaymentInstructionsQuery(text)) {
+		return {
+			content: PAYMENT_DETAILS_ONLY,
+			quickReplies: ["View Rates", "Check Availability", "Contact Us"],
+		};
 	}
 
-	if (includesAny(["booking process", "how to book", "reserve", "reservation process", "confirm booking", "security deposit", "deposit", "balance payment", "downpayment policy"])) {
-		return PAYMENT_INSTRUCTIONS;
-	}
-
-	if (includesAny(["full payment", "remaining balance", "settled before", "settled on the event date"])) {
-		return "The remaining balance should be settled before or on the event date, based on the agreed terms.";
-	}
-
-	if (includesAny(["event coordinators", "coordinator", "coordination"])) {
-		return "We can assist with coordination or recommend coordinators if needed.";
-	}
-
-	if (includesAny(["wi-fi", "wifi", "internet"])) {
-		return "WiFi is available through Converge and PointLink.";
-	}
-
-	if (includesAny(["pets allowed", "pet friendly", "pet-friendly", "pets"])) {
-		return "Pets may be allowed depending on the event rules and prior approval.";
-	}
-
-	if (includesAny(["parking space", "parking", "park"])) {
-		return "Parking is available at the front gate and on the side.";
-	}
-
-	if (includesAny(["bring our own food", "bring our own drinks", "food and drinks", "bring food", "bring drinks"])) {
-		return "Yes, bringing your own food and drinks is allowed, subject to certain guidelines.";
-	}
-
-	if (includesAny(["extra charges for additional hours", "additional hours", "overtime", "extend hours"])) {
-		return "Yes, overtime usage may incur additional charges.";
-	}
-
-	if (includesAny(["sound system", "lights", "lightings", "lighting"])) {
-		return "Basic sound system and lighting may be included or available as add-ons.";
-	}
-
-	if (includesAny(["electricity included", "electricity", "power"])) {
-		return "Yes, electricity is included for standard use within the event.";
-	}
-
-	if (includesAny(["restrictions on decorations", "decorations", "decorate"])) {
-		return "Decorations are allowed, but we may have guidelines to protect the venue and ensure safety.";
-	}
-
-	if (includesAny(["rehearsals before the event", "rehearsal", "rehearse"])) {
-		return "Rehearsals may be arranged depending on availability and schedule.";
-	}
-
-	if (includesAny(["corkage fee", "corkage"])) {
-		return "Corkage fees may apply for certain outside items, depending on the agreement.";
-	}
-
-	if (includesAny(["guest list", "guests list"])) {
-		return "Yes, a guest list is helpful for planning and managing the event properly.";
-	}
-
-	if (includesAny(["extend the event duration", "extend event duration", "extension", "extend"])) {
-		return "Extensions are possible depending on availability and may have additional fees.";
-	}
-
-	if (includesAny(["cleaning services", "cleanup", "cleaning after the event"])) {
-		return "Basic cleaning is included, but additional cleanup may be required for excessive mess.";
-	}
-
-	if (includesAny(["security deposit", "deposit"])) {
-		return "A security deposit may be required and is refundable based on venue condition after the event.";
-	}
-
-	if (includesAny(["visit or inspect the venue", "site visits", "site visit", "inspect the venue", "venue before booking"])) {
-		return "Yes, site visits can be arranged by appointment.";
-	}
-
-	if (includesAny(["how early should we book", "book early", "book as early as possible"])) {
-		return "It is recommended to book as early as possible, especially for peak dates, to secure your preferred schedule.";
-	}
-
-	if (includesAny(["where to pay", "how to pay", "saan ako magbabayad", "saan magbabayad", "saan ako mag babayad", "payment qr", "mode of payment", "payment details", "payment info", "payment instruction", "bayad", "pay"])) {
-		return PAYMENT_INSTRUCTIONS;
-	}
-
-	if (includesAny(["availability", "available po", "slot", "booking", "reserve", "reserve po", "reservation", "book"])) {
-		return "Available po ba sa chosen date? I can help check that. For booking, please send your date, time, and guest count. Note: Prices are for 20 pax, additional pax at ₱200/head. Kids 8 and below are FREE.";
-	}
-
-	if (includesAny(["overnight", "day tour", "how many guests", "guest limit", "capacity", "allowed"])) {
-		return "We offer Day Time (9AM-6PM), Night Time (9PM-6AM), and 21-hour Overnight stays. Rates are for 20 pax. Additional pax: ₱200/head. Kids 8 and below are FREE.";
-	}
-
-	if (includesAny(["rate", "rates", "package", "packages", "promo", "discount", "down payment", "payment", "deposit", "mode of payment", "gcash", "cash", "bank transfer"])) {
-		return "2026 Rates for 20 pax: Day Time (₱6,999-₱7,999), Night Time (₱7,999-₱8,999), Overnight (₱14,999-₱17,999). Extra guests: ₱200/head. Kids 8 & below are FREE!";
-	}
-
-	if (includesAny(["pool", "room", "room po", "air-conditioned", "ac room", "videoke", "sound system", "kitchen", "utensil", "generator", "tv", "netflix", "ref", "freezer"])) {
-		return "Our pool is 4 feet deep, with a jacuzzi/kiddie pool (2 free hours); heated pool use is ₱1,000/hour. The air-conditioned barkada room has 2 queen beds and 3 bunk beds. The kitchen has a refrigerator, hot/cold water dispenser, rice cooker, microwave, cookware, and 30 tableware sets. See the full list at [About Us](/about).";
-	}
-
-	if (includesAny(["event setup", "birthday", "wedding", "debut", "tables", "chairs", "decorations", "stylist", "lights and sound", "stage", "coordinator", "fireworks", "overnight after event"])) {
-		return "Yes, we can assist with birthdays, weddings, debuts, and event setup inquiries. Please send your event date and desired setup so we can confirm what is included.";
-	}
-
-	if (includesAny(["check-in", "check out", "check out time", "food", "bring food", "corkage", "pet-friendly", "cancellation", "reschedule", "security deposit", "noise", "curfew", "damage", "clean"])) {
-		return "Para sa mga policies gaya ng check-in/out, pets, at iba pang rules, maaari niyo pong basahin ang detalye rito: [Rules](/rules)";
-	}
-
-	if (includesAny(["can i", "can we see photos/videos", "pictures", "videos", "photo", "video", "gallery", "reviews", "site visit", "ocular", "parking", "commute", "accessible", "safe"])) {
-		return "Browse guest photos and videos, or share your own through a review: [Reviews](/reviews).";
-	}
-
-	if (includesAny(["event", "events"])) {
-		return "You can browse events from the Events page. If you need admin help, manage them from Manage Events.";
-	}
-
-	if (includesAny(["profile"])) {
-		return "Go to Profile to view your account details or Edit Profile to update them.";
-	}
-
-	if (includesAny(["setting"])) {
-		return "Open Settings to update preferences, password, and other account options.";
-	}
-
-	if (includesAny(["qr", "scan"])) {
-		return "Open the Scan QR page, allow camera access, and point it at the code.";
-	}
-
-	return "Thanks for your message. If you need more help, ask about availability, rates, amenities, location, events, rules, policies, photos, or nationwide bookings.";
+	// Default fallback with helpful quick replies
+	return {
+		content: "Thanks for your message! I can help you with information about Hacienda Amara. Here are some things you can ask about:",
+		quickReplies: QUICK_REPLY_GROUPS.GENERAL_HELP,
+	};
 };
 
 const callAIChat = async (userMessage, accessToken) => {
@@ -763,9 +610,11 @@ const [historyByConversation, setHistoryByConversation] = useState(() => {
 		const stored = readHistory();
 		return stored;
 	});
-	const [activeConversationKey, setActiveConversationKey] = useState(conversationKey);
-	const [prompt, setPrompt] = useState("");
+const [activeConversationKey, setActiveConversationKey] = useState(conversationKey);
+const [prompt, setPrompt] = useState("");
 	const [selectedMedia, setSelectedMedia] = useState(null);
+	const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
+	const conversationMenuRef = useRef(null);
 const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chatAuthReady, setChatAuthReady] = useState(!CHAT_BACKEND_CONFIGURED);
@@ -787,11 +636,39 @@ const [isSending, setIsSending] = useState(false);
 	const dbAvailableRef = useRef(true);
 	const isRefreshingHistoryRef = useRef(false);
 	const pendingBotReplyTimersRef = useRef(new Set());
+	const pendingAssistantFallbackRef = useRef(null);
+	const lastClientMessageAtRef = useRef(0);
 	const pendingWritesRef = useRef(new Set());
 	const chatGenerationRef = useRef(0);
 	const messageTimestampsRef = useRef([]);
 	const isClearingChatRef = useRef(false);
 	const clearedConversationsRef = useRef(new Set());
+
+	const clearAssistantFallback = useCallback(() => {
+		if (pendingAssistantFallbackRef.current) {
+			window.clearTimeout(pendingAssistantFallbackRef.current);
+			pendingAssistantFallbackRef.current = null;
+		}
+	}, []);
+
+	// Close the conversation switcher when clicking anywhere else.
+	useEffect(() => {
+		if (!conversationMenuOpen) return undefined;
+		const handlePointerDown = (event) => {
+			if (conversationMenuRef.current && !conversationMenuRef.current.contains(event.target)) {
+				setConversationMenuOpen(false);
+			}
+		};
+		const handleKeyDown = (event) => {
+			if (event.key === "Escape") setConversationMenuOpen(false);
+		};
+		document.addEventListener("mousedown", handlePointerDown);
+		document.addEventListener("keydown", handleKeyDown);
+		return () => {
+			document.removeEventListener("mousedown", handlePointerDown);
+			document.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [conversationMenuOpen]);
 
 	const sendChatBroadcast = useCallback((event, payload) => {
 		const channel = channelRef.current;
@@ -882,6 +759,8 @@ const [isSending, setIsSending] = useState(false);
 
 		return [...ids];
 	}, [activeMessages]);
+	const quickActions = useMemo(() => getQuickActionsForRole(profile?.role), [profile?.role]);
+
 	const conversations = useMemo(() => {
 		if (!isAdminOrStaff) {
 			return [
@@ -954,6 +833,7 @@ const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMe
 		clearedConversationsRef.current.add(targetConversationKey);
 		pendingBotReplyTimersRef.current.forEach((timer) => window.clearTimeout(timer));
 		pendingBotReplyTimersRef.current.clear();
+		clearAssistantFallback();
 		await Promise.allSettled([...pendingWritesRef.current]);
 		setHistoryByConversation((current) => {
 			const next = { ...current };
@@ -964,16 +844,16 @@ const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMe
 		return () => {
 			isClearingChatRef.current = false;
 		};
-	}), [conversationKey]);
+	}), [conversationKey, clearAssistantFallback]);
 
-	const mergeMessage = (message) => {
+	const mergeMessage = useCallback((message) => {
 		clearedConversationsRef.current.delete(message.conversationKey);
 		setHistoryByConversation((current) => {
 			return upsertConversationHistory(current, message);
 		});
-	};
+	}, []);
 
-	const persistMessage = async (message, sourceMessageId = "", accessTokenOverride = "") => {
+	const persistMessage = useCallback(async (message, sourceMessageId = "", accessTokenOverride = "") => {
 		if (isClearingChatRef.current && message.conversationKey === conversationKey) {
 			throw new Error("This chat is being cleared.");
 		}
@@ -1022,7 +902,7 @@ const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMe
 		} finally {
 			pendingWritesRef.current.delete(pendingWrite);
 		}
-	};
+	}, [conversationKey, session]);
 
 	const refreshFromDb = useCallback(async () => {
 		if (!CHAT_BACKEND_CONFIGURED) return false;
@@ -1112,12 +992,27 @@ const nextSnapshot = isAdminOrStaff
 		let cancelled = false;
 		const loadProfiles = async () => {
 			const ids = [...profileIds];
-			const { data, error: dbError } = await supabase
-				.from("profiles")
-				.select("id, firstname, lastname, avatar_url, email, role")
+			// Read the display-only view so guests and customers can also see
+			// the name and picture of the staff member they are talking to.
+			// Fall back to the profiles table if the view is not available yet.
+			let query = supabase
+				.from("chat_participant_profiles")
+				.select("id, firstname, lastname, avatar_url, role")
 				.in("id", ids);
+			let { data, error: dbError } = await query;
+			if (dbError) {
+				const fallback = await supabase
+					.from("profiles")
+					.select("id, firstname, lastname, avatar_url, email, role")
+					.in("id", ids);
+				if (fallback.error) {
+					if (!cancelled) console.error("Unable to load chat participant profiles:", fallback.error.message);
+					return;
+				}
+				data = fallback.data;
+			}
 
-			if (cancelled || dbError || !Array.isArray(data)) return;
+			if (cancelled || !Array.isArray(data)) return;
 
 			setProfilesById((current) => {
 				const next = { ...current };
@@ -1543,9 +1438,96 @@ const clearCurrentChat = async () => {
 	};
 
 	const handleSubmit = async (event) => {
-		event.preventDefault();
+		event?.preventDefault?.();
+		await sendChatText(prompt);
+	};
+	// When admin/staff answers the customer, the pending assistant fallback is
+	// no longer needed and the assistant must stay quiet.
+	useEffect(() => {
+		if (isAdminOrStaff) return;
+		if (!pendingAssistantFallbackRef.current) return;
+		const sentAt = lastClientMessageAtRef.current;
+		if (!sentAt) return;
+		const answeredByStaff = activeMessages.some((message) => {
+			if (message?.senderRole !== "admin" && message?.senderRole !== "staff") return false;
+			const createdAt = new Date(message.createdAt || 0).getTime();
+			return createdAt >= sentAt;
+		});
+		if (answeredByStaff) clearAssistantFallback();
+	}, [activeMessages, isAdminOrStaff, clearAssistantFallback]);
 
-		const trimmed = DOMPurify.sanitize(prompt.trim());
+	const runAssistantReply = useCallback(async (question, outgoing, chatGeneration) => {
+		let replyText = "";
+		let replyAttachments = [];
+		let replyQuickReplies = [];
+
+		if (isPaymentInstructionsQuery(question)) {
+			// For payment queries, show only manual transfer details
+			replyText = PAYMENT_DETAILS_ONLY;
+		} else {
+			// Check FAQ keywords first for instant accurate responses
+			const botReply = getBotReply(question);
+			const hasFaqMatch = typeof botReply === "string"
+				? !botReply.includes("Thanks for your message. If you need more help")
+				: (botReply.content && !botReply.content.includes("Thanks for your message. If you need more help"));
+
+			if (hasFaqMatch) {
+				// FAQ keyword matched - use rule-based response
+				replyText = typeof botReply === "string" ? botReply : botReply.content || "";
+				replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+				replyQuickReplies = typeof botReply === "string" ? [] : botReply.quickReplies || [];
+			} else {
+				// No FAQ match - try AI for open-ended questions
+				const currentSession = session || (await supabase.auth.getSession()).data.session;
+				const aiReply = await callAIChat(
+					question,
+					currentSession?.access_token || outgoing.accessToken,
+				);
+				if (!aiReply || isGenericResponse(aiReply)) {
+					replyText = typeof botReply === "string" ? botReply : botReply.content || "";
+					replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
+					replyQuickReplies = typeof botReply === "string" ? [] : botReply.quickReplies || [];
+				} else {
+					replyText = aiReply;
+				}
+			}
+		}
+		if (!moderateAssistantText(replyText).allowed) {
+			replyText = "For details I can’t verify here, please contact authorized Hacienda Amara staff.";
+		}
+
+		if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
+
+		const botMessage = {
+			id: getMessageId(),
+			conversationKey: outgoing.conversationKey,
+			senderId: "bot",
+			senderRole: "bot",
+			senderName: BOT_DISPLAY_NAME,
+			content: replyText,
+			attachments: replyAttachments,
+			quickReplies: replyQuickReplies,
+			createdAt: new Date().toISOString(),
+		};
+
+		const botReplyTimer = window.setTimeout(async () => {
+			pendingBotReplyTimersRef.current.delete(botReplyTimer);
+			if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
+
+			pendingScrollToBottomRef.current = true;
+			mergeMessage(botMessage);
+			try {
+				await persistMessage(botMessage, outgoing.id, outgoing.accessToken);
+			} catch (botError) {
+				console.error("Unable to save the chat assistant reply:", botError);
+				setError(`The bot replied, but its reply could not be saved to chat history: ${botError?.message || "Please try again."}`);
+			}
+		}, 650);
+		pendingBotReplyTimersRef.current.add(botReplyTimer);
+	}, [isClearingChatRef, mergeMessage, persistMessage, session]);
+
+	const sendChatText = async (rawText) => {
+		const trimmed = DOMPurify.sanitize(String(rawText || "").trim());
 		if (trimmed) {
 			const moderation = moderateChatText(trimmed, {
 				context: activeMessages.slice(-4).map(getMessageText).join(" ").slice(-2400),
@@ -1591,75 +1573,21 @@ const clearCurrentChat = async () => {
 			sendTypingState(false);
 			setPrompt("");
 
-			// Client chats (including anonymous guests) always receive an assistant
-			// response. Online staff can still join the same conversation.
-			const shouldTriggerBot = !isAdminOrStaff;
-			const isQuickQuery = ["where is", "location", "address", "saan", "loc", "map", "mapa", "directions", "google maps", "waze", "how to get there", "pumunta", "punta", "exact location", "qr", "payment", "bayad", "pay", "magbabayad", "gcash", "bdo", "rules", "bawal", "policy", "about", "amenities", "rates", "rate", "price", "presyo", "magkano", "how to book", "how to reserve", "booking process", "reservation process", "paano mag book", "paano magbook", "paano mag reserve", "paano magreserve", "hot to book", "hot to reserve", "ho to book", "ho to reserve", "howto book", "howto reserve"].some(k => trimmed.toLowerCase().includes(k));
+			// While admin/staff is online the human takes over and the assistant
+			// stays quiet. If nobody answers, the assistant replies after a
+			// short grace period so the customer is never left waiting.
+			const staffIsOnline = adminOnline || staffOnline;
+			const shouldTriggerBot = !isAdminOrStaff && !staffIsOnline;
 
-			if (shouldTriggerBot || isQuickQuery) {
-let replyText = "";
-			let replyAttachments = [];
-
-			if (isPaymentInstructionsQuery(trimmed)) {
-				// For payment queries, show only manual transfer details
-				replyText = PAYMENT_DETAILS_ONLY;
-			} else {
-					// Check FAQ keywords first for instant accurate responses
-					const botReply = getBotReply(trimmed);
-					const hasFaqMatch = typeof botReply === "string" 
-						? !botReply.includes("Thanks for your message. If you need more help")
-						: (botReply.content && !botReply.content.includes("Thanks for your message. If you need more help"));
-					
-					if (hasFaqMatch) {
-						// FAQ keyword matched - use rule-based response
-						replyText = typeof botReply === "string" ? botReply : botReply.content || "";
-						replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
-					} else {
-						// No FAQ match - try AI for open-ended questions
-						const currentSession = session || (await supabase.auth.getSession()).data.session;
-						let aiReply = await callAIChat(
-							trimmed,
-							currentSession?.access_token || outgoing.accessToken,
-						);
-						if (!aiReply || isGenericResponse(aiReply)) {
-							replyText = typeof botReply === "string" ? botReply : botReply.content || "";
-							replyAttachments = typeof botReply === "string" ? [] : botReply.attachments || [];
-						} else {
-							replyText = aiReply;
-						}
-					}
-				}
-				if (!moderateAssistantText(replyText).allowed) {
-					replyText = "For details I can’t verify here, please contact authorized Hacienda Amara staff.";
-				}
-
-				if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
-
-				const botMessage = {
-					id: getMessageId(),
-					conversationKey: outgoing.conversationKey,
-					senderId: "bot",
-					senderRole: "bot",
-					senderName: BOT_DISPLAY_NAME,
-					content: replyText,
-					attachments: replyAttachments,
-					createdAt: new Date().toISOString(),
-				};
-
-				const botReplyTimer = window.setTimeout(async () => {
-					pendingBotReplyTimersRef.current.delete(botReplyTimer);
-					if (chatGeneration !== chatGenerationRef.current || isClearingChatRef.current) return;
-
-					pendingScrollToBottomRef.current = true;
-					mergeMessage(botMessage);
-					try {
-						await persistMessage(botMessage, outgoing.id, outgoing.accessToken);
-					} catch (botError) {
-						console.error("Unable to save the chat assistant reply:", botError);
-						setError(`The bot replied, but its reply could not be saved to chat history: ${botError?.message || "Please try again."}`);
-					}
-				}, 650);
-				pendingBotReplyTimersRef.current.add(botReplyTimer);
+			if (!isAdminOrStaff && staffIsOnline) {
+				lastClientMessageAtRef.current = Date.now();
+				clearAssistantFallback();
+				pendingAssistantFallbackRef.current = window.setTimeout(() => {
+					pendingAssistantFallbackRef.current = null;
+					void runAssistantReply(trimmed, outgoing, chatGeneration);
+				}, ASSISTANT_FALLBACK_DELAY_MS);
+			} else if (shouldTriggerBot) {
+				await runAssistantReply(trimmed, outgoing, chatGeneration);
 			}
 		} catch (sendError) {
 			console.error("Unable to send chat message:", sendError);
@@ -1676,7 +1604,7 @@ let replyText = "";
 		}
 	};
 
-	const renderMessage = (message) => {
+	const renderMessage = (message, messageIndex = 0) => {
 		const isOutgoing = isAdminOrStaff
 			? message.senderRole === (isAdmin ? "admin" : "staff")
 			: message.senderRole === "client";
@@ -1693,11 +1621,28 @@ let replyText = "";
 		const bubbleToneClassName = isRightAligned
 			? "rounded-br-lg border border-[#8b5e34]/15 bg-[#9a6a39] text-[#fff7eb] shadow-[0_6px_18px_rgba(154,106,57,0.16)]"
 			: isBotMessage
-				? "rounded-bl-lg border border-[#ead9c2] bg-[#fff8ef] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]"
-				: "rounded-bl-lg border border-[#ead9c2] bg-[#fffdf8] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]";
+				? "rounded-bl-lg rounded-tr-lg rounded-br-lg border border-[#ead9c2] bg-[#fdf6ec] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]"
+				: "rounded-bl-lg rounded-tr-lg rounded-br-lg border border-[#ead9c2] bg-[#fffdf8] text-[#3b2a1a] shadow-[0_6px_18px_rgba(138,94,52,0.08)]";
 		const messageToneClassName = isRightAligned ? "text-[#fff7eb]" : "text-[#3b2a1a]";
 		const wasSeen = seenReceipts[message.conversationKey] === message.id;
 		const footerText = attachmentSummary || (isRightAligned ? wasSeen ? "Seen" : "Delivered" : "");
+
+		// Quick replies: use the ones attached to the message, or derive them
+		// from the client question that triggered this bot reply so the buttons
+		// still show up after the conversation is reloaded from the database.
+		let messageQuickReplies = Array.isArray(message.quickReplies) ? message.quickReplies : [];
+		if (isBotMessage && messageQuickReplies.length === 0) {
+			const thread = isAdminOrStaff
+				? activeMessages
+				: historyByConversation[conversationKey] || EMPTY_MESSAGES;
+			const previousClientMessage = [...thread.slice(0, messageIndex)]
+				.reverse()
+				.find((item) => item?.senderRole === "client");
+			if (previousClientMessage) {
+				const derived = getBotReply(previousClientMessage.content);
+				messageQuickReplies = Array.isArray(derived?.quickReplies) ? derived.quickReplies : [];
+			}
+		}
 
 		return (
 			<div
@@ -1796,6 +1741,25 @@ let replyText = "";
 							))}
 						</div>
 					)}
+					{isBotMessage && messageQuickReplies.length > 0 && (
+						<div className="mt-2.5 border-t border-[#ead9c2] pt-2">
+							<p className="mb-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-[#8b5e34]/60">
+								You can also ask
+							</p>
+							<div className="flex flex-wrap gap-1.5">
+								{messageQuickReplies.map((qr, idx) => (
+									<button
+										key={`qr-${message.id}-${idx}`}
+										type="button"
+										onClick={() => sendChatText(qr)}
+										className="rounded-full border border-[#9a6a39]/40 bg-white px-2.5 py-1.5 text-[0.68rem] font-medium text-[#8b5e34] hover:bg-[#8b5e34] hover:text-white transition shrink-0"
+									>
+										{qr}
+									</button>
+								))}
+							</div>
+						</div>
+					)}
 				</div>
 
 				<div className={`chat-footer text-[0.68rem] ${isRightAligned ? "text-[#e2cfb6]" : "text-[#8f7b63]"}`}>
@@ -1889,7 +1853,7 @@ const chatContent = (
 	  )}
 	  <div className={isBubble ? "flex h-full min-h-0 flex-col bg-white" : "min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 py-4 pt-5 sm:px-4 sm:py-6 md:px-6"}>
 			<div className={isBubble ? "h-full min-h-0 max-w-none px-0 pb-0" : "mx-auto max-w-7xl px-2 pb-4 sm:px-4 sm:pb-6"}>
-				<div className={isBubble ? "relative flex h-full min-h-0 flex-col overflow-hidden bg-white" : "relative overflow-hidden rounded-[1.75rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl sm:rounded-[2rem]"}>
+				<div className={isBubble ? "relative flex h-full min-h-0 flex-col overflow-hidden bg-white" : "relative overflow-hidden rounded-[2rem] border border-black/5 bg-white/80 shadow-2xl backdrop-blur-xl sm:rounded-[2.5rem]"}>
 				<div className={`relative flex min-h-0 flex-col overflow-hidden ${isBubble ? "h-full" : "min-h-[calc(100dvh-8rem)]"} ${isAdminOrStaff && !isBubble ? "lg:flex-row" : ""}`}>
 				{isAdminOrStaff && !isBubble && (
 					<aside className="flex h-64 lg:h-auto min-h-0 flex-col border-b border-[#ead9c2] bg-white lg:w-84 lg:border-b-0 lg:border-r">
@@ -1987,20 +1951,34 @@ const chatContent = (
 
 						<div className="flex min-w-0 min-h-0 flex-1 flex-col">
 						<div
-							className={isBubble ? "z-10 flex shrink-0 flex-col gap-2 border-b border-black/5 bg-white px-3 pb-2" : "flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between"}
+							className={isBubble ? "z-10 flex shrink-0 items-center gap-2.5 border-b border-[#8b5e34]/15 bg-gradient-to-r from-[#8b5e34] to-[#a97a49] px-3 py-2.5 text-white shadow-sm" : "flex flex-col gap-3 border-b border-black/5 bg-white/75 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between"}
 							style={isBubble ? { paddingTop: "max(0.5rem, env(safe-area-inset-top))" } : undefined}
 						>
 							<div className="flex min-w-0 items-center gap-3">
 								<button
 									type="button"
 									onClick={() => isBubble ? onClose?.() : navigate(-1)}
-									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"
+									className={isBubble ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-lg font-semibold text-white transition hover:bg-white/25" : "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff4e6] text-lg font-semibold text-slate-900 transition hover:bg-[#f3dfc6]"}
 									aria-label={isBubble ? "Close chat" : "Go back"}
 								>
 									{isBubble ? "×" : "<"}
 								</button>
 
 <div className="flex min-w-0 items-center gap-2.5">
+									{isBubble && (
+										<div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white/20 text-xs font-bold text-white">
+											{profile?.avatar_url ? (
+												<img
+													src={profile.avatar_url}
+													alt={displayName || "Profile avatar"}
+													className="h-full w-full object-cover"
+												/>
+											) : (
+												<span>{display.initials}</span>
+											)}
+											<span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#8b5e34] bg-emerald-400" aria-hidden="true" />
+										</div>
+									)}
 									{!isBubble && <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#8b5e34] text-sm font-bold text-white shadow-sm">
 										{profile?.avatar_url ? (
 											<img
@@ -2013,10 +1991,10 @@ const chatContent = (
 										)}
 									</div>}
 									<div className="min-w-0">
-										<h1 className={isBubble ? "truncate text-sm font-semibold leading-tight text-slate-900" : "text-base font-semibold leading-tight text-slate-900 sm:text-lg"}>
-											{isBubble && isAdminOrStaff ? activeThreadName : "Hacienda Amara Chat"}
+										<h1 className={isBubble ? "truncate text-sm font-semibold leading-tight text-white" : "text-base font-semibold leading-tight text-slate-900 sm:text-lg"}>
+											{isBubble && isAdminOrStaff ? activeThreadName : "Hacienda Amara Support"}
 										</h1>
-										<p className={isBubble ? "truncate text-[0.7rem] text-slate-600" : "text-xs text-slate-600 sm:text-sm"}>
+										<p className={isBubble ? "truncate text-[0.7rem] text-white/85" : "text-xs text-slate-600 sm:text-sm"}>
 											{isAdminOrStaff
 												? adminAvailable
 													? isAdmin
@@ -2042,19 +2020,88 @@ const chatContent = (
 							</div>
 
 							<div className={isBubble ? "flex shrink-0 flex-wrap items-center gap-2 lg:justify-end" : "flex flex-wrap items-center gap-2 lg:justify-end"}>
-								{isBubble && isAdminOrStaff && conversations.length > 1 && (
-									<select
-									aria-label="Select customer conversation"
-									className="max-w-32 rounded-lg border border-[#ead9c2] bg-white px-2 py-1 text-xs"
-									value={activeConversationKey}
-									onChange={(event) => setActiveConversationKey(event.target.value)}
-								>
-									{conversations.map(({ key }) => {
-										const latestClientMessage = (historyByConversation[key] || []).slice().reverse().find((message) => message.senderRole === "client");
-										return <option key={key} value={key}>{latestClientMessage?.senderName || "Customer"}</option>;
-									})}
-								</select>
-								)}
+							{isBubble && isAdminOrStaff && conversations.length > 1 && (() => {
+								const activeConversation = conversations.find((item) => item.key === activeConversationKey) || conversations[0];
+								const activeProfileId = getConversationProfileId(historyByConversation[activeConversation?.key] || []);
+								const activeProfile = activeProfileId ? profilesById[activeProfileId] : null;
+								const activeName =
+									getProfileDisplayName(activeProfile) ||
+									activeConversation?.lastMessage?.senderName ||
+									"Customer";
+								const activeAvatar = activeProfile?.avatar_url || "";
+								return (
+									<div ref={conversationMenuRef} className="relative">
+										<button
+											type="button"
+											onClick={() => setConversationMenuOpen((open) => !open)}
+											aria-haspopup="listbox"
+											aria-expanded={conversationMenuOpen}
+											className="flex max-w-56 items-center gap-2 rounded-xl border border-white/25 bg-white/15 px-2.5 py-1.5 text-left text-white transition hover:bg-white/25"
+										>
+											<span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/25 text-[0.6rem] font-bold">
+												{activeAvatar ? (
+													<img src={activeAvatar} alt={activeName} className="h-full w-full object-cover" />
+												) : (
+													getAvatarInitials(activeName)
+												)}
+											</span>
+											<span className="min-w-0 flex-1 truncate text-xs font-semibold">{activeName}</span>
+											<span aria-hidden="true" className={`text-[0.6rem] transition-transform ${conversationMenuOpen ? "rotate-180" : ""}`}>▼</span>
+										</button>
+
+										{conversationMenuOpen && (
+											<ul
+												role="listbox"
+												className="absolute right-0 z-50 mt-2 max-h-72 w-72 overflow-y-auto rounded-2xl border border-[#ead9c2] bg-white p-1.5 shadow-[0_18px_45px_rgba(60,40,20,0.22)]"
+											>
+												{conversations.map((conversation) => {
+													const latest = conversation.lastMessage;
+													const profileId = getConversationProfileId(historyByConversation[conversation.key] || []);
+													const conversationProfile = profileId ? profilesById[profileId] : null;
+													const name =
+														getProfileDisplayName(conversationProfile) ||
+														latest?.senderName ||
+														"Customer";
+													const avatar = conversationProfile?.avatar_url || "";
+													const preview = latest?.content || "No messages yet.";
+													const isActive = conversation.key === activeConversationKey;
+													return (
+														<li key={conversation.key}>
+															<button
+																type="button"
+																				role="option"
+																				aria-selected={isActive}
+																				onClick={() => {
+																					setActiveConversationKey(conversation.key);
+																					setConversationMenuOpen(false);
+																				}}
+																				className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${
+																					isActive ? "bg-[#fff8ef]" : "hover:bg-[#fdf6ec]"
+																				}`}
+																			>
+																				<span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#ead9c2] bg-[#f4e0c6] text-[0.6rem] font-bold text-[#8b5e34]">
+																					{avatar ? (
+																						<img src={avatar} alt={name} className="h-full w-full object-cover" />
+																					) : (
+																						getAvatarInitials(name)
+																					)}
+																				</span>
+																				<span className="min-w-0 flex-1">
+																					<span className="block truncate text-xs font-semibold text-slate-900">{name}</span>
+																					<span className="block truncate text-[0.68rem] text-slate-500">{preview}</span>
+																				</span>
+																				{latest?.createdAt && (
+																					<span className="shrink-0 text-[0.65rem] text-slate-400">{formatTime(latest.createdAt)}</span>
+																				)}
+																			</button>
+														</li>
+													);
+												})}
+											</ul>
+										)}
+									</div>
+								);
+							})()}
 								{!isBubble && <div className="text-left sm:text-right">
 									<p className="text-xs text-slate-600">
 										{isAdminOrStaff ? (isAdmin ? "Admin mode" : "Staff mode") : "Client chat"}
@@ -2079,7 +2126,7 @@ const chatContent = (
                                   type="button"
                                   onClick={refreshMessages}
                                   disabled={loading || isRefreshing}
-                                  className={isBubble ? "btn btn-black btn-sm h-10 min-h-10 w-10 shrink-0 rounded-full p-0" : "btn btn-black btn-xs shrink-0 rounded-full px-3"}
+                                  className={isBubble ? "btn btn-ghost btn-sm h-8 min-h-8 w-8 shrink-0 rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25" : "btn btn-black btn-xs shrink-0 rounded-full px-3"}
                                   aria-label="Refresh chat messages"
                                   title={isRefreshing ? "Refreshing..." : "Refresh messages"}
                                 >
@@ -2096,7 +2143,7 @@ const chatContent = (
                                   type="button"
                                   onClick={clearCurrentChat}
                                   disabled={loading}
-                                  className={isBubble ? "btn btn-ghost btn-sm h-10 min-h-10 w-10 shrink-0 rounded-full p-0" : "btn btn-ghost btn-xs shrink-0 rounded-full px-3"}
+                                  className={isBubble ? "btn btn-ghost btn-sm h-8 min-h-8 w-8 shrink-0 rounded-full border-0 bg-white/15 p-0 text-white hover:bg-white/25" : "btn btn-ghost btn-xs shrink-0 rounded-full px-3"}
                                   aria-label="Clear current chat"
                                   title="Clear current chat"
                                 >
@@ -2127,14 +2174,19 @@ const chatContent = (
 								}}
 							>
 								{!isAdminOrStaff && !isBubble && (
-									<div className="border-b border-black/5 bg-white/75 px-4 py-4 backdrop-blur sm:px-5">
+									<div className="border-b border-black/5 bg-white/80 px-4 py-4 backdrop-blur-xl sm:px-5">
 										<div className="mx-auto flex w-full max-w-4xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 											<div className="max-w-2xl">
-												<p className="text-xs uppercase tracking-[0.28em] text-base-content/55">
-													Customer support
-												</p>
-												<h2 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">
-													Clean, direct support
+												<div className="flex items-center gap-2 mb-2">
+													<div className="h-8 w-8 rounded-xl bg-[#8b5e34]/10 flex items-center justify-center">
+														<FiMessageSquare className="h-4 w-4 text-[#8b5e34]" />
+													</div>
+													<p className="text-xs uppercase tracking-[0.28em] text-base-content/55 font-medium">
+														Customer support
+													</p>
+												</div>
+												<h2 className="mt-1 text-xl font-semibold text-slate-900 sm:text-2xl leading-tight">
+													Hacienda Amara Support
 												</h2>
 												<p className="mt-2 max-w-xl text-sm leading-6 text-base-content/75">
 													Ask about rates, inclusions, availability, location, events, or policies. The assistant replies automatically when admin/staff is offline.
@@ -2145,7 +2197,7 @@ const chatContent = (
 												{CLIENT_CHAT_HIGHLIGHTS.map((item) => (
 													<span
 														key={item}
-														className="rounded-full border border-black/5 bg-white px-3 py-2 text-[0.72rem] font-medium text-base-content/75"
+														className="rounded-full border border-[#8b5e34]/20 bg-[#8b5e34]/5 px-3 py-1.5 text-[0.7rem] font-medium text-[#8b5e34]"
 													>
 														{item}
 													</span>
@@ -2164,9 +2216,9 @@ const chatContent = (
 									<p className="text-xs text-base-content/55">
 										{isAdminOrStaff
 											? "Pick a customer conversation on the left and reply live."
-											: adminOnline
-												? "Admin/Staff is online and can see your messages."
-												: "If admin/staff is offline, our assistant will answer automatically."}
+											: adminOnline || staffOnline
+												? "Admin/Staff is online and will reply to you shortly."
+												: "Admin/Staff is offline, so our assistant will answer automatically."}
 									</p>
 								</div>}
 
@@ -2193,22 +2245,47 @@ const chatContent = (
 												</div>
 											</div>
 										) : currentThreadMessages.length === 0 ? (
-											<div className="mx-auto mt-10 w-full max-w-2xl overflow-hidden rounded-[1.5rem] border border-black/5 bg-white/75 shadow-2xl backdrop-blur-xl">
-												<div className="px-5 py-4">
-													<p className="text-xs uppercase tracking-[0.26em] text-base-content/55">
-														Welcome
+											<div className="mx-auto w-full max-w-2xl space-y-3">
+												<div className="overflow-hidden rounded-[1.25rem] border border-[#8b5e34]/20 bg-gradient-to-br from-[#8b5e34] to-[#a97a49] p-4 text-white shadow-lg">
+													<p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-white/70">
+														Welcome to Hacienda Amara
 													</p>
-													<h3 className="mt-2 text-lg font-semibold text-slate-900">
-														Start a conversation
+													<h3 className="mt-1 text-lg font-semibold leading-tight">
+														How can we help you today?
 													</h3>
-													<p className="mt-1 text-sm leading-6 text-base-content/75">
-														Ask about availability, rates, amenities, location, or event setup.
+													<p className="mt-1.5 text-[0.78rem] leading-5 text-white/85">
+														Pick an action below or ask a question. We answer instantly, and our team replies live when available.
 													</p>
+													<div className="mt-3 flex flex-wrap gap-1.5">
+														{CLIENT_CHAT_HIGHLIGHTS.map((item) => (
+															<span key={item} className="rounded-full bg-white/15 px-2.5 py-1 text-[0.65rem] font-medium text-white">
+																{item}
+															</span>
+														))}
+													</div>
+												</div>
+
+												<div className="rounded-[1.25rem] border border-[#ead9c2] bg-white p-3 shadow-sm">
+													<p className="mb-2 px-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-[#8b5e34]/70">
+														Jump to
+													</p>
+													<div className="grid grid-cols-2 gap-1.5">
+														{quickActions.map((action) => (
+															<button
+																key={action.id}
+																type="button"
+																onClick={() => navigate(action.to)}
+																className="flex items-center gap-1.5 rounded-xl border border-[#ead9c2] bg-[#fffaf3] px-2.5 py-2 text-left text-[0.72rem] font-medium text-[#6b4a2c] transition hover:border-[#8b5e34] hover:bg-[#8b5e34] hover:text-white"
+															>
+																<span className="truncate">{action.label}</span>
+																<span aria-hidden="true" className="ml-auto text-[0.6rem] opacity-60">›</span>
+															</button>
+														))}
+													</div>
 												</div>
 											</div>
 										) : (
-											currentThreadMessages.map(renderMessage)
-										)}
+											currentThreadMessages.map(renderMessage)										)}
 						{remoteTyping && (isAdminOrStaff ? remoteTyping.role === "client" : remoteTyping.role !== "client") && (
 							<p role="status" className="mx-auto mr-auto rounded-full bg-white/90 px-3 py-1.5 text-xs text-slate-600 shadow-sm">
 								{remoteTyping.name} is typing<span aria-hidden="true">...</span>
@@ -2218,32 +2295,49 @@ const chatContent = (
 									</div>
 								</div>
 
-								<div
-									className={isBubble ? "shrink-0 border-t border-black/5 bg-white px-3 py-2" : "border-t border-black/5 bg-white/75 px-3 py-3 backdrop-blur sm:px-5"}
-									style={isBubble ? { paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" } : undefined}
-								>
-									{!isBubble && <div className="mx-auto mb-3 w-full max-w-4xl rounded-[1.25rem] border border-black/5 bg-white px-3 py-3 shadow-sm">
-										<div className="mb-3 flex items-center justify-between gap-3 px-1">
-											<p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-base-content/55">
-												Quick questions
+						<div className={isBubble ? "shrink-0 border-t border-black/5 bg-white px-3 py-2" : "border-t border-black/5 bg-white/80 px-3 py-3 backdrop-blur-xl sm:px-5"}
+							style={isBubble ? { paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" } : undefined}
+						>
+									<div className={isBubble ? "mx-auto mb-2 w-full" : "mx-auto mb-3 w-full max-w-4xl rounded-[1.25rem] border border-black/5 bg-white px-3 py-3 shadow-sm"}>
+										<div className={isBubble ? "mb-1 flex items-center gap-2" : "mb-2.5 flex items-center justify-between gap-3 px-1"}>
+											<p className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#8b5e34]/75">
+												Quick actions
 											</p>
-											<p className="text-[0.7rem] text-slate-500">
-												Tap to start faster
-											</p>
+											{!isBubble && <p className="text-[0.7rem] text-slate-500">Open a page instantly</p>}
 										</div>
-										<div className="flex flex-wrap gap-2">
-											{CLIENT_CHAT_PROMPTS.map((item) => (
+										<div className={isBubble ? "-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1.5" : "flex flex-wrap gap-1.5"}>
+											{quickActions.map((action) => (
 												<button
-													key={item}
+													key={action.id}
 													type="button"
-													onClick={() => setPrompt(item)}
-													className="rounded-full border border-black/5 bg-white px-3 py-2 text-[0.72rem] font-medium text-base-content/75 transition hover:bg-[#fff8ef]"
+													onClick={() => navigate(action.to)}
+													className="shrink-0 rounded-lg bg-[#8b5e34] px-2.5 py-1.5 text-[0.7rem] font-semibold text-white transition hover:bg-[#6f4a28]"
 												>
-													{item}
+													{action.label}
 												</button>
 											))}
 										</div>
-									</div>}
+
+										<div className={isBubble ? "mb-1 mt-2 flex items-center gap-2" : "mb-2.5 mt-3 flex items-center justify-between gap-3 px-1"}>
+											<p className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#8b5e34]/75">
+												Quick questions
+											</p>
+											{!isBubble && <p className="text-[0.7rem] text-slate-500">Tap to ask instantly</p>}
+										</div>
+										<div className={isBubble ? "-mx-1 flex max-h-20 gap-1.5 overflow-y-auto px-1 pb-1" : "flex flex-wrap gap-1.5"}>
+											{QUICK_QUESTIONS.map((question) => (
+												<button
+													key={question.id}
+													type="button"
+													onClick={() => sendChatText(question.prompt)}
+													disabled={isSending || loading}
+													className="shrink-0 rounded-lg border border-[#8b5e34]/25 bg-[#fffaf3] px-2.5 py-1.5 text-[0.7rem] font-medium text-[#6b4a2c] transition hover:border-[#8b5e34] hover:bg-[#8b5e34] hover:text-white disabled:opacity-50"
+												>
+													{question.label}
+												</button>
+											))}
+										</div>
+									</div>
 
 									{error && (
 										<div className="mx-auto mb-3 max-w-4xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

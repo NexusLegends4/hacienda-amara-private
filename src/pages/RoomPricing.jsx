@@ -125,7 +125,10 @@ const RoomPricing = () => {
                                         ))}
                                     </div>
 
-                                    <button onClick={() => navigate("/rooms")} className="btn btn-black w-full mt-8 rounded-full">
+                                    <button
+                                        onClick={() => navigate(`/rooms?package=${encodeURIComponent(pkg.id)}`)}
+                                        className="btn btn-black w-full mt-8 rounded-full"
+                                    >
                                         Reserve Now
                                     </button>
                                 </div>
