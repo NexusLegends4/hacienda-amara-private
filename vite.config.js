@@ -33,7 +33,6 @@ const localAiChatApi = {
         for (const name of [
           "content-type",
           "content-length",
-          "authorization",
           "x-forwarded-for",
           "x-real-ip",
         ]) {
@@ -465,18 +464,13 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    define: {
+      // Supabase's project URL is public client configuration. Support the
+      // server-side SUPABASE_URL name used by this project as a build fallback.
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
         env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
       ),
-      // script-src: 'unsafe-inline' and 'unsafe-eval' are only allowed in
-      // development (Vite HMR / React). Production builds must NOT include
-      // them in script-src.
-      "import.meta.env.VITE_UNSAFE_INLINE": JSON.stringify(
-        mode === "development" ? "'unsafe-inline'" : "",
-      ),
-      "import.meta.env.VITE_UNSAFE_EVAL": JSON.stringify(
-        mode === "development" ? "'unsafe-eval'" : "",
-      ),
+    },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg"],
     },
@@ -560,13 +554,6 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
-      // Add X-Frame-Options header to all responses to prevent clickjacking
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          res.setHeader("X-Frame-Options", "DENY");
-          next();
-        });
-      },
     },
     preview: {
       host: "0.0.0.0",
