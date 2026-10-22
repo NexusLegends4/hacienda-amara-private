@@ -530,12 +530,12 @@ export default defineConfig(({ mode }) => {
           orientation: "portrait",
           icons: [
             {
-              src: "images/ha-favicon.png",
+              src: "pwa-192x192.png",
               sizes: "192x192",
               type: "image/png",
             },
             {
-              src: "images/ha-favicon.png",
+              src: "pwa-512x512.png",
               sizes: "512x512",
               type: "image/png",
             },
@@ -543,19 +543,11 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "supabase-cache",
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24,
-                },
-              },
-            },
-          ],
+          navigateFallback: "/index.html",
+          navigateFallbackDenylist: [/^\/api\//],
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
         },
       }),
     ],

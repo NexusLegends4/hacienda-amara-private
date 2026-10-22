@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect } from "react";
+import { createElement, lazy, Suspense, useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "./utils/supabase";
@@ -7,42 +7,7 @@ import { clearChatData } from "./utils/chat-history";
 import { hasStaffVerificationClaim } from "./utils/staff-auth";
 import { isGmailAddress } from "./utils/contact-validation";
 import { SessionContext } from "./contexts/SessionContext.jsx";
-
-import BookingQr from "./pages/BookingQr.jsx";
-import HomePage from "./pages/HomePage";
-import Login from "./pages/Login";
-import Profile from "./pages/Profile";
-import EditProfile from "./pages/EditProfile";
-import ManageEvents from "./pages/ManageEvents";
-import ManageClients from "./pages/ManageClients";
-import ManagePackages from "./pages/ManagePackages";
-import AdminNotifications from "./pages/AdminNotifications";
-import AddEvent from "./pages/AddEvent";
-import EditEvent from "./pages/EditEvent";
-import EditPackage from "./pages/EditPackage";
-import Events from "./pages/Events";
-import ViewEvent from "./pages/ViewEvent";
-import Settings from "./pages/Settings";
-import ScanQr from "./pages/ScanQr";
-import Chat from "./pages/Chat";
-import Reservations from "./pages/Reservations";
-import AdminReservations from "./pages/AdminReservations";
-import ManageReservations from "./pages/ManageReservations";
-import ManageReviews from "./pages/ManageReviews";
-import About from "./components/About";
-import ClientNotifications from "./components/ClientNotifications";
-import Reviews from "./pages/Reviews";
-import PostReview from "./pages/PostReview";
-import Rules from "./pages/Rules";
-import CustomerNotifications from "./pages/CustomerNotifications";
-import CustomerNotificationAccess from "./pages/CustomerNotificationAccess";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import AuthCallback from "./pages/AuthCallback";
-import RoomPricing from "./pages/RoomPricing";
-import FacebookQr from "./pages/FacebookQr";
-import ManageAnnouncements from "./pages/ManageAnnouncements";
-import BookingAnalytics from "./pages/BookingAnalytics";
+import PwaControls from "./components/PwaControls.jsx";
 
 const MFA_PENDING_KEY = "hacienda_staff_mfa_pending";
 
@@ -50,6 +15,41 @@ const THEME_STORAGE_KEY = "theme";
 
 // Isang wrapper para sa lahat ng page transitions (para hindi na paulit-ulit)
 const MotionDiv = motion.div;
+const HomePage = lazy(() => import("./pages/HomePage.jsx"));
+const Login = lazy(() => import("./pages/Login.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback.jsx"));
+const Profile = lazy(() => import("./pages/Profile.jsx"));
+const EditProfile = lazy(() => import("./pages/EditProfile.jsx"));
+const ManageEvents = lazy(() => import("./pages/ManageEvents.jsx"));
+const ManagePackages = lazy(() => import("./pages/ManagePackages.jsx"));
+const ManageClients = lazy(() => import("./pages/ManageClients.jsx"));
+const AdminReservations = lazy(() => import("./pages/AdminReservations.jsx"));
+const Reviews = lazy(() => import("./pages/Reviews.jsx"));
+const PostReview = lazy(() => import("./pages/PostReview.jsx"));
+const ManageReviews = lazy(() => import("./pages/ManageReviews.jsx"));
+const About = lazy(() => import("./components/About.jsx"));
+const Rules = lazy(() => import("./pages/Rules.jsx"));
+const ManageReservations = lazy(() => import("./pages/ManageReservations.jsx"));
+const AdminNotifications = lazy(() => import("./pages/AdminNotifications.jsx"));
+const ClientNotifications = lazy(() => import("./components/ClientNotifications.jsx"));
+const CustomerNotificationAccess = lazy(() => import("./pages/CustomerNotificationAccess.jsx"));
+const CustomerNotifications = lazy(() => import("./pages/CustomerNotifications.jsx"));
+const AddEvent = lazy(() => import("./pages/AddEvent.jsx"));
+const EditEvent = lazy(() => import("./pages/EditEvent.jsx"));
+const EditPackage = lazy(() => import("./pages/EditPackage.jsx"));
+const ViewEvent = lazy(() => import("./pages/ViewEvent.jsx"));
+const ScanQr = lazy(() => import("./pages/ScanQr.jsx"));
+const Chat = lazy(() => import("./pages/Chat.jsx"));
+const Settings = lazy(() => import("./pages/Settings.jsx"));
+const Events = lazy(() => import("./pages/Events.jsx"));
+const Reservations = lazy(() => import("./pages/Reservations.jsx"));
+const BookingQr = lazy(() => import("./pages/BookingQr.jsx"));
+const RoomPricing = lazy(() => import("./pages/RoomPricing.jsx"));
+const FacebookQr = lazy(() => import("./pages/FacebookQr.jsx"));
+const ManageAnnouncements = lazy(() => import("./pages/ManageAnnouncements.jsx"));
+const BookingAnalytics = lazy(() => import("./pages/BookingAnalytics.jsx"));
 
 function PageTransition({ children }) {
 	return (
@@ -66,45 +66,45 @@ function PageTransition({ children }) {
 
 // Listahan ng routes: path + component
 const routes = [
-	{ path: "/", element: <HomePage /> },
-	{ path: "/log-in", element: <Login /> },
-	{ path: "/forgot-password", element: <ForgotPassword /> },
-	{ path: "/reset-password", element: <ResetPassword /> },
-	{ path: "/auth/callback", element: <AuthCallback /> },
-	{ path: "/profile", element: <Profile /> },
-	{ path: "/edit-profile", element: <EditProfile /> },
-	{ path: "/manage-events", element: <ManageEvents /> },
-	{ path: "/manage-packages", element: <ManagePackages /> },
-	{ path: "/manage-clients", element: <ManageClients /> },
-	{ path: "/admin-reservations", element: <AdminReservations /> },
-	{ path: "/reviews", element: <Reviews /> },
-	{ path: "/post-review", element: <PostReview /> },
-	{ path: "/manage-reviews", element: <ManageReviews /> },
-	{ path: "/about", element: <About /> },
-	{ path: "/rules", element: <Rules /> },
-	{ path: "/manage-reservations", element: <ManageReservations /> },
-	{ path: "/admin-notifications", element: <AdminNotifications /> },
-	{ path: "/client-notifications", element: <ClientNotifications /> },
-	{ path: "/customer-notifications", element: <CustomerNotificationAccess /> },
+	{ path: "/", Component: HomePage },
+	{ path: "/log-in", Component: Login },
+	{ path: "/forgot-password", Component: ForgotPassword },
+	{ path: "/reset-password", Component: ResetPassword },
+	{ path: "/auth/callback", Component: AuthCallback },
+	{ path: "/profile", Component: Profile },
+	{ path: "/edit-profile", Component: EditProfile },
+	{ path: "/manage-events", Component: ManageEvents },
+	{ path: "/manage-packages", Component: ManagePackages },
+	{ path: "/manage-clients", Component: ManageClients },
+	{ path: "/admin-reservations", Component: AdminReservations },
+	{ path: "/reviews", Component: Reviews },
+	{ path: "/post-review", Component: PostReview },
+	{ path: "/manage-reviews", Component: ManageReviews },
+	{ path: "/about", Component: About },
+	{ path: "/rules", Component: Rules },
+	{ path: "/manage-reservations", Component: ManageReservations },
+	{ path: "/admin-notifications", Component: AdminNotifications },
+	{ path: "/client-notifications", Component: ClientNotifications },
+	{ path: "/customer-notifications", Component: CustomerNotificationAccess },
 	{
 		path: "/customer-notifications/:reservationToken",
-		element: <CustomerNotifications />,
+		Component: CustomerNotifications,
 	},
-	{ path: "/add-event", element: <AddEvent /> },
-	{ path: "/edit-event/:eventId", element: <EditEvent /> },
-	{ path: "/edit-package", element: <EditPackage /> },
-	{ path: "/edit-package/:packageId", element: <EditPackage /> },
-	{ path: "/view-event/:eventId", element: <ViewEvent /> },
-	{ path: "/scan-qr", element: <ScanQr /> },
-	{ path: "/chat", element: <Chat /> },
-	{ path: "/settings", element: <Settings /> },
-	{ path: "/events", element: <Events /> },
-	{ path: "/rooms", element: <Reservations /> },
-	{ path: "/booking-qr", element: <BookingQr /> },
-	{ path: "/room-pricing", element: <RoomPricing /> },
-	{ path: "/facebook-qr", element: <FacebookQr /> },
-	{ path: "/manage-announcements", element: <ManageAnnouncements /> },
-	{ path: "/booking-analytics", element: <BookingAnalytics /> },
+	{ path: "/add-event", Component: AddEvent },
+	{ path: "/edit-event/:eventId", Component: EditEvent },
+	{ path: "/edit-package", Component: EditPackage },
+	{ path: "/edit-package/:packageId", Component: EditPackage },
+	{ path: "/view-event/:eventId", Component: ViewEvent },
+	{ path: "/scan-qr", Component: ScanQr },
+	{ path: "/chat", Component: Chat },
+	{ path: "/settings", Component: Settings },
+	{ path: "/events", Component: Events },
+	{ path: "/rooms", Component: Reservations },
+	{ path: "/booking-qr", Component: BookingQr },
+	{ path: "/room-pricing", Component: RoomPricing },
+	{ path: "/facebook-qr", Component: FacebookQr },
+	{ path: "/manage-announcements", Component: ManageAnnouncements },
+	{ path: "/booking-analytics", Component: BookingAnalytics },
 ];
 
 function App() {
@@ -374,12 +374,17 @@ function App() {
 			value={{ session, profile, setSession, setProfile }}
 		>
 			<AnimatePresence mode="wait">
+				<PwaControls />
 				<Routes location={location} key={location.pathname}>
-					{routes.map(({ path, element }) => (
+					{routes.map(({ path, Component }) => (
 						<Route
 							key={path}
 							path={path}
-							element={<PageTransition>{element}</PageTransition>}
+							element={
+								<Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="Loading page"><span className="loading loading-spinner loading-lg text-primary" /></div>}>
+									<PageTransition>{createElement(Component)}</PageTransition>
+								</Suspense>
+							}
 						/>
 					))}
 				</Routes>
