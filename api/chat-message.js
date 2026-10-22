@@ -308,7 +308,7 @@ export async function POST(request) {
 			apiKey: process.env.GROQ_API_KEY,
 		});
 		if (!moderation.allowed) {
-			if (moderation.unavailable) {
+			if (moderation.unavailable && !moderation.fallback) {
 				console.error("Chat message rejected because Groq moderation is unavailable.");
 				return makeResponse(503, {
 					error: moderation.user_message || "We couldn't verify your message right now. Please try again shortly.",

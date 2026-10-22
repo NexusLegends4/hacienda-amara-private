@@ -24,21 +24,34 @@ describe("validateModerationResult", () => {
 });
 
 describe("classifyChatMessage", () => {
-	it("fails closed if moderation is not configured", async () => {
+	it("uses local moderation when no Groq API key is configured", async () => {
 		const fetchImpl = vi.fn();
-		const result = await classifyChatMessage({ text: "Hi", role: "client", fetchImpl });
-		expect(result.allowed).toBe(false);
+		const result = await classifyChatMessage({ text: "What are the rates of the resort?", role: "client", fetchImpl });
+		expect(result.allowed).toBe(true);
 		expect(result.unavailable).toBe(true);
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 
-	it("fails closed on malformed Groq JSON", async () => {
+	it("still blocks inappropriate messages during a Groq outage", async () => {
+		const fetchImpl = vi.fn().mockRejectedValue(new Error("Network unavailable"));
+		const result = await classifyChatMessage({
+			text: "What are the resort rates, you bitch?",
+			role: "client",
+			apiKey: "test",
+			fetchImpl,
+		});
+		expect(result.allowed).toBe(false);
+		expect(result.category).toBe("profanity");
+		expect(result.unavailable).toBe(true);
+	});
+
+	it("uses local moderation when Groq returns malformed JSON", async () => {
 		const fetchImpl = vi.fn().mockResolvedValue({
 			ok: true,
 			json: async () => ({ choices: [{ message: { content: "{not json}" } }] }),
 		});
 		const result = await classifyChatMessage({ text: "Hi", role: "client", apiKey: "test", fetchImpl });
-		expect(result.allowed).toBe(false);
+		expect(result.allowed).toBe(true);
 		expect(result.unavailable).toBe(true);
 	});
 

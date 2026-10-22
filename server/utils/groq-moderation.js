@@ -1,3 +1,5 @@
+import { moderateChatText } from "../../src/utils/chat-moderation.js";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CATEGORIES = new Set([
 	"allowed", "profanity", "harassment", "threat", "sexual", "spam",
@@ -5,6 +7,29 @@ const CATEGORIES = new Set([
 ]);
 const FALLBACK_MESSAGE = "We couldn't verify your message right now. Please try again shortly.";
 const OFF_TOPIC_MESSAGE = "I'm sorry, but I can only assist with questions and concerns related to Hacienda Amara Private Resort, including reservations, availability, pricing, facilities, and resort policies.";
+
+const moderateLocally = ({ text, context, role }) => {
+	const result = moderateChatText(text, { context, role });
+	const category = result.allowed
+		? "allowed"
+		: result.reason === "off_topic"
+			? "off_topic"
+			: result.reason === "sensitive"
+				? "sensitive_info"
+				: result.reason === "spam"
+					? "spam"
+					: result.reason === "inappropriate"
+						? "profanity"
+						: "uncertain";
+	return {
+		allowed: result.allowed,
+		category,
+		reason: result.reason,
+		user_message: result.message,
+		unavailable: true,
+		fallback: true,
+	};
+};
 
 export const validateModerationResult = (candidate) => {
 	if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
@@ -24,7 +49,10 @@ export const validateModerationResult = (candidate) => {
 };
 
 export const classifyChatMessage = async ({ text, context = "", role, apiKey, fetchImpl = fetch }) => {
-	if (!apiKey) return { allowed: false, category: "uncertain", reason: "moderation_unavailable", user_message: FALLBACK_MESSAGE, unavailable: true };
+	if (!apiKey) {
+		console.warn("GROQ_API_KEY is not configured; using local chat moderation.");
+		return moderateLocally({ text, context, role });
+	}
 	const roleRules = role === "admin" || role === "staff"
 		? "This verified staff member may discuss resort operations, reservations, and authorized technical work. Topic scope is broader, but baseline abuse and privacy rules still apply."
 		: "This guest or client may discuss Hacienda Amara, resort services, their own account, and their own reservation. Reject unrelated topics. Never disclose or request other customers' private information.";
@@ -59,7 +87,7 @@ export const classifyChatMessage = async ({ text, context = "", role, apiKey, fe
 		return validated;
 	} catch (error) {
 		console.error("Groq chat moderation failed:", error?.message || error);
-		return { allowed: false, category: "uncertain", reason: "moderation_unavailable", user_message: FALLBACK_MESSAGE, unavailable: true };
+		return moderateLocally({ text, context, role });
 	}
 };
 

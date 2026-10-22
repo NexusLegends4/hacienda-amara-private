@@ -42,8 +42,9 @@ and tightens chat insert policies. The shared browser/API rules live in
 only that caller's chat context, and checks its complete response before returning it.
 No new secrets or moderation tables are required. The chat API uses the
 existing server-side Supabase service-role key, the Supabase anon-key
-configuration, and server-side `GROQ_API_KEY` for AI replies. Keep all server
-keys out of `VITE_` variables.
+configuration, and server-side `GROQ_API_KEY` for AI replies and enhanced chat
+moderation. If Groq is unavailable, built-in local chat moderation still checks
+and allows or rejects messages. Keep all server keys out of `VITE_` variables.
 
 The cleanup job removes chat messages and uploaded media older than 24 hours. Uploads use signed URLs; video playback includes the browser's play/pause, timeline, and volume controls. If private storage or anonymous sign-in is not configured, the chat shows an error rather than claiming media was sent successfully.
 
