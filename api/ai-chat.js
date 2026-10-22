@@ -6,7 +6,7 @@ import {
 import { isPaymentInstructionsQuery, PAYMENT_INSTRUCTIONS } from "../src/utils/payment-instructions.js";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = "llama-3.1-8b-instant";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 10;
 const requestTimes = new Map();

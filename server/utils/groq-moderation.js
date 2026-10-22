@@ -40,7 +40,7 @@ export const classifyChatMessage = async ({ text, context = "", role, apiKey, fe
 			method: "POST",
 			headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
 			body: JSON.stringify({
-				model: "llama-3.1-8b-instant",
+				model: "openai/gpt-oss-20b",
 				messages,
 				response_format: { type: "json_object" },
 				max_tokens: 180,

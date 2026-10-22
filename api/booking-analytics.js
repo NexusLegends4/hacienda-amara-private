@@ -16,7 +16,7 @@ import {
   selectForecastComparisons,
 } from "../server/utils/booking-analytics.js";
 
-const GROQ_MODEL = "llama-3.1-8b-instant";
+const GROQ_MODEL = "openai/gpt-oss-20b";
 const SNAPSHOT_PAGE_SIZE = 1000;
 
 const json = (body, status = 200) => Response.json(body, { status });

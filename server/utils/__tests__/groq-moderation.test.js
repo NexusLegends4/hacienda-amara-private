@@ -55,6 +55,7 @@ describe("classifyChatMessage", () => {
 		const result = await classifyChatMessage({ text: "Tell me about politics", role: "client", apiKey: "test", fetchImpl });
 		expect(result).toMatchObject({ allowed: false, category: "off_topic" });
 		const requestBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
+		expect(requestBody.model).toBe("openai/gpt-oss-20b");
 		expect(requestBody.response_format).toEqual({ type: "json_object" });
 	});
 });
