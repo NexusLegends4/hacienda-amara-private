@@ -846,7 +846,6 @@ const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMe
 				if (!isAdminOrStaff && !isFromStaff) return;
 
 				if (isAdminOrStaff) {
-					// Staff/desktop-only notifications: a new customer message.
 					markConversationRead(message.conversationKey);
 					playChatTone("incoming");
 					const senderName = message.senderName || "Customer";
@@ -857,12 +856,12 @@ const canReply = !isAdminOrStaff || (adminAvailable && hasClientMessage(activeMe
 						setChatToast((current) => (current?.id === message.id ? null : current));
 					}, 6000);
 					showDesktopNotification(title, preview);
-					return;
+				} else {
+					// Client side: the bubble's poller handles notifications when closed.
+					// When open, just mark read + play a short tone.
+					markConversationRead(message.conversationKey);
+					playChatTone("incoming");
 				}
-				// Client side: the floating bubble's poller handles notifications
-				// when closed. When open, just mark the message read and play a tone.
-				markConversationRead(message.conversationKey);
-				playChatTone("incoming");
 			},
 			[isAdminOrStaff, markConversationRead],
 		);
@@ -1608,7 +1607,7 @@ const clearCurrentChat = async () => {
 				console.error("Unable to save the chat assistant reply:", botError);
 				setError(`The bot replied, but its reply could not be saved to chat history: ${botError?.message || "Please try again."}`);
 			}
-		}, 650);
+		}, 400);
 		pendingBotReplyTimersRef.current.add(botReplyTimer);
 	}, [isClearingChatRef, mergeMessage, persistMessage, session]);
 

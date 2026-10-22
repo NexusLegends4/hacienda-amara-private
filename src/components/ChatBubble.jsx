@@ -49,7 +49,7 @@ const ChatBubbleLauncher = () => {
 	// The chat window is not mounted while the bubble is closed, so a light
 	// poll watches for replies that arrive while the customer is away.
 	useEffect(() => {
-		if (isOpen || isStaff) return undefined;
+		if (isStaff) return undefined;
 		const conversationKey = session?.user?.id || profile?.id;
 		if (!conversationKey) return undefined;
 
