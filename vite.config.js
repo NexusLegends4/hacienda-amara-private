@@ -470,6 +470,15 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
         env.VITE_SUPABASE_URL || env.SUPABASE_URL || "",
       ),
+      // Only allow 'unsafe-inline' and 'unsafe-eval' in development
+      // (Vite HMR / React hot reload). Production builds must NOT include
+      // them in script-src/style-src for maximum CSP score.
+      "import.meta.env.VITE_UNSAFE_INLINE": JSON.stringify(
+        mode === "development" ? "'unsafe-inline'" : "",
+      ),
+      "import.meta.env.VITE_UNSAFE_EVAL": JSON.stringify(
+        mode === "development" ? "'unsafe-eval'" : "",
+      ),
     },
     optimizeDeps: {
       exclude: ["@ffmpeg/ffmpeg"],
@@ -554,6 +563,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "0.0.0.0",
       port: 5173,
+      // Add X-Frame-Options header to all responses to prevent clickjacking
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          res.setHeader("X-Frame-Options", "DENY");
+          next();
+        });
+      },
     },
     preview: {
       host: "0.0.0.0",
