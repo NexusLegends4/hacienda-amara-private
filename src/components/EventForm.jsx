@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Input from "./Form/Input";
 import { supabase } from "../utils/supabase";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +8,11 @@ import { SessionContext } from "../contexts/SessionContext";
 const EventForm = ({ eventData = null }) => {
 	const navigate = useNavigate();
 	const { profile } = useContext(SessionContext);
+
+	const [startDateError, setStartDateError] = useState("");
+	const [endDateError, setEndDateError] = useState("");
+	const [endTimeError, setEndTimeError] = useState("");
+	const minDate = new Date().toISOString().split("T")[0];
 
 	if (profile?.role !== "admin") {
 		return (
@@ -49,6 +54,41 @@ const EventForm = ({ eventData = null }) => {
 	const handleSubmit = (formEvent) => {
 		formEvent.preventDefault();
 
+		const formData = new FormData(formEvent.target);
+		const startDateValue = formData.get("start_date");
+		const endDateValue = formData.get("end_date");
+		const startTimeValue = formData.get("start_time");
+		const endTimeValue = formData.get("end_time");
+		const startDate = startDateValue ? String(startDateValue) : "";
+		const endDate = endDateValue ? String(endDateValue) : "";
+		const startTime = startTimeValue ? String(startTimeValue) : "";
+		const endTime = endTimeValue ? String(endTimeValue) : "";
+		const today = new Date().toISOString().split("T")[0];
+
+		if (startDate && startDate < today) {
+			setStartDateError("Start date cannot be in the past. Please choose today or a future date.");
+			return;
+		}
+		setStartDateError("");
+
+		if (endDate && endDate < today) {
+			setEndDateError("End date cannot be in the past. Please choose today or a future date.");
+			return;
+		}
+		setEndDateError("");
+
+		if (startDate && endDate && endDate < startDate) {
+			setEndDateError("End date cannot be earlier than the start date.");
+			return;
+		}
+		setEndDateError("");
+
+		if (startDate && endDate && startTime && endTime && endDate === startDate && endTime <= startTime) {
+			setEndTimeError("End time must be later than the start time.");
+			return;
+		}
+		setEndTimeError("");
+
 		if (!eventData) {
 			insertEvent(formEvent);
 		} else {
@@ -75,6 +115,9 @@ const EventForm = ({ eventData = null }) => {
 							placeholder="Select Start Date"
 							name="start_date"
 							defaultValue={eventData?.start_date}
+							min={minDate}
+							required
+							error={startDateError}
 						/>
 						<Input
 							type="date"
@@ -82,6 +125,9 @@ const EventForm = ({ eventData = null }) => {
 							placeholder="Select End Date"
 							name="end_date"
 							defaultValue={eventData?.end_date}
+							min={minDate}
+							required
+							error={endDateError}
 						/>
 						<Input
 							type="time"
@@ -96,6 +142,7 @@ const EventForm = ({ eventData = null }) => {
 							placeholder="Select End Time"
 							name="end_time"
 							defaultValue={eventData?.end_time}
+							error={endTimeError}
 						/>
 						<Input
 							type="text"

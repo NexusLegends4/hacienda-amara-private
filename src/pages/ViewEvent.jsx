@@ -29,6 +29,16 @@ const ViewEvent = () => {
 	const { profile } = useContext(SessionContext);
 	const eventUrl = `${window.location.origin}/view-event/${eventId}`;
 
+	const formatTime12 = (time24) => {
+		if (!time24) return "";
+		const [hours, minutes] = String(time24).split(":");
+		let h = parseInt(hours, 10);
+		const ampm = h >= 12 ? "PM" : "AM";
+		h = h % 12;
+		h = h ? h : 12;
+		return `${h}:${minutes} ${ampm}`;
+	};
+
 	useEffect(() => {
 		const fetchEvent = async () => {
 			setLoading(true);
@@ -170,8 +180,8 @@ const ViewEvent = () => {
 										<div className="grid gap-3">
 											<p><span className="font-semibold text-base-content">Start Date:</span> {event.start_date}</p>
 											<p><span className="font-semibold text-base-content">End Date:</span> {event.end_date}</p>
-											<p><span className="font-semibold text-base-content">Start Time:</span> {event.start_time}</p>
-											<p><span className="font-semibold text-base-content">End Time:</span> {event.end_time}</p>
+											<p><span className="font-semibold text-base-content">Start Time:</span> {formatTime12(event.start_time)}</p>
+											<p><span className="font-semibold text-base-content">End Time:</span> {formatTime12(event.end_time)}</p>
 											<p><span className="font-semibold text-base-content">Location:</span> {event.location}</p>
 										</div>
 										<div className="rounded-2xl bg-base-100 p-5">
