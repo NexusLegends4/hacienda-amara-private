@@ -129,18 +129,7 @@ const ChatBubbleLauncher = () => {
 					}
 					aria-expanded={isOpen}
 				>
-					<span
-						className={`absolute inset-0 -z-10 rounded-full bg-[#8b5e34]/25 ${unreadTotal > 0 ? "animate-ping" : "animate-pulse"}`}
-						aria-hidden="true"
-					/>
 					<FiMessageSquare className="h-6 w-6" />
-					{unreadTotal > 0 ? (
-						<span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#c2410c] px-1 text-[0.6rem] font-bold text-white shadow">
-							{unreadTotal > 9 ? "9+" : unreadTotal}
-						</span>
-					) : (
-						<span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500" aria-hidden="true" />
-					)}
 					<span className="pointer-events-none absolute right-16 top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-full bg-[#3b2a1a] px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 sm:block">
 						{unreadTotal > 0 ? `${unreadTotal} new message${unreadTotal === 1 ? "" : "s"}` : "Chat with us"}
 					</span>

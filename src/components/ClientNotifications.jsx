@@ -3,213 +3,141 @@ import MainLayout from "../layouts/MainLayout";
 import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
-import { FiBell, FiCheckCircle, FiRefreshCw, FiTrash2 } from "react-icons/fi";
+import { FiBell, FiMail, FiPhone, FiCalendar } from "react-icons/fi";
+import {
+	isGmailAddress,
+	isPhilippineMobileNumber,
+	normalizePhilippineMobileNumber,
+} from "../utils/contact-validation";
 
 const ClientNotifications = () => {
 	const { session, profile } = useContext(SessionContext);
 	const navigate = useNavigate();
-	const [notifications, setNotifications] = useState([]);
-	const [loading, setLoading] = useState(true);
-	const [clearing, setClearing] = useState(false);
-	const [markingRead, setMarkingRead] = useState(false);
-
-	const formatStatusMessage = (message) => {
-		if (!message) return "No message";
-		return message.replace(/\s+/g, " ").trim();
-	};
+	const [email, setEmail] = useState("");
+	const [phone, setPhone] = useState("");
+	const [checkIn, setCheckIn] = useState("");
+	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
 		if (!session) {
 			navigate("/log-in");
 			return;
 		}
-		// Only clients should see this page, admins have their own notifications page
 		if (profile && profile.role === "admin") {
-			navigate("/admin-notifications"); // Redirect admin to their specific notifications
+			navigate("/admin-notifications");
 		}
 	}, [session, profile, navigate]);
 
-	const fetchNotifications = useCallback(async (showLoading = true) => {
-		if (!profile?.id) return;
-
-		if (showLoading) setLoading(true);
-		const { data, error } = await supabase
-			.from("notifications")
-			.select("*")
-			.eq("profile_id", profile.id)
-			.order("created_at", { ascending: false });
-
-		if (error) {
-			console.error("Error fetching notifications:", error);
-			alert(error.message);
-		} else {
-			setNotifications(data || []);
-		}
-		setLoading(false);
-	}, [profile?.id]);
-
-	useEffect(() => {
-		fetchNotifications();
-
-		// Real-time listener for new notifications or updates to existing ones
-		const channel = supabase
-			.channel(`notifications_for_user_${profile?.id}`)
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "notifications",
-					filter: `profile_id=eq.${profile?.id}`,
-				},
-				() => {
-					fetchNotifications(false);
-				},
-			)
-			.subscribe();
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	}, [profile?.id, fetchNotifications]);
-
-	const markAsRead = async (notificationId) => {
-		setMarkingRead(true);
-		// Optimistic update: mark as read in UI immediately
-		setNotifications((prev) =>
-			prev.map((notif) => (notif.id === notificationId ? { ...notif, is_read: true } : notif))
-		);
-
-		const { error } = await supabase
-			.from("notifications")
-			.update({ is_read: true })
-			.eq("id", notificationId);
-
-		if (error) {
-			console.error("Error marking notification as read:", error);
-			alert(error.message);
-			// Refresh to true state if DB update failed
-			fetchNotifications(false);
-		}
-		setMarkingRead(false);
-	};
-
-	const deleteNotification = async (notificationId) => {
-		if (!window.confirm("Are you sure you want to delete this notification?")) return;
-
-		// Optimistic update: remove from UI immediately
-		setNotifications((prev) => prev.filter((notif) => notif.id !== notificationId));
-
-		const { error } = await supabase.from("notifications").delete().eq("id", notificationId);
-
-		if (error) {
-			console.error("Error deleting notification:", error);
-			alert("Could not delete notification: " + error.message);
-			// Refresh to true state if DB delete failed
-			fetchNotifications(false);
-		}
-	};
-
-	const clearAllNotifications = async () => {
-		if (!window.confirm("WARNING: This will permanently delete ALL your notifications. Are you sure?"))
+	const handleSubmit = useCallback(async (event) => {
+		event.preventDefault();
+		if (!isGmailAddress(email)) {
+			alert("Please enter a Gmail address ending in @gmail.com.");
 			return;
+		}
+		if (!isPhilippineMobileNumber(phone)) {
+			alert("Enter an 11-digit Philippine mobile number starting with 09.");
+			return;
+		}
+		setLoading(true);
 
-		setClearing(true);
-		const originalNotifs = [...notifications];
-		setNotifications([]); // Optimistic clear
+		const { data, error } = await supabase.rpc("find_guest_reservation", {
+			reservation_email: email.trim().toLowerCase(),
+			reservation_phone: normalizePhilippineMobileNumber(phone),
+			reservation_check_in: checkIn,
+		});
 
-		const { error } = await supabase.from("notifications").delete().eq("profile_id", profile.id);
+		setLoading(false);
 
 		if (error) {
 			alert(error.message);
-			setNotifications(originalNotifs); // Rollback on error
+			return;
 		}
-		setClearing(false);
-	};
 
-	const formatDate = (dateString) => {
-		return new Date(dateString).toLocaleString("en-PH", {
-			dateStyle: "medium",
-			timeStyle: "short",
-		});
-	};
+		if (!data?.length || !data[0].reservation_token) {
+			alert("No active reservation matched those details. Check the email, phone number, and reservation date.");
+			return;
+		}
+
+		navigate(`/customer-notifications/${data[0].reservation_token}`);
+	}, [email, phone, checkIn, navigate]);
 
 	return (
-		<MainLayout>
-			<div className="min-h-[calc(100vh-4rem)] bg-[linear-gradient(180deg,_#fffaf0_0%,_#fff4e3_45%,_#f9ead3_100%)] px-4 py-8 sm:px-6 lg:px-8">
-				<div className="mx-auto max-w-4xl space-y-6">
-					<div className="rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-2xl backdrop-blur md:p-8">
-						<h1 className="text-3xl font-black tracking-tight text-base-content md:text-4xl flex items-center gap-3">
-							<FiBell className="text-amber-500" /> Your Notifications
-						</h1>
-						<p className="mt-2 text-sm leading-6 text-base-content/70 md:text-base">
-							Stay updated on your booking requests and other important alerts.
-						</p>
-						<div className="flex flex-wrap gap-3 mt-4">
-							<button
-								onClick={fetchNotifications}
-								className="btn btn-outline btn-sm rounded-full"
-								disabled={loading}
-							>
-								<FiRefreshCw className={loading ? "animate-spin" : ""} />{" "}
-								{loading ? "Refreshing..." : "Refresh"}
-							</button>
-							<button
-								onClick={clearAllNotifications}
-								className="btn btn-error btn-outline btn-sm rounded-full"
-								disabled={loading || clearing || notifications.length === 0}
-							>
-								<FiTrash2 /> {clearing ? "Clearing..." : "Clear All"}
-							</button>
-							<button
-								onClick={() => navigate(-1)}
-								className="btn btn-black btn-sm rounded-full px-6"
-							>
-								Back
-							</button>
-						</div>
-					</div>
-
-					<div className="space-y-4">
-						{loading && <p className="text-center text-gray-500">Loading notifications...</p>}
-						{!loading && notifications.length === 0 && (
-							<p className="text-center text-gray-500">No notifications yet.</p>
-						)}
-						{notifications.map((notif) => (
-							<div
-								key={notif.id}
-								className={`flex items-center justify-between rounded-xl p-4 shadow-sm ${
-									notif.is_read ? "bg-gray-100 text-gray-500" : "bg-white text-gray-800"
-								}`}
-							>
-								<div className="flex-1">
-									<p className={`font-medium ${notif.is_read ? "text-gray-500" : "text-gray-900"}`}>
-										{formatStatusMessage(notif.message)}
-									</p>
-									<p className="text-xs text-gray-400 mt-1">
-										{formatDate(notif.created_at)}
-									</p>
-								</div>
-								<div className="flex items-center gap-2">
-									{!notif.is_read && (
-										<button
-											onClick={() => markAsRead(notif.id)}
-											className="btn btn-ghost btn-sm text-primary hover:bg-primary/10"
-											disabled={markingRead}
-										>
-											<FiCheckCircle /> Mark as Read
-										</button>
-									)}
-									<button
-										onClick={() => deleteNotification(notif.id)}
-										className="btn btn-ghost btn-sm text-error hover:bg-error/10"
-										title="Delete notification"
-									>
-										<FiTrash2 />
-									</button>
-								</div>
+		<MainLayout noScroll>
+			<div className="flex-1 bg-gradient-to-b from-[#fffaf0] via-[#fff5e6] to-[#f8ecd8] px-3 sm:px-4 md:px-6 py-6 sm:py-8 lg:py-12 min-h-0">
+				<div className="mx-auto max-w-xl sm:max-w-2xl h-full flex flex-col min-h-0">
+					<div className="rounded-2xl sm:rounded-[2rem] border border-black/5 bg-white/80 p-4 sm:p-6 md:p-8 lg:p-9 shadow-2xl backdrop-blur-xl flex-1 overflow-y-auto min-h-0">
+						<div className="flex items-center gap-3 flex-shrink-0">
+							<div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-amber-100 text-amber-700">
+								<FiBell className="text-xl sm:text-2xl" />
 							</div>
-						))}
+							<div>
+								<p className="text-xs font-semibold uppercase tracking-[0.2em] text-base-content/50">
+									Customer Access
+								</p>
+								<h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-base-content">
+									Check Reservation Notification
+								</h1>
+							</div>
+						</div>
+
+						<p className="mt-3 sm:mt-4 text-sm sm:text-base leading-6 text-base-content/70">
+							Enter the same email, phone number, and reservation date used when you booked.
+						</p>
+
+						<form onSubmit={handleSubmit} className="mt-6 sm:mt-8 space-y-4 sm:space-y-5 flex-1 min-h-0">
+							<label className="form-control flex-shrink-0">
+								<span className="label-text font-semibold">Email Address</span>
+								<div className="relative">
+									<FiMail className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
+									<input
+										type="email"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
+										value={email}
+										onChange={(event) => setEmail(event.target.value)}
+										placeholder="you@gmail.com"
+										required
+									/>
+								</div>
+							</label>
+
+							<label className="form-control flex-shrink-0">
+								<span className="label-text font-semibold">Phone Number</span>
+								<div className="relative">
+									<FiPhone className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
+									<input
+										type="tel"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
+										value={phone}
+										onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))}
+										placeholder="0929 746 7879"
+										required
+										minLength="11"
+										maxLength="11"
+										pattern="09[0-9]{9}"
+										inputMode="numeric"
+									/>
+								</div>
+							</label>
+
+							<label className="form-control flex-shrink-0">
+								<span className="label-text font-semibold">Reservation Date</span>
+								<div className="relative">
+									<FiCalendar className="pointer-events-none absolute left-3 sm:left-4 top-1/2 -translate-y-1/2" />
+									<input
+										type="date"
+										className="input input-bordered w-full rounded-xl sm:rounded-2xl pl-10 sm:pl-11"
+										value={checkIn}
+										onChange={(event) => setCheckIn(event.target.value)}
+										required
+									/>
+								</div>
+							</label>
+
+							<button type="submit" className="btn btn-black w-full rounded-xl sm:rounded-2xl flex-shrink-0 py-3" disabled={loading}>
+								{loading ? <span className="loading loading-spinner"></span> : <FiBell className="w-4 h-4" />}
+								{loading ? "Checking..." : "View Notification"}
+							</button>
+						</form>
 					</div>
 				</div>
 			</div>

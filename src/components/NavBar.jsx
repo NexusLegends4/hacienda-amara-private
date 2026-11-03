@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { SessionContext } from "../contexts/SessionContext";
 import { supabase } from "../utils/supabase";
@@ -25,7 +25,6 @@ const NavBar = () => {
 	const isAnonymousSession = session?.user?.is_anonymous === true;
 	const hasAccountProfile = Boolean(session && !isAnonymousSession);
 	const showLogin = !session || isAnonymousSession;
-	const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 	const [mobileOpen, setMobileOpen] = useState(false);
 
 	// Keep navigation locked until staff/admin MFA is complete.
@@ -40,42 +39,6 @@ const NavBar = () => {
 		}
 		navigate(to);
 	};
-
-	const fetchUnreadCount = useCallback(() => {
-		if (!profile?.id) return Promise.resolve();
-		return supabase
-			.from("notifications")
-			.select("*", { count: "exact", head: true })
-			.eq("profile_id", profile.id)
-			.eq("is_read", false)
-			.then(({ count, error }) => {
-				if (!error) setUnreadNotificationsCount(count || 0);
-			});
-	}, [profile]);
-
-	useEffect(() => {
-		if (profile?.id && profile.role !== "admin") {
-			fetchUnreadCount();
-
-			const channel = supabase
-				.channel(`unread_count_${profile.id}`)
-				.on(
-					"postgres_changes",
-					{
-						event: "*",
-						schema: "public",
-						table: "notifications",
-						filter: `profile_id=eq.${profile.id}`,
-					},
-					() => fetchUnreadCount()
-				)
-				.subscribe();
-
-			return () => {
-				supabase.removeChannel(channel);
-			};
-		}
-	}, [profile, fetchUnreadCount]);
 
 	const navLinkClass = ({ isActive }) =>
 		[
@@ -207,9 +170,6 @@ const NavBar = () => {
 									: "border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200",
 							].join(" ")}>
 								<FiBell className="text-base" />
-								{unreadNotificationsCount > 0 && (
-									<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
-								)}
 							</NavLink>
 							</>
 						)}
@@ -235,9 +195,6 @@ const NavBar = () => {
 									: "border-base-300 bg-white/80 text-base-content hover:border-black hover:bg-base-200",
 							].join(" ")}>
 								<FiBell className="text-base" />
-								{unreadNotificationsCount > 0 && (
-									<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
-								)}
 							</NavLink>
 						)}
 
@@ -272,13 +229,10 @@ const NavBar = () => {
 						{hasAccountProfile && (
 							<div className="relative">
 																<div
-																	onClick={handleNav(["admin", "staff"].includes(profile?.role) ? "/admin-notifications" : "/client-notifications")}
+																	onClick={["admin", "staff"].includes(profile?.role) ? handleNav("/admin-notifications") : undefined}
 																className="relative cursor-pointer"
 															>
-																{profile && profile.role !== "admin" && unreadNotificationsCount > 0 && (
-																	<span className="badge badge-error badge-xs absolute -top-1 -right-1 z-10">{unreadNotificationsCount}</span>
-																)}
-															</div>
+														</div>
 														</div>
 									)}
 						<button
@@ -377,9 +331,6 @@ const NavBar = () => {
 									<NavLink to="/client-notifications" className={mobileLinkClass} onClick={closeMobile}>
 										<FiBell />
 										Notifications
-										{unreadNotificationsCount > 0 && (
-											<span className="badge badge-error badge-xs ml-1">{unreadNotificationsCount}</span>
-										)}
 									</NavLink>
 								</>
 							)}
