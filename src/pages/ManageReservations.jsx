@@ -153,8 +153,6 @@ const ManageReservations = () => {
 
 		setUpdatingReservationId(id);
 		try {
-			let cancellationRefund = null;
-			let cancellationRefundEmailSent = false;
 			if (newStatus === "cancelled") {
 				const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 				if (sessionError) throw sessionError;
@@ -172,8 +170,6 @@ const ManageReservations = () => {
 				if (!response.ok || !result.cancelled) {
 					throw new Error(result.error || "The reservation could not be cancelled.");
 				}
-				cancellationRefund = result.refund;
-				cancellationRefundEmailSent = result.refundEmailSent === true;
 			} else {
 				const { data, error } = await supabase
 					.from("reservations")
@@ -191,7 +187,6 @@ const ManageReservations = () => {
 
 			const clientName = reservationGuestName(resToUpdate);
 			const clientEmail = resToUpdate.guest_email || resToUpdate.profiles?.email;
-			let emailError = clientEmail ? "" : "No email address is available for this reservation.";
 			if (clientEmail) {
 				try {
 					const response = await fetch("/api/reservation-status-notification", {
@@ -210,28 +205,14 @@ const ManageReservations = () => {
 						}),
 					});
 					const result = await response.json();
-					if (!response.ok) throw new Error(result.error || "Email could not be sent.");
+					if (!response.ok) {
+						console.error("Email could not be sent:", result.error);
+					}
 				} catch (error) {
 					console.error("Failed to send reservation status email:", error);
-					emailError = error instanceof Error ? error.message : "Email could not be sent.";
 				}
 			}
 
-			const refundMessage = cancellationRefund?.status === "pending" || cancellationRefund?.status === "succeeded"
-				? ` The ₱2,000 security-deposit refund was ${cancellationRefund.status === "succeeded" ? "completed" : "submitted to PayMongo"}; the down payment and any paid balance are not included.${cancellationRefund.refundId && !cancellationRefundEmailSent ? " The refund email could not be sent; check Gmail settings and server logs." : ""}`
-				: cancellationRefund?.status === "manual_review"
-					? " The security-deposit refund needs manual review in PayMongo."
-					: "";
-			const statusMessage = newStatus === "confirmed"
-				? `Reservation for ${clientName} was accepted.`
-				: newStatus === "denied"
-					? `Reservation for ${clientName} was denied.`
-					: `Reservation for ${clientName} was cancelled.`;
-			alert(
-				statusMessage +
-				refundMessage +
-				(emailError ? ` However, the email notification failed: ${emailError}` : ""),
-			);
 			await fetchReservations(false);
 		} catch (error) {
 			alert(`Could not update reservation: ${error.message}`);
