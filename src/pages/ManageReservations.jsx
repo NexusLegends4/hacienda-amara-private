@@ -4,6 +4,7 @@ import { supabase } from "../utils/supabase";
 import { SessionContext } from "../contexts/SessionContext";
 import { useNavigate } from "react-router-dom";
 import { FiCalendar, FiCheckCircle, FiRefreshCw, FiXCircle } from "react-icons/fi";
+import ReservationActionModal from "../components/ReservationActionModal";
 import {
 	canRefundSecurityDeposit,
 	shouldShowSecurityDepositRefund,
@@ -43,6 +44,10 @@ const ManageReservations = () => {
 	const [loading, setLoading] = useState(true);
 	const [updatingReservationId, setUpdatingReservationId] = useState(null);
 	const [refundingReservationId, setRefundingReservationId] = useState(null);
+	const [modalOpen, setModalOpen] = useState(false);
+	const [modalReservation, setModalReservation] = useState(null);
+	const [modalAction, setModalAction] = useState(null);
+	const [modalLoading, setModalLoading] = useState(false);
 	const [maintenancePeriods, setMaintenancePeriods] = useState([]);
 	const [maintenanceStart, setMaintenanceStart] = useState("");
 	const [maintenanceEnd, setMaintenanceEnd] = useState("");
@@ -125,7 +130,7 @@ const ManageReservations = () => {
 		}
 	}, [canManageReservations, fetchMaintenance, fetchReservations]);
 
-	const updateStatus = async (id, newStatus) => {
+	const updateStatus = useCallback(async (id, newStatus, rejectionReason = "") => {
 		const resToUpdate = reservations.find((reservation) => reservation.id === id);
 		if (!resToUpdate) return;
 		const currentStatus = resToUpdate.status || "pending";
@@ -139,11 +144,7 @@ const ManageReservations = () => {
 				!(newStatus === "confirmed" && canReviewLatePayment))
 		) return;
 
-		let rejectionReason = "";
 		if (newStatus === "denied") {
-			const enteredReason = window.prompt("Reason for denying this reservation (optional):", "");
-			if (enteredReason === null) return;
-			rejectionReason = enteredReason.trim();
 			if (rejectionReason.length > 300) {
 				alert("The denial reason must be 300 characters or fewer.");
 				return;
@@ -237,7 +238,30 @@ const ManageReservations = () => {
 		} finally {
 			setUpdatingReservationId(null);
 		}
-	};
+	}, [reservations, session, setUpdatingReservationId, fetchReservations]);
+
+	const openModal = useCallback((reservation, action) => {
+		setModalReservation(reservation);
+		setModalAction(action);
+		setModalOpen(true);
+	}, []);
+
+	const closeModal = useCallback(() => {
+		setModalOpen(false);
+		setModalReservation(null);
+		setModalAction(null);
+		setModalLoading(false);
+	}, []);
+
+	const handleModalConfirm = useCallback(async (denialReason) => {
+		if (!modalReservation || !modalAction) return;
+		setModalLoading(true);
+		try {
+			await updateStatus(modalReservation.id, modalAction, modalAction === "denied" ? denialReason : "");
+		} finally {
+			closeModal();
+		}
+	}, [modalReservation, modalAction, updateStatus, closeModal]);
 
 	const requestSecurityDepositRefund = async (reservation) => {
 		const amount = Number(reservation.security_deposit_amount);
@@ -480,32 +504,32 @@ const ManageReservations = () => {
 															{reservationStatus === "pending" && (
 																<>
 																	<button
-																		type="button"
-																		onClick={() => updateStatus(res.id, "confirmed")}
-																		disabled={updatingReservationId !== null}
-																		className="btn btn-sm rounded-full btn-success text-white"
-																		title="Accept reservation"
+																	type="button"
+																	onClick={() => openModal(res, "confirmed")}
+																	disabled={updatingReservationId !== null || modalLoading}
+																	className="btn btn-sm rounded-full btn-success text-white"
+																	title="Accept reservation"
 																	>
 																		<FiCheckCircle /> Accept
 																	</button>
 																	<button
 																		type="button"
-																		onClick={() => updateStatus(res.id, "denied")}
-																		disabled={updatingReservationId !== null}
+																		onClick={() => openModal(res, "denied")}
+																		disabled={updatingReservationId !== null || modalLoading}
 																		className="btn btn-sm rounded-full btn-error btn-outline"
 																		title="Deny reservation"
 																	>
 																		<FiXCircle /> Deny
 																	</button>
-																</>
-															)}
+																	</>
+																)}
 															{reservationStatus === "denied" &&
 																["down_payment_paid", "fully_paid"].includes(res.payment_status) &&
 																res.late_payment_received_at && (
 																	<button
 																		type="button"
-																		onClick={() => updateStatus(res.id, "confirmed")}
-																		disabled={updatingReservationId !== null}
+																		onClick={() => openModal(res, "confirmed")}
+																		disabled={updatingReservationId !== null || modalLoading}
 																		className="btn btn-sm rounded-full btn-success text-white"
 																		title="Accept reservation after reviewing its late payment"
 																	>
@@ -514,8 +538,9 @@ const ManageReservations = () => {
 																)}
 															{reservationStatus === "confirmed" && (
 																<button
-																	onClick={() => updateStatus(res.id, "cancelled")}
-																	disabled={updatingReservationId !== null}
+																	type="button"
+																	onClick={() => openModal(res, "cancelled")}
+																	disabled={updatingReservationId !== null || modalLoading}
 																	className="btn btn-sm rounded-full btn-warning btn-outline"
 																	title="Cancel accepted reservation"
 																>
@@ -552,6 +577,15 @@ const ManageReservations = () => {
 					</div>
 				</div>
 			</div>
+
+			<ReservationActionModal
+				isOpen={modalOpen}
+				onClose={closeModal}
+				reservation={modalReservation}
+				action={modalAction}
+				onConfirm={handleModalConfirm}
+				loading={modalLoading}
+			/>
 		</MainLayout>
 	);
 };
